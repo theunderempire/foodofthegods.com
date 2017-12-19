@@ -12,6 +12,8 @@ var db = monk('0.0.0.0:27017/foodofthegods-api');
 
 var index = require('./routes/index');
 var recipes = require('./routes/recipes');
+var auth = require('./routes/auth');
+var ingredientList = require('./routes/ingredientList');
 
 var app = express();
 
@@ -42,6 +44,8 @@ app.all("/*", function(req, res, next){
 
 app.use('/', index);
 app.use('/recipes', recipes);
+app.use('/auth', auth);
+app.use('/ingredientList', ingredientList);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
