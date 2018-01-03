@@ -16,11 +16,12 @@ var db = monk('0.0.0.0:27017/foodofthegods-api');
 
 var index = require('./routes/index');
 var recipes = require('./routes/recipes');
-var auth = require('./routes/auth');
-var users = require('./routes/users');
+var token = require('./routes/token');
 var ingredientList = require('./routes/ingredientList');
 
 var app = express();
+
+var router = express.Router();
 
 app.set('superSecret', config.secret);
 
@@ -44,16 +45,50 @@ app.use(function(req,res,next){
 
 app.all("/*", function(req, res, next){
     res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+    res.header('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, X-Access-Token');
     next();
 });
 
 app.use('/', index);
+app.use('/token', token);
+
+app.use(function(req, res, next) {
+
+  // check header or url parameters or post parameters for token
+  var token = req.body.token || req.query.token || req.headers['x-access-token'];
+
+    if (req.method === 'OPTIONS') {
+        res.send('op');
+    }
+  // decode token
+  if (token) {
+
+    // verifies secret and checks exp
+    jwt.verify(token, app.get('superSecret'), function(err, decoded) {      
+      if (err) {
+        return res.json({ success: false, message: 'Failed to authenticate token.' });    
+      } else {
+        // if everything is good, save to request for use in other routes
+        req.decoded = decoded;    
+        next();
+      }
+    });
+
+  } else {
+
+    // if there is no token
+    // return an error
+    return res.status(403).send({ 
+        success: false, 
+        message: 'No token provided.' 
+    });
+
+  }
+});
+
 app.use('/recipes', recipes);
-app.use('/auth', auth);
 app.use('/ingredientList', ingredientList);
-app.use('/users', users);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
