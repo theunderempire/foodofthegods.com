@@ -2,12 +2,12 @@ var express = require('express');
 var router = express.Router();
 var ObjectId = require('mongodb').ObjectID;
 
-/* GET recipes listing. */
+/* GET ingredient list */
 router.get('/', function(req, res, next) {
     var db = getDB(req);
     var collection = getCollection(db);
     collection.find({},{},function(e, docs){
-        res.json(docs);
+        res.json({success: true, data: docs});
     })
 });
 
@@ -34,7 +34,7 @@ function printMsg(res, err, msg) {
     var resMsg = err === null
         ? {"msg": msg}
         : {msg: "error: " + err};
-    res.send(resMsg);
+    res.json({success: true, data: resMsg});
 }
 
 module.exports = router;

@@ -27,7 +27,7 @@ router.post('/', function (req, res, next) {
                 res.json({ success: false, message: 'Authentication failed. Incorrect credentials.' });
             } else {
                 var token = jwt.sign({success: true}, app.get('superSecret'), {
-                    expiresIn: 1440
+                    expiresIn: '1d'
                 });
 
                 res.json({
