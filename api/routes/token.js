@@ -13,6 +13,21 @@ router.get('/', function(req, res, next) {
     })
 });
 
+router.get('/:username', function (req, res, next) {
+    var db = getDB(req);
+    var collection = getCollection(db);
+    var app = require('../fotg');
+    var username = req.params.username;
+
+    collection.findOne({username: username}, {}, function(e, user) {
+        if (!user) {
+            res.json({ success: false, message: 'Authentication failed. Incorrect credentials.' });
+        } else {
+            res.json({success: true, username: username, timestamp: user.timestamp});
+        }
+    });
+})
+
 router.post('/', function (req, res, next) {
     var db = getDB(req);
     var collection = getCollection(db);
