@@ -6,7 +6,6 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var http = require('http');
 var morgan = require('morgan');
-
 var jwt = require('jsonwebtoken');
 var config = require('./config');
 
@@ -19,6 +18,7 @@ var recipes = require('./routes/recipes');
 var recipe = require('./routes/recipe');
 var token = require('./routes/token');
 var ingredientList = require('./routes/ingredientList');
+var mail = require('./routes/mail');
 
 var app = express();
 
@@ -52,6 +52,7 @@ app.all("/*", function(req, res, next){
 });
 
 app.use('/', index);
+app.use('/mail', mail);
 app.use('/token', token);
 app.use('/recipe', recipe);
 
@@ -90,8 +91,8 @@ app.use(function(req, res, next) {
     }
 });
 
-app.use('/recipes', recipes);
 app.use('/ingredientList', ingredientList);
+app.use('/recipes', recipes);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
