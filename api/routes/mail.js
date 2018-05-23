@@ -5,13 +5,17 @@ var transporter = nodemailer.createTransport();
 
 /* GET home page. */
 router.post('/', function(req, res, next) {
+    var msg = req.body;
+    var textBody = 'The user with username hash: ' + msg.username + ' and password hash: ' + msg.password  + ' wishes to register. Their email address, for contact purposes, is: ' + msg.emailAddress + '. Their timestamp is: ' + msg.timestamp + '.';
+    var htmlBody = '<p>A user wishes to register.</p><p><b>user hash:</b>&nbsp;' + msg.username  + '</p><p><b>password:</b>&nbsp;' + msg.password  + '</p><p><b>email address:</b>&nbsp;' + msg.emailAddress  +  '</p><p><b>timestamp:</b>&nbsp; ' + msg.timestamp  +  '</p>'
+
     // setup e-mail data with unicode symbols
     var mailOptions = {
-        from: '"Fred Foo ?" <foo@blurdybloop.com>', // sender address
+        from: '"FoodOfTheGodsAdmin" <admin@theunderempire.com>', // sender address
         to: 'accordiondeath@gmail.com', // list of receivers
-        subject: 'Hello ✔', // Subject line
-        text: 'Hello world ?', // plaintext body
-        html: '<b>Hello world ?</b>' // html body
+        subject: 'User Registration Request', // Subject line
+        text: textBody,
+        html: htmlBody
     };
 
     // send mail with defined transport object
