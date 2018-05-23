@@ -3,10 +3,11 @@ var router = express.Router();
 var ObjectId = require('mongodb').ObjectID;
 
 /* GET recipes listing. */
-router.get('/', function(req, res, next) {
+router.get('/:userId', function(req, res, next) {
+    var id = req.params.userId;
     var db = getDB(req);
     var collection = getCollection(db);
-    collection.find({},{},function(e, docs){
+    collection.find({'userId': id},{},function(e, docs){
         res.json({success: true, data: docs});
     })
 });
