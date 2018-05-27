@@ -1,7 +1,12 @@
 var express = require('express');
 var router = express.Router();
 var nodemailer = require('nodemailer');
-var transporter = nodemailer.createTransport();
+var transporter = nodemailer.createTransport({
+    port: 25,
+    tls:{
+        rejectUnauthorized: false
+    }
+});
 
 /* GET home page. */
 router.post('/', function(req, res, next) {
