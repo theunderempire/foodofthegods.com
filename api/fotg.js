@@ -11,7 +11,7 @@ var config = require('./config');
 
 var mongo = require('mongo');
 var monk = require('monk');
-var db = monk('0.0.0.0:27017/foodofthegods-api');
+var db = monk('0.0.0.0:27017/foodofthegods-api-dev');
 
 var index = require('./routes/index');
 var recipes = require('./routes/recipes');
