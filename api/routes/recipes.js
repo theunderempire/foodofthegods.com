@@ -7,14 +7,23 @@ router.get('/:userId', function(req, res, next) {
     var id = req.params.userId;
     var db = getDB(req);
     var collection = getCollection(db);
-    collection.find({'userId': id},{},function(e, docs){
-        res.json({success: true, data: docs});
-    })
+    
+    // Check that this user is authorized to view these things
+    if (checkUser(req, id)) {
+
+        collection.find({'userId': id},{},function(e, docs){
+            res.json({success: true, data: docs});
+        })
+    } else {
+        returnUnauthorized(res);
+    }
 });
 
 router.post('/', function (req, res, next) {
     var db = getDB(req);
     var collection = getCollection(db);
+
+//    res.send(req.body.userId === req.decoded.username);
 
     collection.insert(req.body, function(err, result){
         printMsg(res, err, 'recipe added');
@@ -41,6 +50,14 @@ router.put('/:id', function (req, res, next) {
         printMsg(res, err, 'recipe updated');
     });
 });
+
+function checkUser(req, id) {
+    return id === req.decoded.username;
+}
+
+function returnUnauthorized(res) {
+    res.status(401).json({success: false});
+}
 
 function getCollection(db) {
     return db.get('recipelist');
