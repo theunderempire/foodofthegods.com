@@ -15,11 +15,11 @@ router.post('/', function (req, res, next) {
     var db = getDB(req);
     var collection = getCollection(db);
 
-//    res.send(req.body.userId === req.decoded.username);
-
-    collection.insert(req.body, function(err, result){
-        printMsg(res, err, 'recipe added');
-    });
+    if (req.body.userId === req.decoded.username) {
+        collection.insert(req.body, function(err, result){
+            printMsg(res, err, 'recipe added');
+        });
+    }
 });
 
 router.delete('/:id', function (req, res, next) {
@@ -27,8 +27,14 @@ router.delete('/:id', function (req, res, next) {
     var collection = getCollection(db);
     var recipeToDelete = req.params.id;
 
-    collection.remove({ '_id' : recipeToDelete }, function(err) {
-        printMsg(res, err, 'recipe deleted');
+    collection.find({'_id' : recipeToDelete}, {}, function(e, docs) {
+        if (checkUser(req, docs[0].userId)) {
+            collection.remove({ '_id' : recipeToDelete }, function(err) {
+                printMsg(res, err, 'recipe deleted');
+            });
+        } else {
+            returnUnauthorized(res);
+        }
     });
 });
 
@@ -38,8 +44,14 @@ router.put('/:id', function (req, res, next) {
     var recipeToUpdate = req.params.id;
     var updatedRecipe = req.body;
 
-    collection.update({'_id' : recipeToUpdate}, updatedRecipe, function (err) {
+    collection.find({'_id' : recipeToUpdate}, {}, function(e, docs) {
+        if (checkUser(req, docs[0].userId)) {
+            collection.update({'_id' : recipeToUpdate}, updatedRecipe, function (err) {
         printMsg(res, err, 'recipe updated');
+    });
+        } else {
+            returnUnauthorized(res);
+        }
     });
 });
 
