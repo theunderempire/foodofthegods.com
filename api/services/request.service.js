@@ -24,7 +24,7 @@ var RequestService = function () {
     }
 
     // Returns a standard unauthorized message
-    function returnUnauthorized() {
+    function returnUnauthorized(res) {
         res.status(401).json({success: false});
     }
 };
