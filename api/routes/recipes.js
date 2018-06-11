@@ -1,22 +1,14 @@
 var express = require('express');
 var router = express.Router();
 var ObjectId = require('mongodb').ObjectID;
+var RecipesService = require('../services/recipes.service');
+var recipesService = new RecipesService();
 
 /* GET recipes listing. */
 router.get('/:userId', function(req, res, next) {
     var id = req.params.userId;
-    var db = getDB(req);
-    var collection = getCollection(db);
-    
-    // Check that this user is authorized to view these things
-    if (checkUser(req, id)) {
 
-        collection.find({'userId': id},{},function(e, docs){
-            res.json({success: true, data: docs});
-        })
-    } else {
-        returnUnauthorized(res);
-    }
+    recipesService.getRecipesForUser(id, req, res);    
 });
 
 router.post('/', function (req, res, next) {
