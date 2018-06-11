@@ -6,77 +6,20 @@ var recipesService = new RecipesService();
 
 /* GET recipes listing. */
 router.get('/:userId', function(req, res, next) {
-    var id = req.params.userId;
-
-    recipesService.getRecipesForUser(id, req, res);    
+    recipesService.getRecipesForUser(req, res);    
 });
 
 router.post('/', function (req, res, next) {
-    var db = getDB(req);
-    var collection = getCollection(db);
-
-    if (req.body.userId === req.decoded.username) {
-        collection.insert(req.body, function(err, result){
-            printMsg(res, err, 'recipe added');
-        });
-    }
+    recipesService.addRecipeForUser(req, res);
 });
 
 router.delete('/:id', function (req, res, next) {
-    var db = getDB(req);
-    var collection = getCollection(db);
-    var recipeToDelete = req.params.id;
-
-    collection.find({'_id' : recipeToDelete}, {}, function(e, docs) {
-        if (checkUser(req, docs[0].userId)) {
-            collection.remove({ '_id' : recipeToDelete }, function(err) {
-                printMsg(res, err, 'recipe deleted');
-            });
-        } else {
-            returnUnauthorized(res);
-        }
-    });
+    recipesService.deleteRecipe(req, res);
 });
 
 router.put('/:id', function (req, res, next) {
-    var db = getDB(req);
-    var collection = getCollection(db);
-    var recipeToUpdate = req.params.id;
-    var updatedRecipe = req.body;
-
-    collection.find({'_id' : recipeToUpdate}, {}, function(e, docs) {
-        if (checkUser(req, docs[0].userId)) {
-            collection.update({'_id' : recipeToUpdate}, updatedRecipe, function (err) {
-        printMsg(res, err, 'recipe updated');
-    });
-        } else {
-            returnUnauthorized(res);
-        }
-    });
+    recipesService.updateRecipe(req, res);
 });
-
-function checkUser(req, id) {
-    return id === req.decoded.username;
-}
-
-function returnUnauthorized(res) {
-    res.status(401).json({success: false});
-}
-
-function getCollection(db) {
-    return db.get('recipelist');
-}
-
-function getDB(req) {
-    return req.db;
-}
-
-function printMsg(res, err, msg) {
-    var resMsg = err === null
-        ? {"msg": msg}
-        : {msg: "error: " + err};
-    res.json({success: true, data: resMsg});
-}
 
 module.exports = router;
 
