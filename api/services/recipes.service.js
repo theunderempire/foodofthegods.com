@@ -11,10 +11,12 @@ var RecipesService = function () {
 
     // Adds a recipe to a user's recipe list
     function addRecipeForUser(req, res) {
-        var collection = getRecipeListCollection(req);
+        var recipeCollection = getRecipeListCollection(req);
+        var userCollection = getUserCollection(req);
 
         if (req.body.userId === req.decoded.username) {
-            collection.insert(req.body, function(err, result){
+            recipeCollection.insert(req.body, function(err, result) {
+                userCollection.update({"username" : req.decoded.username}, { $push: {recipeList: result._id} });
                 requestService.printMsg(res, err, 'recipe added');
             });
         }
@@ -22,29 +24,37 @@ var RecipesService = function () {
 
     // Deletes the recipe with the requested recipeID
     function deleteRecipe(req, res) {
-        var collection = getRecipeListCollection(req);
+        var recipeCollection = getRecipeListCollection(req);
+        var userCollection = getUserCollection(req);
         var recipeID = req.params.id;
 
-        collection.find({'_id' : recipeID}, {}, function(e, docs) {
-            if (requestService.checkUser(req, docs[0].userId)) {
-                collection.remove({ '_id' : recipeID }, function(err) {
-                    requestService.printMsg(res, err, 'recipe deleted');
+        recipeCollection.find({'_id' : recipeID}, {}, function(e, docs) {
+            // Remove from recipeList
+            userCollection.update({ "username" : req.decoded.username }, { $pull : {recipeList: recipeID} }, function (e, result) {
+                userCollection.find({ recipeList: recipeID }, { "_id": 1 }, function (e, usersWithRecipe) {
+                    // If the recipe is no longer in anyone's list, delete it
+                    if (!usersWithRecipe.length) {
+                        recipeCollection.remove({ '_id' : recipeID }, function(err) {});
+                    }
                 });
-            } else {
-                requestService.returnUnauthorized(res);
-            }
+            });
+
+            requestService.printMsg(res, e, 'recipe deleted');
         });
     }
 
     // Returns all the recipes that are owned by the user with userID id
     function getRecipesForUser(req, res) {
-        var collection = getRecipeListCollection(req);
+        var recipeCollection = getRecipeListCollection(req);
+        var userCollection = getUserCollection(req);
         var userID = req.params.userId;
 
         if (requestService.checkUser(req, userID)) {
-            collection.find({'userId': userID},{},function(e, docs){
-                res.json({success: true, data: docs});
-            })
+            userCollection.find({"username" : userID}, {recipeList: 1}, function(e, recipeIDs) {
+                recipeCollection.find({"_id" : {$in: recipeIDs[0].recipeList}}, function (e, recipes) {
+                    res.json({success: true, data: recipes});
+                });
+            });
         } else {
             requestService.returnUnauthorized(res);
         }
@@ -79,6 +89,11 @@ var RecipesService = function () {
     // Returns the 'recipelist' collection from the db
     function getRecipeListCollection(req) {
         return requestService.getCollection(req, 'recipelist');
+    }
+
+    // Returns the user collection
+    function getUserCollection(req) {
+        return requestService.getCollection(req, 'users');
     }
 };
 
