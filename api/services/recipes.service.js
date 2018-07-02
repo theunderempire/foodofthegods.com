@@ -51,7 +51,7 @@ var RecipesService = function () {
 
         if (requestService.checkUser(req, userID)) {
             userCollection.find({"username" : userID}, {recipeList: 1}, function(e, recipeIDs) {
-                recipeCollection.find({"_id" : {$in: recipeIDs[0].recipeList}}, function (e, recipes) {
+                recipeCollection.find({"_id" : {$in: recipeIDs[0].recipeList}}, {'name': 1, 'prepDuration': 1, 'cookDuration': 1}, function (e, recipes) {
                     res.json({success: true, data: recipes});
                 });
             });
