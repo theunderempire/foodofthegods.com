@@ -9,9 +9,13 @@ var morgan = require('morgan');
 var jwt = require('jsonwebtoken');
 var config = require('./config');
 
+require('dotenv').config({ path: path.join(__dirname, `../.env.${process.env.NODE_ENV}`)}); 
+
 var mongo = require('mongo');
 var monk = require('monk');
-var db = monk('0.0.0.0:27017/foodofthegods-api-dev');
+var db = monk(`0.0.0.0:27017/${process.env.SERVER_SERVICE_NAME}`);
+
+console.log('!starting', process.env.NODE_ENV, process.env.PORT);
 
 var index = require('./routes/index');
 var recipes = require('./routes/recipes');
