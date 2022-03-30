@@ -5,8 +5,8 @@ var RecipesService = require('../services/recipes.service');
 var recipesService = new RecipesService();
 
 /* GET recipes listing. */
-router.get('/:id', function(req, res, next) {
-    recipesService.getSingleRecipe(req, res);
+router.get('/:id', function (req, res, next) {
+  recipesService.getSingleRecipe(req, res);
 });
 
 module.exports = router;
