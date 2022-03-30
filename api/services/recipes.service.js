@@ -47,10 +47,10 @@ var RecipesService = function () {
   function getRecipesForUser(req, res) {
     var recipeCollection = getRecipeListCollection(req);
     var userCollection = getUserCollection(req);
-    var userID = req.params.userId;
+    var username = req.params.userId;
 
-    if (requestService.checkUser(req, userID)) {
-      userCollection.find({ "username": userID }, { recipeList: 1 }, function (e, recipeIDs) {
+    if (requestService.checkUser(req, username)) {
+      userCollection.find({ "username": username }, { recipeList: 1 }, function (e, recipeIDs) {
         recipeCollection.find({ "_id": { $in: recipeIDs[0].recipeList } }, { 'name': 1, 'prepDuration': 1, 'cookDuration': 1 }, function (e, recipes) {
           res.json({ success: true, data: recipes });
         });
