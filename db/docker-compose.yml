@@ -1,0 +1,17 @@
+version: "3.8"
+services:
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    environment:
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - /Users/thawkins/Documents/Workspace/foodofthegods/foodofthegods-db/mongodb/database:/data/db
+    ports:
+      - 27017:27017
+    restart: unless-stopped
+  db-seed:
+    build: ./mongodb/seed
+    links:
+      - mongodb
