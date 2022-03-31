@@ -1,103 +1,28 @@
 {
-  "_id": "59f77c6cd865453d9a12b8c0",
-  "name": "Chocolate Morning Muffins",
-  "prepDuration": "20 min.",
-  "cookDuration": "20 min",
-  "servings": "12",
+  "_id": { "$oid": "6244eb84c0198f0014e646b6" },
+  "name": "Test",
+  "prepDuration": "1 min",
+  "cookDuration": "2 min",
+  "servings": "45",
   "ingredients": [
     {
-      "name": "chocolate chips",
-      "unit": "c",
-      "amount": "1",
-      "id": 1509391087542
-    },
-    {
-      "name": "brown sugar",
-      "unit": "c",
-      "amount": "1",
-      "id": 1509391241133
-    },
-    {
-      "name": "flour",
-      "unit": "c",
-      "amount": "1",
-      "id": 1509391241926
-    },
-    {
-      "name": "cocoa powder",
-      "unit": "c",
-      "amount": ".25",
-      "id": 1509391242505
-    },
-    {
-      "name": "baking soda",
-      "unit": "t",
-      "amount": "1",
-      "id": 1509391243669
-    },
-    {
-      "name": "baking powder",
-      "unit": "t",
-      "amount": "1",
-      "id": 1509391244243
-    },
-    {
       "name": "salt",
-      "unit": "t",
-      "amount": ".5",
-      "id": 1509391244791
-    },
-    {
-      "name": "soy milk",
-      "unit": "c",
+      "unit": "",
       "amount": "1",
-      "id": 1509391245964
+      "id": 1648683881661
     },
     {
-      "name": "grapeseed oil",
-      "unit": "c",
-      "amount": ".25",
-      "id": 1509391246592
-    },
-    {
-      "name": "unsweetened applesauce",
-      "unit": "c",
-      "amount": ".25",
-      "id": 1509391247192
-    },
-    {
-      "name": "eggs",
-      "amount": "2",
-      "id": 1509391248139
-    },
-    {
-      "name": "apple cider vinegar",
-      "unit": "t",
-      "amount": "2",
-      "id": 1509391248794
-    },
-    {
-      "name": "vanilla extract",
-      "unit": "t",
-      "amount": "2",
-      "id": 1509391249383
+      "name": "water",
+      "unit": "",
+      "amount": "1",
+      "id": 1648683893676
     }
   ],
   "directions": [
     {
-      "text": "Preheat oven to 400 degrees F. Grease 12 muffin cups or line with paper liners.",
-      "duration": "5. min",
-      "id": 1509391087542
-    },
-    {
-      "text": "Whisk chocolate chips, brown sugar, flour, cocoa powder, baking soda, baking powder, and salt together in a bowl. Whisk soy milk, oil, applesauce, eggs, vinegar, and vanilla extract together in a separate bowl; stir into flour mixture until batter is just combined. Spoon batter into prepared muffin cups until each cup is 3/4-full.",
-      "duration": "15 min.",
-      "id": 1509391413599
-    },
-    {
-      "text": "Bake in the preheated oven until a toothpick inserted in the center of a muffin comes out clean, 20 to 25 minutes.",
-      "duration": "20 min.",
-      "id": 1509391450434
+      "text": "Mix 'em baby.",
+      "duration": "1 second",
+      "id": 1648683881661
     }
   ],
   "userId": "658729026be8d220c4485c9b14fd1e26"

@@ -1,6 +1,6 @@
 {
-  "_id": "5fab30aa5b44892e627c3fc6",
-  "userId": "658729026be8d220c4485c9b14fd1e26",
+  "_id": { "$oid": "5fab30aa5b44892e627c3fc6" },
+  "userId": "5d9c68c6c50ed3d02a2fcf54f63993b6",
   "ingredientList": { "items": [], "lastModified": "2022-03-28T20:39:18.296Z" },
   "completedList": null
 }

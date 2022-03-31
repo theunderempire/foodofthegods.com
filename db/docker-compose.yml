@@ -2,7 +2,7 @@ version: "3.8"
 services:
   mongodb:
     image: mongo
-    container_name: mongodb
+    container_name: foodofthegods-db
     environment:
       - PUID=1000
       - PGID=1000
@@ -15,3 +15,7 @@ services:
     build: ./mongodb/seed
     links:
       - mongodb
+networks:
+  default:
+    external:
+      name: fotg-network
