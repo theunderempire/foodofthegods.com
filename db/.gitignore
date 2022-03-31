@@ -50,3 +50,4 @@ Thumbs.db
 
 #mongodb data files
 /mongodb/database/*
+!mongodb/database/.gitkeep
