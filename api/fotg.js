@@ -15,8 +15,6 @@ var db = monk(`foodofthegods-db:27017/${process.env.DB_SERVICE_NAME}`);
 
 db.then(() => {
   console.log('database connected')
-}).error((err) => {
-  console.log('error', err);
 });
 
 console.log("!starting", process.env.NODE_ENV, process.env.PORT);
