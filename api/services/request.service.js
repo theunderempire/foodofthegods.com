@@ -16,9 +16,7 @@ var RequestService = function () {
   }
 
   function printMsg(res, err, msg) {
-    var resMsg = err === null ?
-      { "msg": msg } :
-      { msg: "error: " + err };
+    var resMsg = err === null ? { msg: msg } : { msg: "error: " + err };
 
     res.json({ success: true, data: resMsg });
   }
@@ -30,4 +28,3 @@ var RequestService = function () {
 };
 
 module.exports = RequestService;
-
