@@ -8,7 +8,6 @@ var app = require("../fotg");
 router.get("/:username", function (req, res, next) {
   var db = getDB(req);
   var collection = getCollection(db);
-  var app = require("../fotg");
   var username = req.params.username;
 
   collection.findOne({ username: username }, {}, function (e, user) {
@@ -47,7 +46,8 @@ router.post("/", function (req, res, next) {
         var token = jwt.sign(
           {
             success: true,
-            data: { username: user.username, password: user.password },
+            username: user.username,
+            password: user.password,
           },
           app.get("superSecret"),
           {
@@ -57,8 +57,10 @@ router.post("/", function (req, res, next) {
 
         res.json({
           success: true,
-          message: "authenticated",
-          token: token,
+          data: {
+            message: "authenticated",
+            token: token,
+          },
         });
       }
     }
