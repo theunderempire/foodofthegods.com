@@ -11,10 +11,11 @@ require("dotenv").config({
 });
 
 var monk = require("monk");
-var db = monk(`foodofthegods-db:27017/${process.env.DB_SERVICE_NAME}`);
+// TODO: for production, use 0.0.0.0, for dev, use foodofthegods-db
+var db = monk(`0.0.0.0:27017/${process.env.DB_SERVICE_NAME}`);
 
 db.then(() => {
-  console.log('database connected')
+  console.log("database connected");
 });
 
 console.log("!starting", process.env.NODE_ENV, process.env.PORT);
