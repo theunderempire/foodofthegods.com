@@ -3,7 +3,6 @@ var path = require("path");
 var logger = require("morgan");
 var cookieParser = require("cookie-parser");
 var bodyParser = require("body-parser");
-var jwt = require("jsonwebtoken");
 var config = require("./config");
 
 require("dotenv").config({
@@ -27,7 +26,8 @@ console.log("!starting", process.env.NODE_ENV, process.env.PORT);
 var index = require("./routes/index");
 var recipes = require("./routes/recipes");
 var recipe = require("./routes/recipe");
-var token = require("./routes/token");
+var tokenCheck = require("./routes/token").tokenCheck;
+var token = require("./routes/token").router;
 var ingredientList = require("./routes/ingredientList");
 var mail = require("./routes/mail");
 
@@ -67,41 +67,7 @@ app.use("/", index);
 app.use("/mail", mail);
 app.use("/token", token);
 app.use("/recipe", recipe);
-
-app.use(function (req, res, next) {
-  // check header or url parameters or post parameters for token
-  var token =
-    req.body.token || req.query.token || req.headers["x-access-token"];
-
-  if (req.method === "OPTIONS") {
-    res.send("op");
-  }
-
-  // decode token
-  if (token) {
-    // verifies secret and checks exp
-    jwt.verify(token, app.get("superSecret"), function (err, decoded) {
-      if (err) {
-        return res.json({
-          success: false,
-          message: "Failed to authenticate token.",
-        });
-      } else {
-        // if everything is good, save to request for use in other routes
-        req.decoded = decoded;
-        next();
-      }
-    });
-  } else {
-    // if there is no token
-    // return an error
-    return res.status(403).send({
-      success: false,
-      message: "No token provided.",
-    });
-  }
-});
-
+app.use(tokenCheck);
 app.use("/ingredientList", ingredientList);
 app.use("/recipes", recipes);
 
