@@ -9,9 +9,6 @@ require("dotenv").config({
 });
 
 var monk = require("monk");
-// TODO: for production, use 0.0.0.0, for dev, use foodofthegods-db
-// var db = monk(`foodofthegods-db:27017/${process.env.DB_SERVICE_NAME}`);
-// var db = monk(`0.0.0.0:27017/${process.env.DB_SERVICE_NAME}`);
 var db = monk(
   `${process.env.DB_HOST_NAME}:27017/${process.env.DB_SERVICE_NAME}`
 );
@@ -37,12 +34,12 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
 // Make our db accessible to our router
-app.use(function (req, res, next) {
+app.use(function (req, _res, next) {
   req.db = db;
   next();
 });
 
-app.all("/*", function (req, res, next) {
+app.all("/*", function (_req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
   res.header(
@@ -69,14 +66,14 @@ app.use("/ingredientList", ingredientList);
 app.use("/recipes", recipes);
 
 // catch 404 and forward to error handler
-app.use(function (req, res, next) {
+app.use(function (_req, _res, next) {
   var err = new Error("Not Found");
   err.status = 404;
   next(err);
 });
 
 // error handler
-app.use(function (err, req, res, next) {
+app.use(function (err, req, res) {
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get("env") === "development" ? err : {};

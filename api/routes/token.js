@@ -88,6 +88,7 @@ function tokenCheck(req, res, next) {
 
   // decode token
   if (token) {
+    var app = require("../fotg");
     // verifies secret and checks exp
     jwt.verify(token, secret.superSecret, function (err, decoded) {
       if (err) {
