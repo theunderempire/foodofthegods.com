@@ -1,4 +1,4 @@
-FROM mongo
+FROM mongo:3.4.24
 
 COPY ingredientlist.json /ingredientlist.json
 COPY recipelist.json /recipelist.json
