@@ -2,6 +2,7 @@ var express = require("express");
 
 var router = express.Router();
 var jwt = require("jsonwebtoken");
+const secret = require("../secret.js");
 
 router.get("/:username", function (req, res, next) {
   var db = getDB(req);
@@ -26,7 +27,6 @@ router.get("/:username", function (req, res, next) {
 router.post("/", function (req, res, next) {
   var db = getDB(req);
   var collection = getCollection(db);
-  var app = require("../fotg");
 
   collection.findOne({ username: req.body.username }, {}, function (e, user) {
     if (!user) {
@@ -36,6 +36,7 @@ router.post("/", function (req, res, next) {
       });
     } else {
       if (user.password != req.body.password) {
+        console.log(user.password, req.body.password);
         res.json({
           success: false,
           data: { message: "Authentication failed. Incorrect credentials." },
@@ -47,7 +48,7 @@ router.post("/", function (req, res, next) {
             username: user.username,
             password: user.password,
           },
-          app.get("superSecret"),
+          secret.superSecret,
           {
             expiresIn: "1d",
           }
@@ -74,6 +75,7 @@ function getDB(req) {
 }
 
 function tokenCheck(req, res, next) {
+  var app = require("../fotg");
   // check header or url parameters or post parameters for token
   var token =
     req.body.token || req.query.token || req.headers["x-access-token"];
@@ -87,7 +89,7 @@ function tokenCheck(req, res, next) {
   // decode token
   if (token) {
     // verifies secret and checks exp
-    jwt.verify(token, app.get("superSecret"), function (err, decoded) {
+    jwt.verify(token, secret.superSecret, function (err, decoded) {
       if (err) {
         return res.json({
           success: false,

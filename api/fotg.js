@@ -3,7 +3,6 @@ var path = require("path");
 var logger = require("morgan");
 var cookieParser = require("cookie-parser");
 var bodyParser = require("body-parser");
-var config = require("./config");
 
 require("dotenv").config({
   path: path.join(__dirname, `./.env.${process.env.NODE_ENV}`),
@@ -23,17 +22,7 @@ db.then(() => {
 
 console.log("!starting", process.env.NODE_ENV, process.env.PORT);
 
-var index = require("./routes/index");
-var recipes = require("./routes/recipes");
-var recipe = require("./routes/recipe");
-var tokenCheck = require("./routes/token").tokenCheck;
-var token = require("./routes/token").router;
-var ingredientList = require("./routes/ingredientList");
-var mail = require("./routes/mail");
-
 var app = express();
-
-app.set("superSecret", config.secret);
 
 // view engine setup
 app.set("views", path.join(__dirname, "views"));
@@ -62,6 +51,14 @@ app.all("/*", function (req, res, next) {
   );
   next();
 });
+
+var index = require("./routes/index");
+var recipes = require("./routes/recipes");
+var recipe = require("./routes/recipe");
+var tokenCheck = require("./routes/token").tokenCheck;
+var token = require("./routes/token").router;
+var ingredientList = require("./routes/ingredientList");
+var mail = require("./routes/mail");
 
 app.use("/", index);
 app.use("/mail", mail);
