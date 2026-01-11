@@ -75,7 +75,6 @@ function getDB(req) {
 }
 
 function tokenCheck(req, res, next) {
-  var app = require("../fotg");
   // check header or url parameters or post parameters for token
   var token =
     req.body.token || req.query.token || req.headers["x-access-token"];
@@ -88,7 +87,6 @@ function tokenCheck(req, res, next) {
 
   // decode token
   if (token) {
-    var app = require("../fotg");
     // verifies secret and checks exp
     jwt.verify(token, secret.superSecret, function (err, decoded) {
       if (err) {

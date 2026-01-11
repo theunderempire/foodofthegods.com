@@ -23,7 +23,7 @@ var RequestService = function () {
 
   // Returns a standard unauthorized message
   function returnUnauthorized(res) {
-    res.status(401).json({ success: false });
+    res.status(401).json({ success: false, msg: "Unauthorized" });
   }
 };
 
