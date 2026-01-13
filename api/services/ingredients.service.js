@@ -63,7 +63,7 @@ var IngredientService = function () {
           {
             parts: [
               {
-                text: `Group these grocery ingredients by their typical grocery store section. Return ONLY a JSON array of category objects. No explanation, no markdown, just the JSON object. Include the entire ingredient JSON object in the response.
+                text: `Group these grocery ingredients by their typical grocery store section. Return ONLY a JSON array of category objects. No explanation, no markdown, no whitespace, no special characters, just the JSON object. Include the entire ingredient JSON object in the response.
 
                 Ingredients: ${JSON.stringify(groups)}
 
