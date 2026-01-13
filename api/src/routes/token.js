@@ -1,8 +1,7 @@
 var express = require("express");
-
-var router = express.Router();
 var jwt = require("jsonwebtoken");
 const secret = require("../secret.js");
+var router = express.Router();
 
 router.get("/:username", function (req, res, next) {
   var db = getDB(req);

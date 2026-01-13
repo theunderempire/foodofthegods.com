@@ -1,4 +1,5 @@
 var RequestService = require("./request.service");
+
 var requestService = new RequestService();
 
 // A service for making recipe operations
