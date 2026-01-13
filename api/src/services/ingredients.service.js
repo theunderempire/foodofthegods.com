@@ -5,6 +5,7 @@ var requestService = new RequestService();
 
 var IngredientService = function () {
   this.addOrUpdateIngredient = addOrUpdateIngredient;
+  this.clearIngredientList = clearIngredientList;
   this.getIngredientListForUser = getIngredientListForUser;
   this.groupIngredientList = groupIngredientList;
 
@@ -13,7 +14,7 @@ var IngredientService = function () {
   const geminiAPIKey = secret.geminiApiKey;
 
   // Updates the list for the user with the passed id with the request body
-  function addOrUpdateIngredient(req, res) {
+  function addOrUpdateIngredient(req, response) {
     var id = req.params.userId;
     var collection = getIngredientListCollection(req);
 
@@ -26,12 +27,34 @@ var IngredientService = function () {
           completedList: req.body.completedList,
         },
         { upsert: true },
-        function (err, result) {
-          requestService.printMsg(res, err, "list updated");
+        function (err, _result) {
+          requestService.printMsg(response, err, "list updated");
         }
       );
     } else {
       requestService.returnUnauthorized(res);
+    }
+  }
+
+  function clearIngredientList(req, response) {
+    const userId = req.params.userId;
+    const collection = getIngredientListCollection(req);
+
+    if (requestService.checkUser(req, userId)) {
+      collection.findOne({ userId }, {}, function (_e, docs) {
+        docs.ingredientList = {
+          groups: [],
+          lastModified: new Date().toString(),
+        };
+
+        collection.update({ userId }, { ...docs }, function (err, result) {
+          if (!err) {
+            response.json({ success: true, data: docs });
+          } else {
+            requestService.printMsg(result, err, "error");
+          }
+        });
+      });
     }
   }
 
@@ -41,7 +64,7 @@ var IngredientService = function () {
     var collection = getIngredientListCollection(req);
 
     if (requestService.checkUser(req, id)) {
-      collection.find({ userId: id }, {}, function (e, docs) {
+      collection.find({ userId: id }, {}, function (_e, docs) {
         res.json({ success: true, data: docs });
       });
     } else {

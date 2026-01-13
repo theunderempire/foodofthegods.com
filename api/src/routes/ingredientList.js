@@ -12,6 +12,10 @@ router.post("/:userId", function (req, res, next) {
   ingredientService.addOrUpdateIngredient(req, res);
 });
 
+router.delete("/:userId", function (req, res) {
+  ingredientService.clearIngredientList(req, res);
+});
+
 router.post("/:userId/group", async function (req, res) {
   await ingredientService.groupIngredientList(req, res);
 });
