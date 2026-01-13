@@ -1,6 +1,84 @@
 {
   "_id": { "$oid": "5fab30aa5b44892e627c3fc6" },
   "userId": "5d9c68c6c50ed3d02a2fcf54f63993b6",
-  "ingredientList": { "items": [], "lastModified": "2022-03-28T20:39:18.296Z" },
+  "ingredientList": {
+    "groups": [
+      {
+        "name": "Dairy & Refrigerated",
+        "items": [
+          {
+            "ingredient": {
+              "name": "milk",
+              "unit": "",
+              "amount": 1,
+              "id": 1768253081061
+            },
+            "completed": false
+          }
+        ]
+      },
+      {
+        "name": "Household",
+        "items": [
+          {
+            "ingredient": {
+              "name": "toilet paper",
+              "unit": "",
+              "amount": 1,
+              "id": 1768253098184
+            },
+            "completed": false
+          }
+        ]
+      },
+      {
+        "name": "Pantry",
+        "items": [
+          {
+            "ingredient": {
+              "name": "olive oil",
+              "unit": "",
+              "amount": 1,
+              "id": 1768253101307
+            },
+            "completed": false
+          },
+          {
+            "ingredient": {
+              "name": "mayo",
+              "unit": "",
+              "amount": 1,
+              "id": 1768253105464
+            },
+            "completed": false
+          }
+        ]
+      },
+      {
+        "name": "Produce",
+        "items": [
+          {
+            "ingredient": {
+              "name": "celery",
+              "unit": "",
+              "amount": 1,
+              "id": 1768253083936
+            },
+            "completed": false
+          },
+          {
+            "ingredient": {
+              "name": "apples",
+              "unit": "lb",
+              "amount": 1,
+              "id": 1768253093736
+            },
+            "completed": false
+          }
+        ]
+      }
+    ],
+    "lastModified": "2026-01-12T21:25:16.280Z"
+  },
   "completedList": null
 }
