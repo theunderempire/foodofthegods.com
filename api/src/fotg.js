@@ -5,7 +5,7 @@ var cookieParser = require("cookie-parser");
 var bodyParser = require("body-parser");
 
 require("dotenv").config({
-  path: path.join(__dirname, `./.env.${process.env.NODE_ENV}`),
+  path: path.join(__dirname, `../.env.${process.env.NODE_ENV}`),
 });
 
 var monk = require("monk");
@@ -41,7 +41,10 @@ app.use(function (req, _res, next) {
 
 app.all("/*", function (_req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, PUT, POST, PATCH, DELETE, OPTIONS"
+  );
   res.header(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, Content-Length, X-Requested-With, X-Access-Token"

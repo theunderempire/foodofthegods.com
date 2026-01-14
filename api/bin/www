@@ -4,7 +4,7 @@
  * Module dependencies.
  */
 
-var app = require("../fotg");
+var app = require("../src/fotg");
 var debug = require("debug")("foodofthegods-api:server");
 var https = require("https");
 var http = require("http");
@@ -12,7 +12,11 @@ var fs = require("fs");
 
 var ENV_PROD = "production";
 
+//Test
+
 var env = process.env.NODE_ENV;
+
+// Test
 
 /**
  * Get port from environment and store in Express.
