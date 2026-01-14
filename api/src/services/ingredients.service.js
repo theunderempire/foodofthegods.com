@@ -6,11 +6,11 @@ const requestService = new RequestService();
 const IngredientService = function () {
   this.addIngredient = addIngredient;
   this.addManyIngredients = addManyIngredients;
-  this.clearIngredientList = clearIngredientList;
-  this.clearMarkedIngredients = clearMarkedIngredients;
   this.getIngredientListForUser = getIngredientListForUser;
   this.groupIngredientList = groupIngredientList;
+  this.removeAllIngredients = removeAllIngredients;
   this.removeIngredient = removeIngredient;
+  this.removeMarkedIngredients = removeMarkedIngredients;
   this.updateIngredient = updateIngredient;
 
   const ungroupedName = "ungrouped";
@@ -120,49 +120,6 @@ const IngredientService = function () {
       });
     } else {
       requestService.returnUnauthorized(res);
-    }
-  }
-
-  function clearIngredientList(req, response) {
-    const userId = req.params.userId;
-    const collection = getIngredientListCollection(req);
-
-    if (requestService.checkUser(req, userId)) {
-      collection.findOne({ userId }, {}, function (_e, docs) {
-        docs.ingredientList = {
-          groups: [],
-          lastModified: new Date().toString(),
-        };
-
-        collection.update({ userId }, { ...docs }, function (err, result) {
-          if (!err) {
-            response.json({ success: true, data: docs });
-          } else {
-            requestService.printMsg(result, err, "error");
-          }
-        });
-      });
-    }
-  }
-
-  function clearMarkedIngredients(req, response) {
-    const userId = req.params.userId;
-    const collection = getIngredientListCollection(req);
-
-    if (requestService.checkUser(req, userId)) {
-      collection.findOne({ userId }, {}, function (_e, docs) {
-        docs.ingredientList.groups.forEach((group) => {
-          group.items = group.items.filter((item) => !item.completed);
-        });
-
-        collection.update({ userId }, { ...docs }, function (err, result) {
-          if (!err) {
-            response.json({ success: true, data: docs });
-          } else {
-            requestService.printMsg(result, err, "error");
-          }
-        });
-      });
     }
   }
 
@@ -302,6 +259,28 @@ const IngredientService = function () {
     }
   }
 
+  function removeAllIngredients(req, response) {
+    const userId = req.params.userId;
+    const collection = getIngredientListCollection(req);
+
+    if (requestService.checkUser(req, userId)) {
+      collection.findOne({ userId }, {}, function (_e, docs) {
+        docs.ingredientList = {
+          groups: [],
+          lastModified: new Date().toString(),
+        };
+
+        collection.update({ userId }, { ...docs }, function (err, result) {
+          if (!err) {
+            response.json({ success: true, data: docs });
+          } else {
+            requestService.printMsg(result, err, "error");
+          }
+        });
+      });
+    }
+  }
+
   function removeIngredient(req, res) {
     const userId = req.params.userId;
     const collection = getIngredientListCollection(req);
@@ -310,37 +289,84 @@ const IngredientService = function () {
 
     if (requestService.checkUser(req, userId)) {
       collection.findOne({ userId }, {}, function (err1, docs) {
-        const itemGroup = docs.ingredientList.groups.find(
+        const itemGroupIndex = docs.ingredientList.groups.findIndex(
           (group) => group.name === groupName
         );
 
-        if (itemGroup) {
+        if (itemGroupIndex !== -1) {
+          const itemGroup = docs.ingredientList.groups[itemGroupIndex];
           const itemIndex = itemGroup.items.findIndex((groupItem) => {
             return groupItem.ingredient.id === ingredientId;
           });
 
           if (itemIndex !== -1) {
             itemGroup.items.splice(itemIndex, 1);
+
+            if (itemGroup.items.length < 1) {
+              docs.ingredientList.groups.splice(itemGroupIndex, 1);
+            }
+
             collection.update({ userId }, { ...docs }, function (err2) {
               if (!err2) {
                 res.json({ success: true, data: docs });
               } else {
-                requestService.printMsg(res, err2, "error");
+                requestService.printMsg(res, err2, "could not update list");
               }
             });
           } else {
-            requestService.printMsg(res, err1, "could not find item to update");
+            res.json({
+              success: true,
+              data: docs,
+              msg: "could not find item to update",
+            });
           }
         } else {
-          requestService.printMsg(
-            res,
-            err1,
-            "could not find item group to update"
-          );
+          res.json({
+            success: true,
+            data: docs,
+            msg: "could not find item group to update",
+          });
         }
       });
     } else {
       requestService.returnUnauthorized(res);
+    }
+  }
+
+  function removeMarkedIngredients(req, response) {
+    const userId = req.params.userId;
+    const collection = getIngredientListCollection(req);
+
+    if (requestService.checkUser(req, userId)) {
+      collection.findOne({ userId }, {}, function (_e, docs) {
+        const removeGroups = [];
+
+        docs.ingredientList.groups.forEach((group) => {
+          group.items = group.items.filter((item) => !item.completed);
+
+          if (group.items.length < 1) {
+            removeGroups.push(group.name);
+          }
+        });
+
+        removeGroups.forEach((removeGroupName) => {
+          const groupIndex = docs.ingredientList.groups.findIndex(
+            (group) => group.name === removeGroupName
+          );
+
+          if (groupIndex !== -1) {
+            docs.ingredientList.groups.splice(groupIndex, 1);
+          }
+        });
+
+        collection.update({ userId }, { ...docs }, function (err, result) {
+          if (!err) {
+            response.json({ success: true, data: docs });
+          } else {
+            requestService.printMsg(result, err, "error");
+          }
+        });
+      });
     }
   }
 
@@ -373,18 +399,18 @@ const IngredientService = function () {
               }
             });
           } else {
-            requestService.printMsg(
-              result,
-              err,
-              "could not find item to update"
-            );
+            res.json({
+              success: true,
+              data: docs,
+              msg: "could not find item to update",
+            });
           }
         } else {
-          requestService.printMsg(
-            result,
-            err,
-            "could not find item group to update"
-          );
+          res.json({
+            success: true,
+            data: docs,
+            msg: "could not find item group to update",
+          });
         }
       });
     } else {

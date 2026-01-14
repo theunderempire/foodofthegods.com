@@ -25,11 +25,11 @@ router.delete("/:userId/:groupName/:itemId", function (req, res) {
 });
 
 router.delete("/:userId/all", function (req, res) {
-  ingredientService.clearIngredientList(req, res);
+  ingredientService.removeAllIngredients(req, res);
 });
 
 router.delete("/:userId/marked", function (req, res) {
-  ingredientService.clearMarkedIngredients(req, res);
+  ingredientService.removeMarkedIngredients(req, res);
 });
 
 router.get("/:userId/group", async function (req, res) {
