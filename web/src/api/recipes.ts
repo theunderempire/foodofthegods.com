@@ -1,7 +1,7 @@
 import type { Recipe, RecipeListItem } from "../types/recipe";
 import { client } from "./client";
 
-interface ApiResponse<T> {
+export interface ApiResponse<T> {
   success: boolean;
   data: T;
 }
