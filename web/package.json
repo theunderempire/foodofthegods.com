@@ -1,0 +1,29 @@
+{
+  "name": "foodofthegods-react",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "start:dev": "vite --mode development",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "crypto-js": "^4.2.0",
+    "js-cookie": "^3.0.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
+    "@types/js-cookie": "^3.0.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.5"
+  }
+}
