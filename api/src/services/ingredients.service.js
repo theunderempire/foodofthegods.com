@@ -63,7 +63,7 @@ const IngredientService = function () {
         });
       });
     } else {
-      requestService.returnUnauthorized(res);
+      requestService.returnUnauthorized(response);
     }
   }
 
@@ -121,7 +121,7 @@ const IngredientService = function () {
         });
       });
     } else {
-      requestService.returnUnauthorized(res);
+      requestService.returnUnauthorized(response);
     }
   }
 
@@ -284,6 +284,8 @@ const IngredientService = function () {
           }
         });
       });
+    } else {
+      requestService.returnUnauthorized(response);
     }
   }
 
@@ -373,17 +375,19 @@ const IngredientService = function () {
           }
         });
       });
+    } else {
+      requestService.returnUnauthorized(response);
     }
   }
 
   function updateIngredient(req, response) {
     const userId = req.params.userId;
     const collection = getIngredientListCollection(req);
-    const payload = req.body.payload;
-    const ingredientItem = payload.ingredientListItem;
-    const groupName = payload.groupName;
 
     if (requestService.checkUser(req, userId)) {
+      const payload = req.body.payload;
+      const ingredientItem = payload.ingredientListItem;
+      const groupName = payload.groupName;
       collection.findOne({ userId }, {}, function (_e, docs) {
         const itemGroup = docs.ingredientList.groups.find(
           (group) => group.name === groupName
@@ -405,14 +409,14 @@ const IngredientService = function () {
               }
             });
           } else {
-            res.json({
+            response.json({
               success: true,
               data: docs,
               msg: "could not find item to update",
             });
           }
         } else {
-          res.json({
+          response.json({
             success: true,
             data: docs,
             msg: "could not find item group to update",
@@ -420,7 +424,7 @@ const IngredientService = function () {
         }
       });
     } else {
-      requestService.returnUnauthorized(res);
+      requestService.returnUnauthorized(response);
     }
   }
 };
