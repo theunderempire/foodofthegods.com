@@ -5,12 +5,11 @@ const router = express.Router();
 var transporter = nodemailer.createTransport({
   port: 25,
   tls: {
-    rejectUnauthorized: false,
+    rejectUnauthorized: true,
   },
 });
 
-/* GET home page. */
-router.post("/", function (req, res, next) {
+router.post("/", async function (req, res, next) {
   var msg = req.body;
   var textBody =
     "The user with username hash: " +
@@ -33,24 +32,22 @@ router.post("/", function (req, res, next) {
     msg.timestamp +
     "</p>";
 
-  // setup e-mail data with unicode symbols
   var mailOptions = {
-    from: '"FoodOfTheGodsAdmin" <admin@theunderempire.com>', // sender address
-    to: "accordiondeath@gmail.com", // list of receivers
-    subject: "User Registration Request", // Subject line
+    from: '"FoodOfTheGodsAdmin" <admin@theunderempire.com>',
+    to: process.env.REGISTRATION_EMAIL,
+    subject: "User Registration Request",
     text: textBody,
     html: htmlBody,
   };
 
-  // send mail with defined transport object
-  transporter.sendMail(mailOptions, function (error, info) {
-    if (error) {
-      return console.log(error);
-    }
-    console.log("Message sent: " + info.response);
-  });
-
-  res.send({ msg: "msg sent i think" });
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Registration email sent: " + info.response);
+    res.json({ success: true, msg: "Registration request sent." });
+  } catch (error) {
+    console.error("Failed to send registration email:", error);
+    res.status(500).json({ success: false, msg: "Failed to send registration request." });
+  }
 });
 
 export default router;

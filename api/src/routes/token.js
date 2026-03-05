@@ -1,5 +1,6 @@
 import express from "express";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import secret from "../secret.js";
 const router = express.Router();
 
@@ -31,38 +32,47 @@ router.post("/", async function (req, res, next) {
   try {
     const user = await collection.findOne({ username: req.body.username }, {});
     if (!user) {
-      res.json({
+      return res.json({
         success: false,
         data: { message: "Authentication failed. Incorrect credentials." },
-      });
-    } else if (user.password != req.body.password) {
-      console.log(user.password, req.body.password);
-      res.json({
-        success: false,
-        data: { message: "Authentication failed. Incorrect credentials." },
-      });
-    } else {
-      var token = jwt.sign(
-        {
-          success: true,
-          username: user.username,
-          password: user.password,
-        },
-        secret.superSecret,
-        {
-          expiresIn: "1d",
-          algorithm: "HS256",
-        }
-      );
-
-      res.json({
-        success: true,
-        data: {
-          message: "authenticated",
-          token: token,
-        },
       });
     }
+
+    let passwordMatch;
+    if (user.password.startsWith("$2b$")) {
+      // bcrypt hash — compare directly
+      passwordMatch = await bcrypt.compare(req.body.password, user.password);
+    } else {
+      // Legacy plain/MD5 comparison — migrate to bcrypt on success
+      passwordMatch = user.password === req.body.password;
+      if (passwordMatch) {
+        const hashed = await bcrypt.hash(req.body.password, 12);
+        await collection.update(
+          { username: req.body.username },
+          { $set: { password: hashed } },
+        );
+        console.log(
+          `[auth] migrated password to bcrypt for user="${req.body.username}"`,
+        );
+      }
+    }
+
+    if (!passwordMatch) {
+      return res.json({
+        success: false,
+        data: { message: "Authentication failed. Incorrect credentials." },
+      });
+    }
+
+    var token = jwt.sign({ username: user.username }, secret.superSecret, {
+      expiresIn: "1d",
+      algorithm: "HS256",
+    });
+
+    res.json({
+      success: true,
+      data: { message: "authenticated", token },
+    });
   } catch (err) {
     next(err);
   }
@@ -73,28 +83,27 @@ function getCollection(db) {
 }
 
 function tokenCheck(req, res, next) {
-  // check header or url parameters or post parameters for token
   var token =
     req.body.token || req.query.token || req.headers["x-access-token"];
 
-  // decode token
   if (token) {
-    // verifies secret and checks exp
-    jwt.verify(token, secret.superSecret, { algorithms: ["HS256"] }, function (err, decoded) {
-      if (err) {
-        return res.json({
-          success: false,
-          message: "Failed to authenticate token.",
-        });
-      } else {
-        // if everything is good, save to request for use in other routes
-        req.decoded = decoded;
-        next();
-      }
-    });
+    jwt.verify(
+      token,
+      secret.superSecret,
+      { algorithms: ["HS256"] },
+      function (err, decoded) {
+        if (err) {
+          return res.json({
+            success: false,
+            message: "Failed to authenticate token.",
+          });
+        } else {
+          req.decoded = decoded;
+          next();
+        }
+      },
+    );
   } else {
-    // if there is no token
-    // return an error
     return res.status(403).send({
       success: false,
       message: "No token provided.",
