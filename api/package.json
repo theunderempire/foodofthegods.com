@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "NODE_ENV=production PORT=3000 node ./bin/www.js",
     "start-dev": "NODE_ENV=development PORT=3000 nodemon --watch src --watch ./bin/www.js  ./bin/www.js",
