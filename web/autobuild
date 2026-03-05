@@ -1,0 +1,33 @@
+#!/bin/bash
+
+printf "installing dependencies...\n"
+
+if ! npm install --force; then
+  printf "dependency installation failed\n"
+  exit 1
+fi
+
+printf "cd to public dir...\n"
+
+if ! cd /var/www/html/theunderempire.com/public_html/dev/foodofthegods-react; then
+  printf "\ncd failed, are you on the server?\n"
+  exit 1
+fi
+
+printf '\nrunning build...\n'
+if npm run --silent build; then
+    printf '\nbuild completed!\n'
+    else printf '\nthere was an error while building\n'
+fi
+
+printf '\nremoving old build\n'
+if ! rm -rf ../../foodofthegods/*; then
+  printf "\nrm of old site files failed\n"
+  exit 1
+fi
+
+printf '\ndeploying new build...\n'
+if mv ./dist/* ../../foodofthegods/ && rm -rf ./dist && cp .htaccess ../../foodofthegods/.htaccess; then
+    printf '\ndeploy completed!\n'
+    else printf '\nthere was an error while deploying\n'
+fi
