@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "NODE_ENV=production PORT=3000 node ./bin/www",
-    "start-dev": "NODE_ENV=development PORT=3000 nodemon --watch src --watch ./bin/www  ./bin/www"
+    "start-dev": "NODE_ENV=development PORT=3000 nodemon --watch src --watch ./bin/www  ./bin/www",
+    "test": "node --test"
   },
   "dependencies": {
     "body-parser": "^1.18.2",
