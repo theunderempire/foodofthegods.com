@@ -23,12 +23,20 @@ var RecipesService = function () {
 
     if (req.body.userId === req.decoded.username) {
       recipeCollection.insert(req.body, function (err, result) {
+        if (err) {
+          console.error(`[recipes] addRecipeForUser insert error for user="${req.decoded.username}": ${err}`);
+        } else {
+          console.log(`[recipes] recipe added id="${result._id}" user="${req.decoded.username}"`);
+        }
         userCollection.update(
           { username: req.decoded.username },
           { $push: { recipeList: result._id } }
         );
         requestService.printMsg(res, err, "recipe added");
       });
+    } else {
+      console.warn(`[recipes] addRecipeForUser userId mismatch: body.userId="${req.body.userId}" token="${req.decoded.username}"`);
+      requestService.returnUnauthorized(res);
     }
   }
 
@@ -39,6 +47,12 @@ var RecipesService = function () {
     var recipeID = req.params.id;
 
     recipeCollection.find({ _id: recipeID }, {}, function (e, docs) {
+      if (e) {
+        console.error(`[recipes] deleteRecipe find error id="${recipeID}": ${e}`);
+      } else if (!docs.length) {
+        console.warn(`[recipes] deleteRecipe: recipe not found id="${recipeID}"`);
+      }
+
       // Remove from recipeList
       userCollection.update(
         { username: req.decoded.username },
@@ -50,7 +64,10 @@ var RecipesService = function () {
             function (e, usersWithRecipe) {
               // If the recipe is no longer in anyone's list, delete it
               if (!usersWithRecipe.length) {
-                recipeCollection.remove({ _id: recipeID }, function (err) {});
+                console.log(`[recipes] deleting recipe from db id="${recipeID}" (no remaining owners)`);
+                recipeCollection.remove({ _id: recipeID }, function (err) {
+                  if (err) console.error(`[recipes] deleteRecipe remove error id="${recipeID}": ${err}`);
+                });
               }
             }
           );
@@ -74,7 +91,7 @@ var RecipesService = function () {
         function (e, recipeIDs) {
           recipeCollection.find(
             { _id: { $in: recipeIDs[0].recipeList } },
-            { name: 1, prepDuration: 1, cookDuration: 1 },
+            { name: 1, prepDuration: 1, cookDuration: 1, imageUrl: 1 },
             function (e, recipes) {
               res.json({ success: true, data: recipes });
             }
@@ -98,18 +115,33 @@ var RecipesService = function () {
   // recipe passed in the request body
   function updateRecipe(req, res) {
     var collection = getRecipeListCollection(req);
+    var userCollection = getUserCollection(req);
     var recipeID = req.params.id;
     var updatedRecipe = req.body;
 
-    collection.find({ _id: recipeID }, {}, function (e, docs) {
-      if (requestService.checkUser(req, docs[0].userId)) {
-        collection.update({ _id: recipeID }, updatedRecipe, function (err) {
+    userCollection.find(
+      { username: req.decoded.username, recipeList: recipeID },
+      { _id: 1 },
+      function (e, users) {
+        if (e) {
+          console.error(`[recipes] updateRecipe ownership lookup error id="${recipeID}" user="${req.decoded.username}": ${e}`);
+          return requestService.returnUnauthorized(res);
+        }
+        if (!users || !users.length) {
+          console.warn(`[recipes] updateRecipe: recipe id="${recipeID}" not in recipeList for user="${req.decoded.username}"`);
+          return requestService.returnUnauthorized(res);
+        }
+        const { _id, ...fields } = updatedRecipe;
+        collection.update({ _id: recipeID }, { $set: fields }, function (err) {
+          if (err) {
+            console.error(`[recipes] updateRecipe update error id="${recipeID}": ${err}`);
+          } else {
+            console.log(`[recipes] recipe updated id="${recipeID}" user="${req.decoded.username}"`);
+          }
           requestService.printMsg(res, err, "recipe updated");
         });
-      } else {
-        requestService.returnUnauthorized(res);
       }
-    });
+    );
   }
 
   async function importRecipeFromUrl(req, res) {
@@ -118,6 +150,7 @@ var RecipesService = function () {
       return res.json({ success: false, data: "url is required" });
     }
 
+    console.log(`[recipes] importRecipeFromUrl: fetching "${url}"`);
     try {
       const pageResponse = await fetch(url);
       const html = await pageResponse.text();
@@ -163,9 +196,10 @@ ${text.slice(0, 50000)}`,
       const rawText = responseBody.candidates[0].content.parts[0].text;
       const stripped = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
       const recipe = JSON.parse(stripped);
-
+      console.log(`[recipes] importRecipeFromUrl: successfully parsed recipe "${recipe.name}" from "${url}"`);
       res.json({ success: true, data: recipe });
     } catch (err) {
+      console.error(`[recipes] importRecipeFromUrl error for "${url}": ${err.message || err}`);
       res.json({ success: false, data: err.message || "Failed to import recipe" });
     }
   }

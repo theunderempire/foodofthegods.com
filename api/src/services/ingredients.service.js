@@ -57,6 +57,7 @@ const IngredientService = function () {
           if (!err) {
             response.json({ success: true, data: docs });
           } else {
+            console.error(`[ingredients] addIngredient update error user="${userId}": ${err}`);
             requestService.printMsg(result, err, "error");
           }
         });
@@ -114,6 +115,7 @@ const IngredientService = function () {
           if (!err) {
             response.json({ success: true, data: docs });
           } else {
+            console.error(`[ingredients] addManyIngredients update error user="${userId}": ${err}`);
             requestService.printMsg(result, err, "error");
           }
         });
@@ -149,6 +151,7 @@ const IngredientService = function () {
     if (requestService.checkUser(req, userId)) {
       collection.findOne({ userId }, {}, async function (_e, docs) {
         if (docs?.ingredientList?.groups?.length) {
+          console.log(`[ingredients] groupIngredientList: calling Gemini for user="${userId}"`);
           const groups = docs.ingredientList.groups;
           const response = await fetch(geminiUrl, {
             method: "POST",
@@ -241,14 +244,17 @@ const IngredientService = function () {
                 }
               });
             } else {
+              console.warn(`[ingredients] groupIngredientList: Gemini responded with status ${response.status} for user="${userId}"`);
               if (response.status === 429) {
                 res.json({ success: true, data: "Rate limited" });
               }
             }
           } catch (err) {
+            console.error(`[ingredients] groupIngredientList parse/update error user="${userId}": ${err.message || err}`);
             res.json({ success: true, data: err });
           }
         } else {
+          console.warn(`[ingredients] groupIngredientList: no ingredient groups found for user="${userId}"`);
           requestService.printMsg(
             res,
             err,
