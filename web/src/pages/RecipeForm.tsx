@@ -31,6 +31,7 @@ export function RecipeForm() {
   const [prepDuration, setPrepDuration] = useState("");
   const [cookDuration, setCookDuration] = useState("");
   const [servings, setServings] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [ingredients, setIngredients] = useState<Ingredient[]>([
     blankIngredient(1),
   ]);
@@ -52,6 +53,7 @@ export function RecipeForm() {
         setPrepDuration(r.prepDuration ?? "");
         setCookDuration(r.cookDuration ?? "");
         setServings(r.servings ?? "");
+        setImageUrl(r.imageUrl ?? "");
         setIngredients(r.ingredients.length > 0 ? r.ingredients : [blankIngredient(1)]);
         setDirections(r.directions.length > 0 ? r.directions : [blankDirection(1)]);
       })
@@ -117,6 +119,7 @@ export function RecipeForm() {
       setPrepDuration(recipe.prepDuration ?? "");
       setCookDuration(recipe.cookDuration ?? "");
       setServings(recipe.servings ?? "");
+      setImageUrl(recipe.imageUrl ?? "");
       setIngredients(
         recipe.ingredients?.length > 0
           ? recipe.ingredients
@@ -151,6 +154,7 @@ export function RecipeForm() {
       ingredients,
       directions,
       userId: username ?? "",
+      imageUrl: imageUrl.trim() || undefined,
     };
 
     try {
@@ -260,6 +264,17 @@ export function RecipeForm() {
                 placeholder="e.g. 4"
               />
             </div>
+          </div>
+          <div className="form-group">
+            <label htmlFor="imageUrl">Image URL</label>
+            <input
+              id="imageUrl"
+              type="url"
+              className="input"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://example.com/image.jpg"
+            />
           </div>
         </section>
 

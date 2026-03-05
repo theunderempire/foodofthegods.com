@@ -130,6 +130,12 @@ export function RecipeViewer() {
       <article className="recipe-article">
         <h1 className="recipe-title">{recipe.name}</h1>
 
+        {recipe.imageUrl && (
+          <div className="recipe-hero-image">
+            <img src={recipe.imageUrl} alt={recipe.name} />
+          </div>
+        )}
+
         <div className="recipe-meta-bar">
           {recipe.prepDuration && (
             <div className="recipe-meta-chip">

@@ -97,6 +97,11 @@ export function RecipeList() {
                 to={`/recipes/recipe/${recipe._id}`}
                 className="recipe-card-link"
               >
+                {recipe.imageUrl && (
+                  <div className="recipe-card-image">
+                    <img src={recipe.imageUrl} alt={recipe.name} />
+                  </div>
+                )}
                 <h2 className="recipe-card-title">{recipe.name}</h2>
                 <div className="recipe-card-meta">
                   <span className="meta-item">

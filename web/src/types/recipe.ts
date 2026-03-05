@@ -20,6 +20,7 @@ export interface Recipe {
   ingredients: Ingredient[];
   directions: Direction[];
   userId?: string;
+  imageUrl?: string;
 }
 
 export interface RecipeListItem {
@@ -27,4 +28,5 @@ export interface RecipeListItem {
   name: string;
   prepDuration: string;
   cookDuration: string;
+  imageUrl?: string;
 }
