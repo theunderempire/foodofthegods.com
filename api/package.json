@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "NODE_ENV=production PORT=3000 node ./bin/www",
-    "start-dev": "NODE_ENV=development PORT=3000 nodemon --watch src --watch ./bin/www  ./bin/www",
+    "start": "NODE_ENV=production PORT=3000 node ./bin/www.js",
+    "start-dev": "NODE_ENV=development PORT=3000 nodemon --watch src --watch ./bin/www.js  ./bin/www.js",
     "test": "node --test"
   },
   "dependencies": {
