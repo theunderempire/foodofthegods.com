@@ -1,5 +1,5 @@
-var RequestService = require("./request.service");
-const secret = require("../secret");
+import RequestService from "./request.service.js";
+import secret from "../secret.js";
 
 var requestService = new RequestService();
 
@@ -215,4 +215,4 @@ ${text.slice(0, 50000)}`,
   }
 };
 
-module.exports = RecipesService;
+export default RecipesService;

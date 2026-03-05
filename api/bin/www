@@ -1,92 +1,42 @@
 #!/usr/bin/env node
 
-/**
- * Module dependencies.
- */
+import app from "../src/fotg.js";
+import debugLib from "debug";
+import https from "https";
+import http from "http";
+import fs from "fs";
 
-var app = require("../src/fotg");
-var debug = require("debug")("foodofthegods-api:server");
-var https = require("https");
-var http = require("http");
-var fs = require("fs");
+const debug = debugLib("foodofthegods-api:server");
+const ENV_PROD = "production";
+const env = process.env.NODE_ENV;
+const port = normalizePort(process.env.PORT);
 
-var ENV_PROD = "production";
-
-//Test
-
-var env = process.env.NODE_ENV;
-
-// Test
-
-/**
- * Get port from environment and store in Express.
- */
-var port = normalizePort(process.env.PORT);
 app.set("port", port);
 
-/**
- * Create server.
- */
-var server;
+let server;
 
 if (env === ENV_PROD) {
-  var key = fs.readFileSync(
-    "/etc/letsencrypt/live/theunderempire.com/privkey.pem"
-  );
-  var cert = fs.readFileSync(
-    "/etc/letsencrypt/live/theunderempire.com/fullchain.pem"
-  );
-
-  var options = {
-    key: key,
-    cert: cert,
-  };
-
-  server = https.createServer(options, app);
+  const key = fs.readFileSync("/etc/letsencrypt/live/theunderempire.com/privkey.pem");
+  const cert = fs.readFileSync("/etc/letsencrypt/live/theunderempire.com/fullchain.pem");
+  server = https.createServer({ key, cert }, app);
 } else {
   server = http.createServer({}, app);
 }
-
-/**
- * Listen on provided port, on all network interfaces.
- */
 
 server.listen(port);
 server.on("error", onError);
 server.on("listening", onListening);
 
-/**
- * Normalize a port into a number, string, or false.
- */
-
 function normalizePort(val) {
-  var port = parseInt(val, 10);
-
-  if (isNaN(port)) {
-    // named pipe
-    return val;
-  }
-
-  if (port >= 0) {
-    // port number
-    return port;
-  }
-
+  const port = parseInt(val, 10);
+  if (isNaN(port)) return val;
+  if (port >= 0) return port;
   return false;
 }
 
-/**
- * Event listener for HTTP server "error" event.
- */
-
 function onError(error) {
-  if (error.syscall !== "listen") {
-    throw error;
-  }
-
-  var bind = typeof port === "string" ? "Pipe " + port : "Port " + port;
-
-  // handle specific listen errors with friendly messages
+  if (error.syscall !== "listen") throw error;
+  const bind = typeof port === "string" ? "Pipe " + port : "Port " + port;
   switch (error.code) {
     case "EACCES":
       console.error(bind + " requires elevated privileges");
@@ -101,12 +51,8 @@ function onError(error) {
   }
 }
 
-/**
- * Event listener for HTTP server "listening" event.
- */
-
 function onListening() {
-  var addr = server.address();
-  var bind = typeof addr === "string" ? "pipe " + addr : "port " + addr.port;
+  const addr = server.address();
+  const bind = typeof addr === "string" ? "pipe " + addr : "port " + addr.port;
   debug("Listening on " + bind);
 }

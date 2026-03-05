@@ -1,7 +1,7 @@
-var express = require("express");
-var router = express.Router();
-var IngredientService = require("../services/ingredients.service");
-var ingredientService = new IngredientService();
+import express from "express";
+import IngredientService from "../services/ingredients.service.js";
+const router = express.Router();
+const ingredientService = new IngredientService();
 
 /* GET ingredient list */
 router.get("/:userId", function (req, res) {
@@ -36,4 +36,4 @@ router.get("/:userId/group", async function (req, res) {
   await ingredientService.groupIngredientList(req, res);
 });
 
-module.exports = router;
+export default router;

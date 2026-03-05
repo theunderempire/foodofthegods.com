@@ -1,7 +1,7 @@
-var express = require("express");
-var router = express.Router();
-var RecipesService = require("../services/recipes.service");
-var recipesService = new RecipesService();
+import express from "express";
+import RecipesService from "../services/recipes.service.js";
+const router = express.Router();
+const recipesService = new RecipesService();
 
 router.post("/import-url", function (req, res) {
   recipesService.importRecipeFromUrl(req, res);
@@ -24,4 +24,4 @@ router.put("/:id", function (req, res, next) {
   recipesService.updateRecipe(req, res);
 });
 
-module.exports = router;
+export default router;

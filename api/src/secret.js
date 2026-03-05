@@ -1,6 +1,6 @@
-var config = require("./../config");
+import config from "./../config.js";
 
-module.exports = {
+export default {
   superSecret: config.secret,
   geminiApiKey: config.geminiApiKey,
 };

@@ -1,15 +1,16 @@
-var express = require("express");
-var path = require("path");
-var logger = require("morgan");
-var cookieParser = require("cookie-parser");
-var bodyParser = require("body-parser");
+import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+import logger from "morgan";
+import bodyParser from "body-parser";
+import dotenv from "dotenv";
+import monk from "monk";
 
-require("dotenv").config({
-  path: path.join(__dirname, `../.env.${process.env.NODE_ENV}`),
-});
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-var monk = require("monk");
-var db = monk(
+dotenv.config({ path: path.join(__dirname, `../.env.${process.env.NODE_ENV}`) });
+
+const db = monk(
   `${process.env.DB_HOST_NAME}:27017/${process.env.DB_SERVICE_NAME}`
 );
 
@@ -17,21 +18,28 @@ db.then(() => {
   console.log("database connected");
 });
 
-console.log("!starting", process.env.NODE_ENV, process.env.PORT);
+console.log("starting", process.env.NODE_ENV, process.env.PORT);
 
 var app = express();
 
-// view engine setup
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "jade");
 
-// uncomment after placing your favicon in /public
-//app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(logger("dev"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
+
+// CORS
+app.use(function (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, PUT, POST, PATCH, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Content-Length, X-Requested-With, X-Access-Token");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
 
 // Make our db accessible to our router
 app.use(function (req, _res, next) {
@@ -39,26 +47,12 @@ app.use(function (req, _res, next) {
   next();
 });
 
-app.all("/*", function (_req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET, PUT, POST, PATCH, DELETE, OPTIONS"
-  );
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, Content-Length, X-Requested-With, X-Access-Token"
-  );
-  next();
-});
-
-var index = require("./routes/index");
-var recipes = require("./routes/recipes");
-var recipe = require("./routes/recipe");
-var tokenCheck = require("./routes/token").tokenCheck;
-var token = require("./routes/token").router;
-var ingredientList = require("./routes/ingredientList");
-var mail = require("./routes/mail");
+import index from "./routes/index.js";
+import recipes from "./routes/recipes.js";
+import recipe from "./routes/recipe.js";
+import { router as token, tokenCheck } from "./routes/token.js";
+import ingredientList from "./routes/ingredientList.js";
+import mail from "./routes/mail.js";
 
 app.use("/", index);
 app.use("/mail", mail);
@@ -76,14 +70,12 @@ app.use(function (_req, _res, next) {
 });
 
 // error handler
-app.use(function (err, req, res) {
-  // set locals, only providing error in development
+app.use(function (err, req, res, next) {
   res.locals.message = err.message;
   res.locals.error = req.app.get("env") === "development" ? err : {};
 
-  // render the error page
   res.status(err.status || 500);
   res.render("error");
 });
 
-module.exports = app;
+export default app;

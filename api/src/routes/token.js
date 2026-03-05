@@ -1,7 +1,7 @@
-var express = require("express");
-var jwt = require("jsonwebtoken");
-const secret = require("../secret.js");
-var router = express.Router();
+import express from "express";
+import jwt from "jsonwebtoken";
+import secret from "../secret.js";
+const router = express.Router();
 
 router.get("/:username", function (req, res, next) {
   var db = getDB(req);
@@ -78,12 +78,6 @@ function tokenCheck(req, res, next) {
   var token =
     req.body.token || req.query.token || req.headers["x-access-token"];
 
-  if (req.method === "OPTIONS") {
-    res.send("op");
-
-    return;
-  }
-
   // decode token
   if (token) {
     // verifies secret and checks exp
@@ -109,4 +103,4 @@ function tokenCheck(req, res, next) {
   }
 }
 
-module.exports = { router, tokenCheck };
+export { router, tokenCheck };

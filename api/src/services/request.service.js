@@ -34,4 +34,4 @@ var RequestService = function () {
   }
 };
 
-module.exports = RequestService;
+export default RequestService;

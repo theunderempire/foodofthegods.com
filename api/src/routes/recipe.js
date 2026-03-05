@@ -1,11 +1,11 @@
-var express = require("express");
-var router = express.Router();
-var RecipesService = require("../services/recipes.service");
-var recipesService = new RecipesService();
+import express from "express";
+import RecipesService from "../services/recipes.service.js";
+const router = express.Router();
+const recipesService = new RecipesService();
 
 /* GET recipes listing. */
 router.get("/:id", function (req, res, next) {
   recipesService.getSingleRecipe(req, res);
 });
 
-module.exports = router;
+export default router;

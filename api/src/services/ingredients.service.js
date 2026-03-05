@@ -1,5 +1,5 @@
-const secret = require("../secret");
-const RequestService = require("./request.service");
+import secret from "../secret.js";
+import RequestService from "./request.service.js";
 
 const requestService = new RequestService();
 
@@ -425,4 +425,4 @@ const IngredientService = function () {
   }
 };
 
-module.exports = IngredientService;
+export default IngredientService;
