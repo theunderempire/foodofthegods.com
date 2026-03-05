@@ -62,6 +62,11 @@ export async function updateRecipe(
   }
 }
 
+export async function importRecipeFromUrl(url: string): Promise<Recipe | null> {
+  const res = await client.post<ApiResponse<Recipe>>('/recipes/import-url', { url });
+  return res.data.success ? res.data.data : null;
+}
+
 export async function deleteRecipe(
   id: string,
 ): Promise<ApiResponse<{ msg: string }> | null> {

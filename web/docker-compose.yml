@@ -1,0 +1,57 @@
+version: "3.8"
+services:
+  # fotg-ui:
+  #   build: .
+  #   container_name: foodofthegods-ui
+  #   volumes:
+  #     - ./dist/foodofthegods:/usr/share/nginx/html
+  #   ports:
+  #     - 80:80
+  #   restart: unless-stopped
+  #   networks:
+  #     - fotg-network
+  fotg-api:
+    build: ../foodofthegods-api
+    container_name: foodofthegods-api
+    volumes:
+      - ./../foodofthegods-api:/usr/src/app
+    depends_on:
+      fotg-db:
+        condition: service_healthy
+    environment:
+      - START_CMD=start-dev
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    networks:
+      - fotg-network
+  fotg-db:
+    image: mongo:3.6.23
+    container_name: foodofthegods-db
+    environment:
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - ../foodofthegods-db/mongodb/database:/data/db
+    ports:
+      - 27017:27017
+    networks:
+      - fotg-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+  db-seed:
+    build: ../foodofthegods-db/mongodb/seed
+    networks:
+      - fotg-network
+    depends_on:
+      fotg-db:
+        condition: service_healthy
+
+networks:
+  fotg-network:
+    driver: bridge

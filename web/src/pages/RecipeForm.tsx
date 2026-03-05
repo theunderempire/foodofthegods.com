@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { addRecipe, getRecipe, updateRecipe } from '../api/recipes';
+import { addRecipe, getRecipe, importRecipeFromUrl, updateRecipe } from '../api/recipes';
 import { useAuth } from '../contexts/AuthContext';
 import type { Direction, Ingredient, Recipe } from '../types/recipe';
 
@@ -31,6 +31,8 @@ export function RecipeForm() {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [importUrl, setImportUrl] = useState('');
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     if (!isEdit || !id) return;
@@ -87,6 +89,30 @@ export function RecipeForm() {
     });
   }
 
+  async function handleImport() {
+    if (!importUrl.trim()) return;
+    setImporting(true);
+    setError('');
+    try {
+      const recipe = await importRecipeFromUrl(importUrl.trim());
+      if (!recipe) {
+        setError('Failed to import recipe from URL.');
+        return;
+      }
+      setName(recipe.name ?? '');
+      setPrepDuration(recipe.prepDuration ?? '');
+      setCookDuration(recipe.cookDuration ?? '');
+      setServings(recipe.servings ?? '');
+      setIngredients(recipe.ingredients?.length > 0 ? recipe.ingredients : [blankIngredient(1)]);
+      setDirections(recipe.directions?.length > 0 ? recipe.directions : [blankDirection(1)]);
+      setImportUrl('');
+    } catch {
+      setError('Failed to import recipe from URL.');
+    } finally {
+      setImporting(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
@@ -134,7 +160,34 @@ export function RecipeForm() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      <form onSubmit={handleSubmit} className="recipe-form">
+      {!isEdit && (
+        <div className="import-url-section">
+          <label htmlFor="importUrl">Import from URL</label>
+          <div className="import-url-row">
+            <input
+              id="importUrl"
+              type="url"
+              className="input"
+              value={importUrl}
+              onChange={(e) => setImportUrl(e.target.value)}
+              placeholder="Paste a recipe URL to auto-fill the form"
+              disabled={importing}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleImport}
+              disabled={importing || !importUrl.trim()}
+            >
+              Import
+            </button>
+          </div>
+        </div>
+      )}
+
+      {importing && <div className="page-loading">Importing recipe...</div>}
+
+      <form onSubmit={handleSubmit} className="recipe-form" style={importing ? { display: 'none' } : undefined}>
         <section className="form-section">
           <h2 className="form-section-title">Details</h2>
           <div className="form-group">
