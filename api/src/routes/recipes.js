@@ -3,6 +3,10 @@ var router = express.Router();
 var RecipesService = require("../services/recipes.service");
 var recipesService = new RecipesService();
 
+router.post("/import-url", function (req, res) {
+  recipesService.importRecipeFromUrl(req, res);
+});
+
 /* GET recipes listing. */
 router.get("/:userId", function (req, res, next) {
   recipesService.getRecipesForUser(req, res);

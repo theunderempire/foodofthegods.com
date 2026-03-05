@@ -1,6 +1,11 @@
 var RequestService = require("./request.service");
+const secret = require("../secret");
 
 var requestService = new RequestService();
+
+const geminiUrl =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+const geminiAPIKey = secret.geminiApiKey;
 
 // A service for making recipe operations
 var RecipesService = function () {
@@ -8,6 +13,7 @@ var RecipesService = function () {
   this.deleteRecipe = deleteRecipe;
   this.getRecipesForUser = getRecipesForUser;
   this.getSingleRecipe = getSingleRecipe;
+  this.importRecipeFromUrl = importRecipeFromUrl;
   this.updateRecipe = updateRecipe;
 
   // Adds a recipe to a user's recipe list
@@ -104,6 +110,64 @@ var RecipesService = function () {
         requestService.returnUnauthorized(res);
       }
     });
+  }
+
+  async function importRecipeFromUrl(req, res) {
+    const url = req.body.url;
+    if (!url) {
+      return res.json({ success: false, data: "url is required" });
+    }
+
+    try {
+      const pageResponse = await fetch(url);
+      const html = await pageResponse.text();
+      const text = html
+        .replace(/<(\w+)[^>]*class=["'][^"']*recipeintro[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi, " ")
+        .replace(/<(script|style|nav|header|footer|aside|noscript|iframe|svg)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+        .replace(/<!--[\s\S]*?-->/g, " ")
+        .replace(/<[^>]*>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const geminiResponse = await fetch(geminiUrl, {
+        method: "POST",
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `Extract the recipe from the following webpage text and return ONLY a JSON object with no markdown fencing, no explanation, just the JSON. Use this exact shape:
+{
+  "name": "...",
+  "prepDuration": "...",
+  "cookDuration": "...",
+  "servings": "...",
+  "ingredients": [{ "id": 1, "name": "...", "amount": 1.5, "unit": "..." }],
+  "directions": [{ "id": 1, "text": "...", "duration": "" }]
+}
+
+Webpage text:
+${text.slice(0, 50000)}`,
+                },
+              ],
+            },
+          ],
+        }),
+        headers: {
+          "x-goog-api-key": geminiAPIKey,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const responseBody = await geminiResponse.json();
+      const rawText = responseBody.candidates[0].content.parts[0].text;
+      const stripped = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+      const recipe = JSON.parse(stripped);
+
+      res.json({ success: true, data: recipe });
+    } catch (err) {
+      res.json({ success: false, data: err.message || "Failed to import recipe" });
+    }
   }
 
   // Returns the 'recipelist' collection from the db
