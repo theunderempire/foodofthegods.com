@@ -47,13 +47,8 @@ router.post("/", async function (req, res, next) {
       passwordMatch = user.password === req.body.password;
       if (passwordMatch) {
         const hashed = await bcrypt.hash(req.body.password, 12);
-        await collection.update(
-          { username: req.body.username },
-          { $set: { password: hashed } },
-        );
-        console.log(
-          `[auth] migrated password to bcrypt for user="${req.body.username}"`,
-        );
+        await collection.update({ username: req.body.username }, { $set: { password: hashed } });
+        console.log(`[auth] migrated password to bcrypt for user="${req.body.username}"`);
       }
     }
 
@@ -83,26 +78,20 @@ function getCollection(db) {
 }
 
 function tokenCheck(req, res, next) {
-  var token =
-    req.body.token || req.query.token || req.headers["x-access-token"];
+  var token = req.body.token || req.query.token || req.headers["x-access-token"];
 
   if (token) {
-    jwt.verify(
-      token,
-      secret.superSecret,
-      { algorithms: ["HS256"] },
-      function (err, decoded) {
-        if (err) {
-          return res.json({
-            success: false,
-            message: "Failed to authenticate token.",
-          });
-        } else {
-          req.decoded = decoded;
-          next();
-        }
-      },
-    );
+    jwt.verify(token, secret.superSecret, { algorithms: ["HS256"] }, function (err, decoded) {
+      if (err) {
+        return res.json({
+          success: false,
+          message: "Failed to authenticate token.",
+        });
+      } else {
+        req.decoded = decoded;
+        next();
+      }
+    });
   } else {
     return res.status(403).send({
       success: false,

@@ -9,7 +9,9 @@ var RequestService = function () {
   function checkUser(req, id) {
     const match = id === req.decoded.username;
     if (!match) {
-      console.warn(`[auth] checkUser failed: token user="${req.decoded.username}" resource user="${id}"`);
+      console.warn(
+        `[auth] checkUser failed: token user="${req.decoded.username}" resource user="${id}"`,
+      );
     }
     return match;
   }

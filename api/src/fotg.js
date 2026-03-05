@@ -10,9 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 dotenv.config({ path: path.join(__dirname, `../.env.${process.env.NODE_ENV}`) });
 
-const db = monk(
-  `${process.env.DB_HOST_NAME}:27017/${process.env.DB_SERVICE_NAME}`
-);
+const db = monk(`${process.env.DB_HOST_NAME}:27017/${process.env.DB_SERVICE_NAME}`);
 
 db.then(() => {
   console.log("database connected");
@@ -31,7 +29,10 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use(function (req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, PUT, POST, PATCH, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Content-Length, X-Requested-With, X-Access-Token");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, Content-Length, X-Requested-With, X-Access-Token",
+  );
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
   }
@@ -67,7 +68,7 @@ app.use(function (_req, _res, next) {
 });
 
 // error handler
-app.use(function (err, req, res, next) {
+app.use(function (err, req, res, _next) {
   const error = req.app.get("env") === "development" ? err : {};
   res.status(err.status || 500).json({ message: err.message, error });
 });

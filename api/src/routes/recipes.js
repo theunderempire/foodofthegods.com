@@ -8,19 +8,19 @@ router.post("/import-url", function (req, res) {
 });
 
 /* GET recipes listing. */
-router.get("/:userId", function (req, res, next) {
+router.get("/:userId", function (req, res, _next) {
   recipesService.getRecipesForUser(req, res);
 });
 
-router.post("/", function (req, res, next) {
+router.post("/", function (req, res, _next) {
   recipesService.addRecipeForUser(req, res);
 });
 
-router.delete("/:id", function (req, res, next) {
+router.delete("/:id", function (req, res, _next) {
   recipesService.deleteRecipe(req, res);
 });
 
-router.put("/:id", function (req, res, next) {
+router.put("/:id", function (req, res, _next) {
   recipesService.updateRecipe(req, res);
 });
 

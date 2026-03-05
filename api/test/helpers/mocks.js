@@ -3,8 +3,14 @@
  */
 export function makeRes() {
   const res = { _status: 200, _body: null };
-  res.status = (code) => { res._status = code; return res; };
-  res.json = (data) => { res._body = data; return res; };
+  res.status = (code) => {
+    res._status = code;
+    return res;
+  };
+  res.json = (data) => {
+    res._body = data;
+    return res;
+  };
   return res;
 }
 
@@ -16,7 +22,7 @@ export function makeCollection(overrides = {}) {
   return {
     find: (_query, _opts) => Promise.resolve([]),
     findOne: (_query, _opts) => Promise.resolve({}),
-    insert: (doc) => Promise.resolve({ ...doc, _id: 'mock-id-123' }),
+    insert: (doc) => Promise.resolve({ ...doc, _id: "mock-id-123" }),
     update: (_query, _update) => Promise.resolve(),
     remove: (_query) => Promise.resolve(),
     ...overrides,
@@ -32,7 +38,7 @@ export function makeCollection(overrides = {}) {
  * @param {object} options.params  - req.params
  * @param {object} options.collections - map of collection name → mock collection
  */
-export function makeReq({ username = 'testuser', body = {}, params = {}, collections = {} } = {}) {
+export function makeReq({ username = "testuser", body = {}, params = {}, collections = {} } = {}) {
   return {
     decoded: { username },
     body,

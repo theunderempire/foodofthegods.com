@@ -9,7 +9,7 @@ var transporter = nodemailer.createTransport({
   },
 });
 
-router.post("/", async function (req, res, next) {
+router.post("/", async function (req, res, _next) {
   var msg = req.body;
   var textBody =
     "The user with username hash: " +

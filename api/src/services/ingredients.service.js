@@ -31,7 +31,7 @@ const IngredientService = function () {
         if (docs.ingredientList) {
           // exists
           const ungrouped = docs.ingredientList.groups.find(
-            (group) => group.name === ungroupedName
+            (group) => group.name === ungroupedName,
           );
 
           if (ungrouped) {
@@ -76,7 +76,7 @@ const IngredientService = function () {
         if (docs.ingredientList) {
           // exists
           const ungrouped = docs.ingredientList.groups.find(
-            (group) => group.name === ungroupedName
+            (group) => group.name === ungroupedName,
           );
 
           if (ungrouped) {
@@ -84,7 +84,7 @@ const IngredientService = function () {
               ingredients.map((ingredient) => ({
                 ingredient: ingredient,
                 completed: false,
-              }))
+              })),
             );
           } else {
             docs.ingredientList.groups.push({
@@ -225,12 +225,9 @@ const IngredientService = function () {
 
           if (response.ok) {
             const responseBody = await response.json();
-            const groupedListJSON =
-              responseBody.candidates[0].content.parts[0].text;
+            const groupedListJSON = responseBody.candidates[0].content.parts[0].text;
 
-            const strippedResponse = groupedListJSON
-              .replace("```json", "")
-              .replace("```", "");
+            const strippedResponse = groupedListJSON.replace("```json", "").replace("```", "");
             const groupedItems = JSON.parse(strippedResponse);
 
             const newDocs = { ...docs };
@@ -239,17 +236,23 @@ const IngredientService = function () {
             await collection.update({ userId }, newDocs);
             res.json({ success: true, data: newDocs });
           } else {
-            console.warn(`[ingredients] groupIngredientList: Gemini responded with status ${response.status} for user="${userId}"`);
+            console.warn(
+              `[ingredients] groupIngredientList: Gemini responded with status ${response.status} for user="${userId}"`,
+            );
             if (response.status === 429) {
               res.json({ success: true, data: "Rate limited" });
             }
           }
         } else {
-          console.warn(`[ingredients] groupIngredientList: no ingredient groups found for user="${userId}"`);
+          console.warn(
+            `[ingredients] groupIngredientList: no ingredient groups found for user="${userId}"`,
+          );
           res.json({ success: false, data: "could not find item group to update" });
         }
       } catch (err) {
-        console.error(`[ingredients] groupIngredientList error user="${userId}": ${err.message || err}`);
+        console.error(
+          `[ingredients] groupIngredientList error user="${userId}": ${err.message || err}`,
+        );
         res.json({ success: false, data: err.message || err });
       }
     }
@@ -288,7 +291,7 @@ const IngredientService = function () {
       try {
         const docs = await collection.findOne({ userId }, {});
         const itemGroupIndex = docs.ingredientList.groups.findIndex(
-          (group) => group.name === groupName
+          (group) => group.name === groupName,
         );
 
         if (itemGroupIndex !== -1) {
@@ -348,7 +351,7 @@ const IngredientService = function () {
 
         removeGroups.forEach((removeGroupName) => {
           const groupIndex = docs.ingredientList.groups.findIndex(
-            (group) => group.name === removeGroupName
+            (group) => group.name === removeGroupName,
           );
 
           if (groupIndex !== -1) {
@@ -378,14 +381,11 @@ const IngredientService = function () {
 
       try {
         const docs = await collection.findOne({ userId }, {});
-        const itemGroup = docs.ingredientList.groups.find(
-          (group) => group.name === groupName
-        );
+        const itemGroup = docs.ingredientList.groups.find((group) => group.name === groupName);
 
         if (itemGroup) {
           const itemIndex = itemGroup.items.findIndex(
-            (groupItem) =>
-              groupItem.ingredient.id === ingredientItem.ingredient.id
+            (groupItem) => groupItem.ingredient.id === ingredientItem.ingredient.id,
           );
 
           if (itemIndex !== -1) {

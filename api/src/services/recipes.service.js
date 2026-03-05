@@ -24,9 +24,7 @@ var RecipesService = function () {
     if (req.body.userId === req.decoded.username) {
       try {
         const result = await recipeCollection.insert(req.body);
-        console.log(
-          `[recipes] recipe added id="${result._id}" user="${req.decoded.username}"`,
-        );
+        console.log(`[recipes] recipe added id="${result._id}" user="${req.decoded.username}"`);
         await userCollection.update(
           { username: req.decoded.username },
           { $push: { recipeList: result._id } },
@@ -55,9 +53,7 @@ var RecipesService = function () {
     try {
       const docs = await recipeCollection.find({ _id: recipeID }, {});
       if (!docs.length) {
-        console.warn(
-          `[recipes] deleteRecipe: recipe not found id="${recipeID}"`,
-        );
+        console.warn(`[recipes] deleteRecipe: recipe not found id="${recipeID}"`);
       }
 
       await userCollection.update(
@@ -65,14 +61,9 @@ var RecipesService = function () {
         { $pull: { recipeList: recipeID } },
       );
 
-      const usersWithRecipe = await userCollection.find(
-        { recipeList: recipeID },
-        { _id: 1 },
-      );
+      const usersWithRecipe = await userCollection.find({ recipeList: recipeID }, { _id: 1 });
       if (!usersWithRecipe.length) {
-        console.log(
-          `[recipes] deleting recipe from db id="${recipeID}" (no remaining owners)`,
-        );
+        console.log(`[recipes] deleting recipe from db id="${recipeID}" (no remaining owners)`);
         await recipeCollection.remove({ _id: recipeID });
       }
 
@@ -91,19 +82,14 @@ var RecipesService = function () {
 
     if (requestService.checkUser(req, username)) {
       try {
-        const users = await userCollection.find(
-          { username: username },
-          { recipeList: 1 },
-        );
+        const users = await userCollection.find({ username: username }, { recipeList: 1 });
         const recipes = await recipeCollection.find(
           { _id: { $in: users[0]?.recipeList ?? [] } },
           { name: 1, prepDuration: 1, cookDuration: 1, imageUrl: 1 },
         );
         res.json({ success: true, data: recipes });
       } catch (err) {
-        console.error(
-          `[recipes] getRecipesForUser error user="${username}": ${err}`,
-        );
+        console.error(`[recipes] getRecipesForUser error user="${username}": ${err}`);
         res.json({ success: false, data: err.message });
       }
     } else {
@@ -142,9 +128,7 @@ var RecipesService = function () {
       }
       const { _id, ...fields } = updatedRecipe;
       await collection.update({ _id: recipeID }, { $set: fields });
-      console.log(
-        `[recipes] recipe updated id="${recipeID}" user="${req.decoded.username}"`,
-      );
+      console.log(`[recipes] recipe updated id="${recipeID}" user="${req.decoded.username}"`);
       requestService.printMsg(res, null, "recipe updated");
     } catch (err) {
       console.error(
@@ -165,10 +149,7 @@ var RecipesService = function () {
       const pageResponse = await fetch(url);
       const html = await pageResponse.text();
       const text = html
-        .replace(
-          /<(\w+)[^>]*class=["'][^"']*recipeintro[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi,
-          " ",
-        )
+        .replace(/<(\w+)[^>]*class=["'][^"']*recipeintro[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi, " ")
         .replace(
           /<(script|style|nav|header|footer|aside|noscript|iframe|svg)[^>]*>[\s\S]*?<\/\1>/gi,
           " ",
@@ -220,9 +201,7 @@ ${text.slice(0, 50000)}`,
       );
       res.json({ success: true, data: recipe });
     } catch (err) {
-      console.error(
-        `[recipes] importRecipeFromUrl error for "${url}": ${err.message || err}`,
-      );
+      console.error(`[recipes] importRecipeFromUrl error for "${url}": ${err.message || err}`);
       res.json({
         success: false,
         data: err.message || "Failed to import recipe",
