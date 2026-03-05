@@ -20,13 +20,14 @@ const IngredientService = function () {
   const geminiAPIKey = secret.geminiApiKey;
 
   // Updates the list for the user with the passed id with the request body
-  function addIngredient(req, response) {
+  async function addIngredient(req, response) {
     const userId = req.params.userId;
     const collection = getIngredientListCollection(req);
     const ingredient = req.body.ingredient;
 
     if (requestService.checkUser(req, userId)) {
-      collection.findOne({ userId }, {}, function (_e, docs) {
+      try {
+        const docs = await collection.findOne({ userId }, {});
         if (docs.ingredientList) {
           // exists
           const ungrouped = docs.ingredientList.groups.find(
@@ -53,27 +54,25 @@ const IngredientService = function () {
           };
         }
 
-        collection.update({ userId }, { ...docs }, function (err, result) {
-          if (!err) {
-            response.json({ success: true, data: docs });
-          } else {
-            console.error(`[ingredients] addIngredient update error user="${userId}": ${err}`);
-            requestService.printMsg(result, err, "error");
-          }
-        });
-      });
+        await collection.update({ userId }, { ...docs });
+        response.json({ success: true, data: docs });
+      } catch (err) {
+        console.error(`[ingredients] addIngredient error user="${userId}": ${err}`);
+        response.json({ success: false, data: err.message });
+      }
     } else {
       requestService.returnUnauthorized(response);
     }
   }
 
-  function addManyIngredients(req, response) {
+  async function addManyIngredients(req, response) {
     const userId = req.params.userId;
     const collection = getIngredientListCollection(req);
     const ingredients = req.body.ingredients;
 
     if (requestService.checkUser(req, userId)) {
-      collection.findOne({ userId }, {}, function (_e, docs) {
+      try {
+        const docs = await collection.findOne({ userId }, {});
         if (docs.ingredientList) {
           // exists
           const ungrouped = docs.ingredientList.groups.find(
@@ -111,35 +110,35 @@ const IngredientService = function () {
           };
         }
 
-        collection.update({ userId }, { ...docs }, function (err, result) {
-          if (!err) {
-            response.json({ success: true, data: docs });
-          } else {
-            console.error(`[ingredients] addManyIngredients update error user="${userId}": ${err}`);
-            requestService.printMsg(result, err, "error");
-          }
-        });
-      });
+        await collection.update({ userId }, { ...docs });
+        response.json({ success: true, data: docs });
+      } catch (err) {
+        console.error(`[ingredients] addManyIngredients error user="${userId}": ${err}`);
+        response.json({ success: false, data: err.message });
+      }
     } else {
       requestService.returnUnauthorized(response);
     }
   }
 
   // Returns the ingredient list for a specific user
-  function getIngredientListForUser(req, res) {
+  async function getIngredientListForUser(req, res) {
     const id = req.params.userId;
     const collection = getIngredientListCollection(req);
 
     if (requestService.checkUser(req, id)) {
-      collection.find({ userId: id }, {}, function (_e, docs) {
+      try {
+        const docs = await collection.find({ userId: id }, {});
         res.json({ success: true, data: docs });
-      });
+      } catch (err) {
+        res.json({ success: false, data: err.message });
+      }
     } else {
       requestService.returnUnauthorized(res);
     }
   }
 
-  // Returns the 'recipeList' collection from the db
+  // Returns the 'ingredientlist' collection from the db
   function getIngredientListCollection(req) {
     return requestService.getCollection(req, "ingredientlist");
   }
@@ -149,7 +148,8 @@ const IngredientService = function () {
     const collection = getIngredientListCollection(req);
 
     if (requestService.checkUser(req, userId)) {
-      collection.findOne({ userId }, {}, async function (_e, docs) {
+      try {
+        const docs = await collection.findOne({ userId }, {});
         if (docs?.ingredientList?.groups?.length) {
           console.log(`[ingredients] groupIngredientList: calling Gemini for user="${userId}"`);
           const groups = docs.ingredientList.groups;
@@ -223,80 +223,70 @@ const IngredientService = function () {
             },
           });
 
-          try {
-            if (response.ok) {
-              const responseBody = await response.json();
-              const groupedListJSON =
-                responseBody.candidates[0].content.parts[0].text;
+          if (response.ok) {
+            const responseBody = await response.json();
+            const groupedListJSON =
+              responseBody.candidates[0].content.parts[0].text;
 
-              const strippedResponse = groupedListJSON.replace("```json", "");
-              strippedResponse.replace("```", "");
-              const groupedItems = JSON.parse(strippedResponse);
+            const strippedResponse = groupedListJSON
+              .replace("```json", "")
+              .replace("```", "");
+            const groupedItems = JSON.parse(strippedResponse);
 
-              const newDocs = { ...docs };
-              newDocs.ingredientList.groups = groupedItems;
+            const newDocs = { ...docs };
+            newDocs.ingredientList.groups = groupedItems;
 
-              collection.update({ userId }, newDocs, function (err, result) {
-                if (!err) {
-                  res.json({ success: true, data: newDocs });
-                } else {
-                  requestService.printMsg(result, err, "error");
-                }
-              });
-            } else {
-              console.warn(`[ingredients] groupIngredientList: Gemini responded with status ${response.status} for user="${userId}"`);
-              if (response.status === 429) {
-                res.json({ success: true, data: "Rate limited" });
-              }
+            await collection.update({ userId }, newDocs);
+            res.json({ success: true, data: newDocs });
+          } else {
+            console.warn(`[ingredients] groupIngredientList: Gemini responded with status ${response.status} for user="${userId}"`);
+            if (response.status === 429) {
+              res.json({ success: true, data: "Rate limited" });
             }
-          } catch (err) {
-            console.error(`[ingredients] groupIngredientList parse/update error user="${userId}": ${err.message || err}`);
-            res.json({ success: true, data: err });
           }
         } else {
           console.warn(`[ingredients] groupIngredientList: no ingredient groups found for user="${userId}"`);
-          requestService.printMsg(
-            res,
-            err,
-            "could not find item group to update"
-          );
+          res.json({ success: false, data: "could not find item group to update" });
         }
-      });
+      } catch (err) {
+        console.error(`[ingredients] groupIngredientList error user="${userId}": ${err.message || err}`);
+        res.json({ success: false, data: err.message || err });
+      }
     }
   }
 
-  function removeAllIngredients(req, response) {
+  async function removeAllIngredients(req, response) {
     const userId = req.params.userId;
     const collection = getIngredientListCollection(req);
 
     if (requestService.checkUser(req, userId)) {
-      collection.findOne({ userId }, {}, function (_e, docs) {
+      try {
+        const docs = await collection.findOne({ userId }, {});
         docs.ingredientList = {
           groups: [],
           lastModified: new Date().toString(),
         };
 
-        collection.update({ userId }, { ...docs }, function (err, result) {
-          if (!err) {
-            response.json({ success: true, data: docs });
-          } else {
-            requestService.printMsg(result, err, "error");
-          }
-        });
-      });
+        await collection.update({ userId }, { ...docs });
+        response.json({ success: true, data: docs });
+      } catch (err) {
+        console.error(`[ingredients] removeAllIngredients error user="${userId}": ${err}`);
+        response.json({ success: false, data: err.message });
+      }
     } else {
       requestService.returnUnauthorized(response);
     }
   }
 
-  function removeIngredient(req, res) {
+  async function removeIngredient(req, res) {
     const userId = req.params.userId;
     const collection = getIngredientListCollection(req);
     const ingredientId = parseInt(req.params.itemId);
     const groupName = req.params.groupName;
 
     if (requestService.checkUser(req, userId)) {
-      collection.findOne({ userId }, {}, function (err1, docs) {
+      try {
+        const docs = await collection.findOne({ userId }, {});
         const itemGroupIndex = docs.ingredientList.groups.findIndex(
           (group) => group.name === groupName
         );
@@ -314,13 +304,8 @@ const IngredientService = function () {
               docs.ingredientList.groups.splice(itemGroupIndex, 1);
             }
 
-            collection.update({ userId }, { ...docs }, function (err2) {
-              if (!err2) {
-                res.json({ success: true, data: docs });
-              } else {
-                requestService.printMsg(res, err2, "could not update list");
-              }
-            });
+            await collection.update({ userId }, { ...docs });
+            res.json({ success: true, data: docs });
           } else {
             res.json({
               success: true,
@@ -335,18 +320,22 @@ const IngredientService = function () {
             msg: "could not find item group to update",
           });
         }
-      });
+      } catch (err) {
+        console.error(`[ingredients] removeIngredient error user="${userId}": ${err}`);
+        res.json({ success: false, data: err.message });
+      }
     } else {
       requestService.returnUnauthorized(res);
     }
   }
 
-  function removeMarkedIngredients(req, response) {
+  async function removeMarkedIngredients(req, response) {
     const userId = req.params.userId;
     const collection = getIngredientListCollection(req);
 
     if (requestService.checkUser(req, userId)) {
-      collection.findOne({ userId }, {}, function (_e, docs) {
+      try {
+        const docs = await collection.findOne({ userId }, {});
         const removeGroups = [];
 
         docs.ingredientList.groups.forEach((group) => {
@@ -367,20 +356,18 @@ const IngredientService = function () {
           }
         });
 
-        collection.update({ userId }, { ...docs }, function (err, result) {
-          if (!err) {
-            response.json({ success: true, data: docs });
-          } else {
-            requestService.printMsg(result, err, "error");
-          }
-        });
-      });
+        await collection.update({ userId }, { ...docs });
+        response.json({ success: true, data: docs });
+      } catch (err) {
+        console.error(`[ingredients] removeMarkedIngredients error user="${userId}": ${err}`);
+        response.json({ success: false, data: err.message });
+      }
     } else {
       requestService.returnUnauthorized(response);
     }
   }
 
-  function updateIngredient(req, response) {
+  async function updateIngredient(req, response) {
     const userId = req.params.userId;
     const collection = getIngredientListCollection(req);
 
@@ -388,7 +375,9 @@ const IngredientService = function () {
       const payload = req.body.payload;
       const ingredientItem = payload.ingredientListItem;
       const groupName = payload.groupName;
-      collection.findOne({ userId }, {}, function (_e, docs) {
+
+      try {
+        const docs = await collection.findOne({ userId }, {});
         const itemGroup = docs.ingredientList.groups.find(
           (group) => group.name === groupName
         );
@@ -401,13 +390,8 @@ const IngredientService = function () {
 
           if (itemIndex !== -1) {
             itemGroup.items[itemIndex] = ingredientItem;
-            collection.update({ userId }, { ...docs }, function (err, result) {
-              if (!err) {
-                response.json({ success: true, data: docs });
-              } else {
-                requestService.printMsg(result, err, "error");
-              }
-            });
+            await collection.update({ userId }, { ...docs });
+            response.json({ success: true, data: docs });
           } else {
             response.json({
               success: true,
@@ -422,7 +406,10 @@ const IngredientService = function () {
             msg: "could not find item group to update",
           });
         }
-      });
+      } catch (err) {
+        console.error(`[ingredients] updateIngredient error user="${userId}": ${err}`);
+        response.json({ success: false, data: err.message });
+      }
     } else {
       requestService.returnUnauthorized(response);
     }

@@ -3,12 +3,12 @@ import jwt from "jsonwebtoken";
 import secret from "../secret.js";
 const router = express.Router();
 
-router.get("/:username", function (req, res, next) {
-  var db = getDB(req);
-  var collection = getCollection(db);
+router.get("/:username", async function (req, res, next) {
+  var collection = getCollection(req.db);
   var username = req.params.username;
 
-  collection.findOne({ username: username }, {}, function (e, user) {
+  try {
+    const user = await collection.findOne({ username: username }, {});
     if (!user) {
       res.json({
         success: false,
@@ -20,57 +20,56 @@ router.get("/:username", function (req, res, next) {
         data: { username: username, timestamp: user.timestamp },
       });
     }
-  });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post("/", function (req, res, next) {
-  var db = getDB(req);
-  var collection = getCollection(db);
+router.post("/", async function (req, res, next) {
+  var collection = getCollection(req.db);
 
-  collection.findOne({ username: req.body.username }, {}, function (e, user) {
+  try {
+    const user = await collection.findOne({ username: req.body.username }, {});
     if (!user) {
       res.json({
         success: false,
         data: { message: "Authentication failed. Incorrect credentials." },
       });
+    } else if (user.password != req.body.password) {
+      console.log(user.password, req.body.password);
+      res.json({
+        success: false,
+        data: { message: "Authentication failed. Incorrect credentials." },
+      });
     } else {
-      if (user.password != req.body.password) {
-        console.log(user.password, req.body.password);
-        res.json({
-          success: false,
-          data: { message: "Authentication failed. Incorrect credentials." },
-        });
-      } else {
-        var token = jwt.sign(
-          {
-            success: true,
-            username: user.username,
-            password: user.password,
-          },
-          secret.superSecret,
-          {
-            expiresIn: "1d",
-          }
-        );
-
-        res.json({
+      var token = jwt.sign(
+        {
           success: true,
-          data: {
-            message: "authenticated",
-            token: token,
-          },
-        });
-      }
+          username: user.username,
+          password: user.password,
+        },
+        secret.superSecret,
+        {
+          expiresIn: "1d",
+          algorithm: "HS256",
+        }
+      );
+
+      res.json({
+        success: true,
+        data: {
+          message: "authenticated",
+          token: token,
+        },
+      });
     }
-  });
+  } catch (err) {
+    next(err);
+  }
 });
 
 function getCollection(db) {
   return db.get("users");
-}
-
-function getDB(req) {
-  return req.db;
 }
 
 function tokenCheck(req, res, next) {
@@ -81,7 +80,7 @@ function tokenCheck(req, res, next) {
   // decode token
   if (token) {
     // verifies secret and checks exp
-    jwt.verify(token, secret.superSecret, function (err, decoded) {
+    jwt.verify(token, secret.superSecret, { algorithms: ["HS256"] }, function (err, decoded) {
       if (err) {
         return res.json({
           success: false,

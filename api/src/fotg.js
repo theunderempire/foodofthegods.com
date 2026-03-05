@@ -22,9 +22,6 @@ console.log("starting", process.env.NODE_ENV, process.env.PORT);
 
 var app = express();
 
-app.set("views", path.join(__dirname, "views"));
-app.set("view engine", "jade");
-
 app.use(logger("dev"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -71,11 +68,8 @@ app.use(function (_req, _res, next) {
 
 // error handler
 app.use(function (err, req, res, next) {
-  res.locals.message = err.message;
-  res.locals.error = req.app.get("env") === "development" ? err : {};
-
-  res.status(err.status || 500);
-  res.render("error");
+  const error = req.app.get("env") === "development" ? err : {};
+  res.status(err.status || 500).json({ message: err.message, error });
 });
 
 export default app;

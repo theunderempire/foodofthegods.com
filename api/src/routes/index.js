@@ -3,10 +3,10 @@ const router = express.Router();
 
 /* GET home page. */
 router.get('/', function (req, res, next) {
-  var title = process.env.NODE_ENV === 'development'
+  var message = process.env.NODE_ENV === 'development'
     ? 'dev server running'
     : 'Recipe action, if you know how';
-  res.render('index', { title: title });
+  res.json({ message });
 });
 
 export default router;

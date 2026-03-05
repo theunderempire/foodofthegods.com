@@ -18,47 +18,47 @@ function makeIngredientReq({ username = 'user-1', params = {}, body = {}, collec
 
 describe('IngredientService', () => {
   describe('getIngredientListForUser', () => {
-    test('returns ingredient list for authorized user', () => {
+    test('returns ingredient list for authorized user', async () => {
       const mockDocs = [makeDocsWithList([{ ingredient: SALT, completed: false }])];
       const res = makeRes();
       const req = makeIngredientReq({
         collections: {
           ingredientlist: makeCollection({
-            find: (_q, _o, cb) => cb(null, mockDocs),
+            find: (_q, _o) => Promise.resolve(mockDocs),
           }),
         },
       });
 
-      service.getIngredientListForUser(req, res);
+      await service.getIngredientListForUser(req, res);
 
       assert.equal(res._body.success, true);
       assert.deepEqual(res._body.data, mockDocs);
     });
 
-    test('returns 401 when requesting another user\'s list', () => {
+    test('returns 401 when requesting another user\'s list', async () => {
       const res = makeRes();
       const req = makeIngredientReq({ params: { userId: 'user-2' } });
 
-      service.getIngredientListForUser(req, res);
+      await service.getIngredientListForUser(req, res);
 
       assert.equal(res._status, 401);
     });
   });
 
   describe('addIngredient', () => {
-    test('adds ingredient to existing ungrouped list', () => {
+    test('adds ingredient to existing ungrouped list', async () => {
       const res = makeRes();
       const req = makeIngredientReq({
         body: { ingredient: SALT },
         collections: {
           ingredientlist: makeCollection({
-            findOne: (_q, _o, cb) => cb(null, makeDocsWithList([])),
-            update: (_q, _u, cb) => cb(null),
+            findOne: (_q, _o) => Promise.resolve(makeDocsWithList([])),
+            update: (_q, _u) => Promise.resolve(),
           }),
         },
       });
 
-      service.addIngredient(req, res);
+      await service.addIngredient(req, res);
 
       const items = res._body.data.ingredientList.groups[0].items;
       assert.equal(items.length, 1);
@@ -66,19 +66,19 @@ describe('IngredientService', () => {
       assert.equal(items[0].completed, false);
     });
 
-    test('creates new ingredientList when none exists', () => {
+    test('creates new ingredientList when none exists', async () => {
       const res = makeRes();
       const req = makeIngredientReq({
         body: { ingredient: SALT },
         collections: {
           ingredientlist: makeCollection({
-            findOne: (_q, _o, cb) => cb(null, {}), // no ingredientList
-            update: (_q, _u, cb) => cb(null),
+            findOne: (_q, _o) => Promise.resolve({}), // no ingredientList
+            update: (_q, _u) => Promise.resolve(),
           }),
         },
       });
 
-      service.addIngredient(req, res);
+      await service.addIngredient(req, res);
 
       const groups = res._body.data.ingredientList.groups;
       assert.equal(groups.length, 1);
@@ -86,30 +86,30 @@ describe('IngredientService', () => {
       assert.deepEqual(groups[0].items[0].ingredient, SALT);
     });
 
-    test('returns 401 for unauthorized user', () => {
+    test('returns 401 for unauthorized user', async () => {
       const res = makeRes();
       const req = makeIngredientReq({ params: { userId: 'user-2' } });
 
-      service.addIngredient(req, res);
+      await service.addIngredient(req, res);
 
       assert.equal(res._status, 401);
     });
   });
 
   describe('addManyIngredients', () => {
-    test('adds multiple ingredients to existing ungrouped list', () => {
+    test('adds multiple ingredients to existing ungrouped list', async () => {
       const res = makeRes();
       const req = makeIngredientReq({
         body: { ingredients: [SALT, SUGAR] },
         collections: {
           ingredientlist: makeCollection({
-            findOne: (_q, _o, cb) => cb(null, makeDocsWithList([])),
-            update: (_q, _u, cb) => cb(null),
+            findOne: (_q, _o) => Promise.resolve(makeDocsWithList([])),
+            update: (_q, _u) => Promise.resolve(),
           }),
         },
       });
 
-      service.addManyIngredients(req, res);
+      await service.addManyIngredients(req, res);
 
       const items = res._body.data.ingredientList.groups[0].items;
       assert.equal(items.length, 2);
@@ -117,18 +117,18 @@ describe('IngredientService', () => {
       assert.deepEqual(items[1].ingredient, SUGAR);
     });
 
-    test('returns 401 for unauthorized user', () => {
+    test('returns 401 for unauthorized user', async () => {
       const res = makeRes();
       const req = makeIngredientReq({ params: { userId: 'user-2' } });
 
-      service.addManyIngredients(req, res);
+      await service.addManyIngredients(req, res);
 
       assert.equal(res._status, 401);
     });
   });
 
   describe('removeIngredient', () => {
-    test('removes the specified ingredient from its group', () => {
+    test('removes the specified ingredient from its group', async () => {
       const initialItems = [
         { ingredient: SALT, completed: false },
         { ingredient: SUGAR, completed: false },
@@ -138,160 +138,160 @@ describe('IngredientService', () => {
         params: { userId: 'user-1', groupName: 'ungrouped', itemId: '1' },
         collections: {
           ingredientlist: makeCollection({
-            findOne: (_q, _o, cb) => cb(null, makeDocsWithList(JSON.parse(JSON.stringify(initialItems)))),
-            update: (_q, _u, cb) => cb(null),
+            findOne: (_q, _o) => Promise.resolve(makeDocsWithList(JSON.parse(JSON.stringify(initialItems)))),
+            update: (_q, _u) => Promise.resolve(),
           }),
         },
       });
 
-      service.removeIngredient(req, res);
+      await service.removeIngredient(req, res);
 
       const items = res._body.data.ingredientList.groups[0].items;
       assert.equal(items.length, 1);
       assert.equal(items[0].ingredient.id, SUGAR.id);
     });
 
-    test('removes the group when it becomes empty after removal', () => {
+    test('removes the group when it becomes empty after removal', async () => {
       const res = makeRes();
       const req = makeIngredientReq({
         params: { userId: 'user-1', groupName: 'ungrouped', itemId: '1' },
         collections: {
           ingredientlist: makeCollection({
-            findOne: (_q, _o, cb) => cb(null, makeDocsWithList([{ ingredient: SALT, completed: false }])),
-            update: (_q, _u, cb) => cb(null),
+            findOne: (_q, _o) => Promise.resolve(makeDocsWithList([{ ingredient: SALT, completed: false }])),
+            update: (_q, _u) => Promise.resolve(),
           }),
         },
       });
 
-      service.removeIngredient(req, res);
+      await service.removeIngredient(req, res);
 
       assert.equal(res._body.data.ingredientList.groups.length, 0);
     });
 
-    test('responds with not-found message when item does not exist in group', () => {
+    test('responds with not-found message when item does not exist in group', async () => {
       const res = makeRes();
       const req = makeIngredientReq({
         params: { userId: 'user-1', groupName: 'ungrouped', itemId: '99' },
         collections: {
           ingredientlist: makeCollection({
-            findOne: (_q, _o, cb) => cb(null, makeDocsWithList([{ ingredient: SALT, completed: false }])),
+            findOne: (_q, _o) => Promise.resolve(makeDocsWithList([{ ingredient: SALT, completed: false }])),
           }),
         },
       });
 
-      service.removeIngredient(req, res);
+      await service.removeIngredient(req, res);
 
       assert.match(res._body.msg, /could not find item/);
     });
 
-    test('returns 401 for unauthorized user', () => {
+    test('returns 401 for unauthorized user', async () => {
       const res = makeRes();
       const req = makeIngredientReq({ params: { userId: 'user-2' } });
 
-      service.removeIngredient(req, res);
+      await service.removeIngredient(req, res);
 
       assert.equal(res._status, 401);
     });
   });
 
   describe('removeAllIngredients', () => {
-    test('clears all groups from the ingredient list', () => {
+    test('clears all groups from the ingredient list', async () => {
       const res = makeRes();
       const req = makeIngredientReq({
         collections: {
           ingredientlist: makeCollection({
-            findOne: (_q, _o, cb) => cb(null, makeDocsWithList([
+            findOne: (_q, _o) => Promise.resolve(makeDocsWithList([
               { ingredient: SALT, completed: false },
               { ingredient: SUGAR, completed: true },
             ])),
-            update: (_q, _u, cb) => cb(null),
+            update: (_q, _u) => Promise.resolve(),
           }),
         },
       });
 
-      service.removeAllIngredients(req, res);
+      await service.removeAllIngredients(req, res);
 
       assert.equal(res._body.data.ingredientList.groups.length, 0);
     });
 
-    test('returns 401 for unauthorized user', () => {
+    test('returns 401 for unauthorized user', async () => {
       const res = makeRes();
       const req = makeIngredientReq({ params: { userId: 'user-2' } });
 
-      service.removeAllIngredients(req, res);
+      await service.removeAllIngredients(req, res);
 
       assert.equal(res._status, 401);
     });
   });
 
   describe('removeMarkedIngredients', () => {
-    test('removes completed items and keeps uncompleted ones', () => {
+    test('removes completed items and keeps uncompleted ones', async () => {
       const res = makeRes();
       const req = makeIngredientReq({
         collections: {
           ingredientlist: makeCollection({
-            findOne: (_q, _o, cb) => cb(null, makeDocsWithList([
+            findOne: (_q, _o) => Promise.resolve(makeDocsWithList([
               { ingredient: SALT, completed: false },
               { ingredient: SUGAR, completed: true },
             ])),
-            update: (_q, _u, cb) => cb(null),
+            update: (_q, _u) => Promise.resolve(),
           }),
         },
       });
 
-      service.removeMarkedIngredients(req, res);
+      await service.removeMarkedIngredients(req, res);
 
       const items = res._body.data.ingredientList.groups[0].items;
       assert.equal(items.length, 1);
       assert.equal(items[0].ingredient.id, SALT.id);
     });
 
-    test('removes the group entirely when all items were completed', () => {
+    test('removes the group entirely when all items were completed', async () => {
       const res = makeRes();
       const req = makeIngredientReq({
         collections: {
           ingredientlist: makeCollection({
-            findOne: (_q, _o, cb) => cb(null, makeDocsWithList([
+            findOne: (_q, _o) => Promise.resolve(makeDocsWithList([
               { ingredient: SALT, completed: true },
               { ingredient: SUGAR, completed: true },
             ])),
-            update: (_q, _u, cb) => cb(null),
+            update: (_q, _u) => Promise.resolve(),
           }),
         },
       });
 
-      service.removeMarkedIngredients(req, res);
+      await service.removeMarkedIngredients(req, res);
 
       assert.equal(res._body.data.ingredientList.groups.length, 0);
     });
 
-    test('returns 401 for unauthorized user', () => {
+    test('returns 401 for unauthorized user', async () => {
       const res = makeRes();
       const req = makeIngredientReq({ params: { userId: 'user-2' } });
 
-      service.removeMarkedIngredients(req, res);
+      await service.removeMarkedIngredients(req, res);
 
       assert.equal(res._status, 401);
     });
   });
 
   describe('updateIngredient', () => {
-    test('updates the ingredient item in its group', () => {
+    test('updates the ingredient item in its group', async () => {
       const updatedSalt = { ingredient: { ...SALT, amount: 3, unit: 'tbsp' }, completed: true };
       const res = makeRes();
       const req = makeIngredientReq({
         body: { payload: { groupName: 'ungrouped', ingredientListItem: updatedSalt } },
         collections: {
           ingredientlist: makeCollection({
-            findOne: (_q, _o, cb) => cb(null, makeDocsWithList([
+            findOne: (_q, _o) => Promise.resolve(makeDocsWithList([
               { ingredient: SALT, completed: false },
             ])),
-            update: (_q, _u, cb) => cb(null),
+            update: (_q, _u) => Promise.resolve(),
           }),
         },
       });
 
-      service.updateIngredient(req, res);
+      await service.updateIngredient(req, res);
 
       const item = res._body.data.ingredientList.groups[0].items[0];
       assert.equal(item.ingredient.amount, 3);
@@ -299,7 +299,7 @@ describe('IngredientService', () => {
       assert.equal(item.completed, true);
     });
 
-    test('responds with not-found message when item does not exist in group', () => {
+    test('responds with not-found message when item does not exist in group', async () => {
       const res = makeRes();
       const req = makeIngredientReq({
         body: {
@@ -310,23 +310,23 @@ describe('IngredientService', () => {
         },
         collections: {
           ingredientlist: makeCollection({
-            findOne: (_q, _o, cb) => cb(null, makeDocsWithList([
+            findOne: (_q, _o) => Promise.resolve(makeDocsWithList([
               { ingredient: SALT, completed: false },
             ])),
           }),
         },
       });
 
-      service.updateIngredient(req, res);
+      await service.updateIngredient(req, res);
 
       assert.match(res._body.msg, /could not find item/);
     });
 
-    test('returns 401 for unauthorized user', () => {
+    test('returns 401 for unauthorized user', async () => {
       const res = makeRes();
       const req = makeIngredientReq({ params: { userId: 'user-2' } });
 
-      service.updateIngredient(req, res);
+      await service.updateIngredient(req, res);
 
       assert.equal(res._status, 401);
     });

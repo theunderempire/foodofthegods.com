@@ -14,11 +14,11 @@ export function makeRes() {
  */
 export function makeCollection(overrides = {}) {
   return {
-    find: (_query, _opts, cb) => cb(null, []),
-    findOne: (_query, _opts, cb) => cb(null, {}),
-    insert: (doc, cb) => cb(null, { ...doc, _id: 'mock-id-123' }),
-    update: (_query, _update, cb) => cb && cb(null),
-    remove: (_query, cb) => cb(null),
+    find: (_query, _opts) => Promise.resolve([]),
+    findOne: (_query, _opts) => Promise.resolve({}),
+    insert: (doc) => Promise.resolve({ ...doc, _id: 'mock-id-123' }),
+    update: (_query, _update) => Promise.resolve(),
+    remove: (_query) => Promise.resolve(),
     ...overrides,
   };
 }

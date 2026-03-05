@@ -17,23 +17,23 @@ var RecipesService = function () {
   this.updateRecipe = updateRecipe;
 
   // Adds a recipe to a user's recipe list
-  function addRecipeForUser(req, res) {
+  async function addRecipeForUser(req, res) {
     var recipeCollection = getRecipeListCollection(req);
     var userCollection = getUserCollection(req);
 
     if (req.body.userId === req.decoded.username) {
-      recipeCollection.insert(req.body, function (err, result) {
-        if (err) {
-          console.error(`[recipes] addRecipeForUser insert error for user="${req.decoded.username}": ${err}`);
-        } else {
-          console.log(`[recipes] recipe added id="${result._id}" user="${req.decoded.username}"`);
-        }
-        userCollection.update(
+      try {
+        const result = await recipeCollection.insert(req.body);
+        console.log(`[recipes] recipe added id="${result._id}" user="${req.decoded.username}"`);
+        await userCollection.update(
           { username: req.decoded.username },
           { $push: { recipeList: result._id } }
         );
+        requestService.printMsg(res, null, "recipe added");
+      } catch (err) {
+        console.error(`[recipes] addRecipeForUser error for user="${req.decoded.username}": ${err}`);
         requestService.printMsg(res, err, "recipe added");
-      });
+      }
     } else {
       console.warn(`[recipes] addRecipeForUser userId mismatch: body.userId="${req.body.userId}" token="${req.decoded.username}"`);
       requestService.returnUnauthorized(res);
@@ -41,107 +41,93 @@ var RecipesService = function () {
   }
 
   // Deletes the recipe with the requested recipeID
-  function deleteRecipe(req, res) {
+  async function deleteRecipe(req, res) {
     var recipeCollection = getRecipeListCollection(req);
     var userCollection = getUserCollection(req);
     var recipeID = req.params.id;
 
-    recipeCollection.find({ _id: recipeID }, {}, function (e, docs) {
-      if (e) {
-        console.error(`[recipes] deleteRecipe find error id="${recipeID}": ${e}`);
-      } else if (!docs.length) {
+    try {
+      const docs = await recipeCollection.find({ _id: recipeID }, {});
+      if (!docs.length) {
         console.warn(`[recipes] deleteRecipe: recipe not found id="${recipeID}"`);
       }
 
-      // Remove from recipeList
-      userCollection.update(
+      await userCollection.update(
         { username: req.decoded.username },
-        { $pull: { recipeList: recipeID } },
-        function (e, result) {
-          userCollection.find(
-            { recipeList: recipeID },
-            { _id: 1 },
-            function (e, usersWithRecipe) {
-              // If the recipe is no longer in anyone's list, delete it
-              if (!usersWithRecipe.length) {
-                console.log(`[recipes] deleting recipe from db id="${recipeID}" (no remaining owners)`);
-                recipeCollection.remove({ _id: recipeID }, function (err) {
-                  if (err) console.error(`[recipes] deleteRecipe remove error id="${recipeID}": ${err}`);
-                });
-              }
-            }
-          );
-        }
+        { $pull: { recipeList: recipeID } }
       );
 
-      requestService.printMsg(res, e, "recipe deleted");
-    });
+      const usersWithRecipe = await userCollection.find({ recipeList: recipeID }, { _id: 1 });
+      if (!usersWithRecipe.length) {
+        console.log(`[recipes] deleting recipe from db id="${recipeID}" (no remaining owners)`);
+        await recipeCollection.remove({ _id: recipeID });
+      }
+
+      requestService.printMsg(res, null, "recipe deleted");
+    } catch (err) {
+      console.error(`[recipes] deleteRecipe error id="${recipeID}": ${err}`);
+      requestService.printMsg(res, err, "recipe deleted");
+    }
   }
 
   // Returns all the recipes that are owned by the user with userID id
-  function getRecipesForUser(req, res) {
+  async function getRecipesForUser(req, res) {
     var recipeCollection = getRecipeListCollection(req);
     var userCollection = getUserCollection(req);
     var username = req.params.userId;
 
     if (requestService.checkUser(req, username)) {
-      userCollection.find(
-        { username: username },
-        { recipeList: 1 },
-        function (e, recipeIDs) {
-          recipeCollection.find(
-            { _id: { $in: recipeIDs[0].recipeList } },
-            { name: 1, prepDuration: 1, cookDuration: 1, imageUrl: 1 },
-            function (e, recipes) {
-              res.json({ success: true, data: recipes });
-            }
-          );
-        }
-      );
+      try {
+        const users = await userCollection.find({ username: username }, { recipeList: 1 });
+        const recipes = await recipeCollection.find(
+          { _id: { $in: users[0].recipeList } },
+          { name: 1, prepDuration: 1, cookDuration: 1, imageUrl: 1 }
+        );
+        res.json({ success: true, data: recipes });
+      } catch (err) {
+        console.error(`[recipes] getRecipesForUser error user="${username}": ${err}`);
+        res.json({ success: false, data: err.message });
+      }
     } else {
       requestService.returnUnauthorized(res);
     }
   }
 
-  function getSingleRecipe(req, res) {
+  async function getSingleRecipe(req, res) {
     var collection = getRecipeListCollection(req);
-
-    collection.find({ _id: req.params.id }, {}, function (e, docs) {
+    try {
+      const docs = await collection.find({ _id: req.params.id }, {});
       res.json({ success: true, data: docs });
-    });
+    } catch (err) {
+      res.json({ success: false, data: err.message });
+    }
   }
 
   // Updates the recipe with the passed `id` param with the
   // recipe passed in the request body
-  function updateRecipe(req, res) {
+  async function updateRecipe(req, res) {
     var collection = getRecipeListCollection(req);
     var userCollection = getUserCollection(req);
     var recipeID = req.params.id;
     var updatedRecipe = req.body;
 
-    userCollection.find(
-      { username: req.decoded.username, recipeList: recipeID },
-      { _id: 1 },
-      function (e, users) {
-        if (e) {
-          console.error(`[recipes] updateRecipe ownership lookup error id="${recipeID}" user="${req.decoded.username}": ${e}`);
-          return requestService.returnUnauthorized(res);
-        }
-        if (!users || !users.length) {
-          console.warn(`[recipes] updateRecipe: recipe id="${recipeID}" not in recipeList for user="${req.decoded.username}"`);
-          return requestService.returnUnauthorized(res);
-        }
-        const { _id, ...fields } = updatedRecipe;
-        collection.update({ _id: recipeID }, { $set: fields }, function (err) {
-          if (err) {
-            console.error(`[recipes] updateRecipe update error id="${recipeID}": ${err}`);
-          } else {
-            console.log(`[recipes] recipe updated id="${recipeID}" user="${req.decoded.username}"`);
-          }
-          requestService.printMsg(res, err, "recipe updated");
-        });
+    try {
+      const users = await userCollection.find(
+        { username: req.decoded.username, recipeList: recipeID },
+        { _id: 1 }
+      );
+      if (!users || !users.length) {
+        console.warn(`[recipes] updateRecipe: recipe id="${recipeID}" not in recipeList for user="${req.decoded.username}"`);
+        return requestService.returnUnauthorized(res);
       }
-    );
+      const { _id, ...fields } = updatedRecipe;
+      await collection.update({ _id: recipeID }, { $set: fields });
+      console.log(`[recipes] recipe updated id="${recipeID}" user="${req.decoded.username}"`);
+      requestService.printMsg(res, null, "recipe updated");
+    } catch (err) {
+      console.error(`[recipes] updateRecipe error id="${recipeID}" user="${req.decoded.username}": ${err}`);
+      requestService.returnUnauthorized(res);
+    }
   }
 
   async function importRecipeFromUrl(req, res) {

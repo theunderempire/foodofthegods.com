@@ -7,7 +7,7 @@ const service = new RecipesService();
 
 describe('RecipesService', () => {
   describe('addRecipeForUser', () => {
-    test('inserts recipe and responds with success when userId matches token', () => {
+    test('inserts recipe and responds with success when userId matches token', async () => {
       let inserted = null;
       const res = makeRes();
       const req = makeReq({
@@ -15,25 +15,25 @@ describe('RecipesService', () => {
         body: { name: 'Pasta', userId: 'user-1' },
         collections: {
           recipelist: makeCollection({
-            insert: (doc, cb) => { inserted = doc; cb(null, { ...doc, _id: 'new-id' }); },
+            insert: (doc) => { inserted = doc; return Promise.resolve({ ...doc, _id: 'new-id' }); },
           }),
         },
       });
 
-      service.addRecipeForUser(req, res);
+      await service.addRecipeForUser(req, res);
 
       assert.equal(inserted.name, 'Pasta');
       assert.equal(res._body.data.msg, 'recipe added');
     });
 
-    test('returns 401 when userId in body does not match token', () => {
+    test('returns 401 when userId in body does not match token', async () => {
       const res = makeRes();
       const req = makeReq({
         username: 'user-1',
         body: { name: 'Pasta', userId: 'user-2' },
       });
 
-      service.addRecipeForUser(req, res);
+      await service.addRecipeForUser(req, res);
 
       assert.equal(res._status, 401);
       assert.equal(res._body.success, false);
@@ -41,7 +41,7 @@ describe('RecipesService', () => {
   });
 
   describe('getRecipesForUser', () => {
-    test('returns recipes for authorized user', () => {
+    test('returns recipes for authorized user', async () => {
       const mockRecipes = [{ _id: 'r1', name: 'Pasta' }];
       const res = makeRes();
       const req = makeReq({
@@ -49,47 +49,47 @@ describe('RecipesService', () => {
         params: { userId: 'user-1' },
         collections: {
           users: makeCollection({
-            find: (_q, _o, cb) => cb(null, [{ recipeList: ['r1'] }]),
+            find: (_q, _o) => Promise.resolve([{ recipeList: ['r1'] }]),
           }),
           recipelist: makeCollection({
-            find: (_q, _o, cb) => cb(null, mockRecipes),
+            find: (_q, _o) => Promise.resolve(mockRecipes),
           }),
         },
       });
 
-      service.getRecipesForUser(req, res);
+      await service.getRecipesForUser(req, res);
 
       assert.equal(res._body.success, true);
       assert.deepEqual(res._body.data, mockRecipes);
     });
 
-    test('returns 401 when requesting another user\'s recipes', () => {
+    test('returns 401 when requesting another user\'s recipes', async () => {
       const res = makeRes();
       const req = makeReq({
         username: 'user-1',
         params: { userId: 'user-2' },
       });
 
-      service.getRecipesForUser(req, res);
+      await service.getRecipesForUser(req, res);
 
       assert.equal(res._status, 401);
     });
   });
 
   describe('getSingleRecipe', () => {
-    test('returns the recipe matching the requested id', () => {
+    test('returns the recipe matching the requested id', async () => {
       const mockRecipe = [{ _id: 'r1', name: 'Pasta' }];
       const res = makeRes();
       const req = makeReq({
         params: { id: 'r1' },
         collections: {
           recipelist: makeCollection({
-            find: (_q, _o, cb) => cb(null, mockRecipe),
+            find: (_q, _o) => Promise.resolve(mockRecipe),
           }),
         },
       });
 
-      service.getSingleRecipe(req, res);
+      await service.getSingleRecipe(req, res);
 
       assert.equal(res._body.success, true);
       assert.deepEqual(res._body.data, mockRecipe);
@@ -97,7 +97,7 @@ describe('RecipesService', () => {
   });
 
   describe('deleteRecipe', () => {
-    test('removes recipe from db when no other users own it', () => {
+    test('removes recipe from db when no other users own it', async () => {
       let removeCalled = false;
       const res = makeRes();
       const req = makeReq({
@@ -105,23 +105,23 @@ describe('RecipesService', () => {
         params: { id: 'r1' },
         collections: {
           recipelist: makeCollection({
-            find: (_q, _o, cb) => cb(null, [{ _id: 'r1' }]),
-            remove: (_q, cb) => { removeCalled = true; cb(null); },
+            find: (_q, _o) => Promise.resolve([{ _id: 'r1' }]),
+            remove: (_q) => { removeCalled = true; return Promise.resolve(); },
           }),
           users: makeCollection({
-            update: (_q, _u, cb) => cb(null),
-            find: (_q, _o, cb) => cb(null, []), // no remaining owners
+            update: (_q, _u) => Promise.resolve(),
+            find: (_q, _o) => Promise.resolve([]), // no remaining owners
           }),
         },
       });
 
-      service.deleteRecipe(req, res);
+      await service.deleteRecipe(req, res);
 
       assert.equal(removeCalled, true);
       assert.equal(res._body.data.msg, 'recipe deleted');
     });
 
-    test('keeps recipe in db when another user still owns it', () => {
+    test('keeps recipe in db when another user still owns it', async () => {
       let removeCalled = false;
       const res = makeRes();
       const req = makeReq({
@@ -129,17 +129,17 @@ describe('RecipesService', () => {
         params: { id: 'r1' },
         collections: {
           recipelist: makeCollection({
-            find: (_q, _o, cb) => cb(null, [{ _id: 'r1' }]),
-            remove: (_q, cb) => { removeCalled = true; cb(null); },
+            find: (_q, _o) => Promise.resolve([{ _id: 'r1' }]),
+            remove: (_q) => { removeCalled = true; return Promise.resolve(); },
           }),
           users: makeCollection({
-            update: (_q, _u, cb) => cb(null),
-            find: (_q, _o, cb) => cb(null, [{ _id: 'user-2' }]), // another owner
+            update: (_q, _u) => Promise.resolve(),
+            find: (_q, _o) => Promise.resolve([{ _id: 'user-2' }]), // another owner
           }),
         },
       });
 
-      service.deleteRecipe(req, res);
+      await service.deleteRecipe(req, res);
 
       assert.equal(removeCalled, false);
       assert.equal(res._body.data.msg, 'recipe deleted');
@@ -147,7 +147,7 @@ describe('RecipesService', () => {
   });
 
   describe('updateRecipe', () => {
-    test('updates recipe with $set and strips _id when user owns it', () => {
+    test('updates recipe with $set and strips _id when user owns it', async () => {
       let updateArgs = null;
       const res = makeRes();
       const req = makeReq({
@@ -156,15 +156,15 @@ describe('RecipesService', () => {
         body: { _id: 'r1', name: 'Updated Pasta', userId: 'user-1' },
         collections: {
           users: makeCollection({
-            find: (_q, _o, cb) => cb(null, [{ _id: 'user-1' }]), // user owns recipe
+            find: (_q, _o) => Promise.resolve([{ _id: 'user-1' }]), // user owns recipe
           }),
           recipelist: makeCollection({
-            update: (query, update, cb) => { updateArgs = { query, update }; cb(null); },
+            update: (query, update) => { updateArgs = { query, update }; return Promise.resolve(); },
           }),
         },
       });
 
-      service.updateRecipe(req, res);
+      await service.updateRecipe(req, res);
 
       assert.equal(res._body.data.msg, 'recipe updated');
       assert.ok(updateArgs.update.$set, 'update should use $set');
@@ -172,7 +172,7 @@ describe('RecipesService', () => {
       assert.equal(updateArgs.update.$set.name, 'Updated Pasta');
     });
 
-    test('returns 401 when recipe is not in user\'s recipeList', () => {
+    test('returns 401 when recipe is not in user\'s recipeList', async () => {
       const res = makeRes();
       const req = makeReq({
         username: 'user-1',
@@ -180,17 +180,17 @@ describe('RecipesService', () => {
         body: { name: 'Updated Pasta' },
         collections: {
           users: makeCollection({
-            find: (_q, _o, cb) => cb(null, []), // recipe not in user's list
+            find: (_q, _o) => Promise.resolve([]), // recipe not in user's list
           }),
         },
       });
 
-      service.updateRecipe(req, res);
+      await service.updateRecipe(req, res);
 
       assert.equal(res._status, 401);
     });
 
-    test('returns 401 when ownership lookup errors', () => {
+    test('returns 401 when ownership lookup errors', async () => {
       const res = makeRes();
       const req = makeReq({
         username: 'user-1',
@@ -198,12 +198,12 @@ describe('RecipesService', () => {
         body: { name: 'Updated Pasta' },
         collections: {
           users: makeCollection({
-            find: (_q, _o, cb) => cb(new Error('db error'), null),
+            find: (_q, _o) => Promise.reject(new Error('db error')),
           }),
         },
       });
 
-      service.updateRecipe(req, res);
+      await service.updateRecipe(req, res);
 
       assert.equal(res._status, 401);
     });
