@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  addIngredients,
   clearAllIngredients,
   clearMarkedIngredients,
   getIngredientList,
@@ -25,6 +26,11 @@ export function IngredientList() {
   const [confirmClear, setConfirmClear] = useState<"all" | "marked" | null>(
     null,
   );
+  const [addName, setAddName] = useState("");
+  const [addAmount, setAddAmount] = useState("");
+  const [addUnit, setAddUnit] = useState("");
+  const [adding, setAdding] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!username) return;
@@ -77,6 +83,33 @@ export function IngredientList() {
     } finally {
       setClearing(false);
       setConfirmClear(null);
+    }
+  }
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!username || !addName.trim() || !addAmount) return;
+    setAdding(true);
+    try {
+      const updated = await addIngredients(username, [
+        {
+          id: Date.now(),
+          name: addName.trim(),
+          amount: parseFloat(addAmount),
+          unit: addUnit.trim() || undefined,
+        },
+      ]);
+      if (updated) {
+        setList(updated);
+        setAddName("");
+        setAddAmount("");
+        setAddUnit("");
+        nameInputRef.current?.focus();
+      }
+    } catch {
+      setError("Failed to add ingredient.");
+    } finally {
+      setAdding(false);
     }
   }
 
@@ -194,6 +227,42 @@ export function IngredientList() {
           )}
         </div>
       )}
+
+      <form className="add-item-form" onSubmit={handleAdd}>
+        <div className="add-item-fields">
+          <input
+            className="input input-sm add-item-amount"
+            type="number"
+            placeholder="Qty"
+            value={addAmount}
+            min="0"
+            step="any"
+            onChange={(e) => setAddAmount(e.target.value)}
+            required
+          />
+          <input
+            className="input input-sm add-item-unit"
+            placeholder="Unit"
+            value={addUnit}
+            onChange={(e) => setAddUnit(e.target.value)}
+          />
+          <input
+            ref={nameInputRef}
+            className="input input-sm"
+            placeholder="Ingredient name"
+            value={addName}
+            onChange={(e) => setAddName(e.target.value)}
+            required
+          />
+        </div>
+        <button
+          className="btn btn-sm"
+          type="submit"
+          disabled={adding || !addName.trim() || !addAmount}
+        >
+          {adding ? "Adding..." : "Add"}
+        </button>
+      </form>
 
       {confirmClear === "all" && (
         <ConfirmDialog
