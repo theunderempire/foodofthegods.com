@@ -28,34 +28,30 @@ const IngredientService = function () {
     if (requestService.checkUser(req, userId)) {
       try {
         const docs = await collection.findOne({ userId }, {});
-        if (docs.ingredientList) {
-          // exists
-          const ungrouped = docs.ingredientList.groups.find(
-            (group) => group.name === ungroupedName,
-          );
 
+        let ingredientList;
+        if (docs?.ingredientList) {
+          ingredientList = docs.ingredientList;
+          const ungrouped = ingredientList.groups.find((g) => g.name === ungroupedName);
           if (ungrouped) {
-            ungrouped.items.push({ ingredient: ingredient, completed: false });
+            ungrouped.items.push({ ingredient, completed: false });
           } else {
-            docs.ingredientList.groups.push({
-              name: ungroupedName,
-              items: [{ ingredient: ingredient, completed: false }],
-            });
+            ingredientList.groups.push({ name: ungroupedName, items: [{ ingredient, completed: false }] });
           }
         } else {
-          docs.ingredientList = {
-            groups: [
-              {
-                name: ungroupedName,
-                items: [{ ingredient: ingredient, completed: false }],
-              },
-            ],
+          ingredientList = {
+            groups: [{ name: ungroupedName, items: [{ ingredient, completed: false }] }],
             lastModified: new Date().toString(),
           };
         }
 
-        await collection.update({ userId }, { ...docs });
-        response.json({ success: true, data: docs });
+        if (docs) {
+          await collection.update({ userId }, { $set: { ingredientList } });
+          response.json({ success: true, data: { ...docs, ingredientList } });
+        } else {
+          const newDoc = await collection.insert({ userId, ingredientList });
+          response.json({ success: true, data: newDoc });
+        }
       } catch (err) {
         console.error(`[ingredients] addIngredient error user="${userId}": ${err}`);
         response.json({ success: false, data: err.message });
@@ -73,45 +69,38 @@ const IngredientService = function () {
     if (requestService.checkUser(req, userId)) {
       try {
         const docs = await collection.findOne({ userId }, {});
-        if (docs.ingredientList) {
-          // exists
-          const ungrouped = docs.ingredientList.groups.find(
-            (group) => group.name === ungroupedName,
-          );
 
+        let ingredientList;
+        if (docs?.ingredientList) {
+          ingredientList = docs.ingredientList;
+          const ungrouped = ingredientList.groups.find((g) => g.name === ungroupedName);
           if (ungrouped) {
             ungrouped.items = ungrouped.items.concat(
-              ingredients.map((ingredient) => ({
-                ingredient: ingredient,
-                completed: false,
-              })),
+              ingredients.map((ingredient) => ({ ingredient, completed: false })),
             );
           } else {
-            docs.ingredientList.groups.push({
+            ingredientList.groups.push({
               name: ungroupedName,
-              items: ingredients.map((ingredient) => ({
-                ingredient: ingredient,
-                completed: false,
-              })),
+              items: ingredients.map((ingredient) => ({ ingredient, completed: false })),
             });
           }
         } else {
-          docs.ingredientList = {
-            groups: [
-              {
-                name: ungroupedName,
-                items: ingredients.map((ingredient) => ({
-                  ingredient: ingredient,
-                  completed: false,
-                })),
-              },
-            ],
+          ingredientList = {
+            groups: [{
+              name: ungroupedName,
+              items: ingredients.map((ingredient) => ({ ingredient, completed: false })),
+            }],
             lastModified: new Date().toString(),
           };
         }
 
-        await collection.update({ userId }, { ...docs });
-        response.json({ success: true, data: docs });
+        if (docs) {
+          await collection.update({ userId }, { $set: { ingredientList } });
+          response.json({ success: true, data: { ...docs, ingredientList } });
+        } else {
+          const newDoc = await collection.insert({ userId, ingredientList });
+          response.json({ success: true, data: newDoc });
+        }
       } catch (err) {
         console.error(`[ingredients] addManyIngredients error user="${userId}": ${err}`);
         response.json({ success: false, data: err.message });
@@ -233,7 +222,7 @@ const IngredientService = function () {
             const newDocs = { ...docs };
             newDocs.ingredientList.groups = groupedItems;
 
-            await collection.update({ userId }, newDocs);
+            await collection.update({ userId }, { $set: { ingredientList: newDocs.ingredientList } });
             res.json({ success: true, data: newDocs });
           } else {
             console.warn(
@@ -270,7 +259,7 @@ const IngredientService = function () {
           lastModified: new Date().toString(),
         };
 
-        await collection.update({ userId }, { ...docs });
+        await collection.update({ userId }, { $set: { ingredientList: docs.ingredientList } });
         response.json({ success: true, data: docs });
       } catch (err) {
         console.error(`[ingredients] removeAllIngredients error user="${userId}": ${err}`);
@@ -307,7 +296,7 @@ const IngredientService = function () {
               docs.ingredientList.groups.splice(itemGroupIndex, 1);
             }
 
-            await collection.update({ userId }, { ...docs });
+            await collection.update({ userId }, { $set: { ingredientList: docs.ingredientList } });
             res.json({ success: true, data: docs });
           } else {
             res.json({
@@ -359,7 +348,7 @@ const IngredientService = function () {
           }
         });
 
-        await collection.update({ userId }, { ...docs });
+        await collection.update({ userId }, { $set: { ingredientList: docs.ingredientList } });
         response.json({ success: true, data: docs });
       } catch (err) {
         console.error(`[ingredients] removeMarkedIngredients error user="${userId}": ${err}`);
@@ -390,7 +379,7 @@ const IngredientService = function () {
 
           if (itemIndex !== -1) {
             itemGroup.items[itemIndex] = ingredientItem;
-            await collection.update({ userId }, { ...docs });
+            await collection.update({ userId }, { $set: { ingredientList: docs.ingredientList } });
             response.json({ success: true, data: docs });
           } else {
             response.json({
