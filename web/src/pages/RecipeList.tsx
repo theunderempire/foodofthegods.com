@@ -22,9 +22,9 @@ export function RecipeList() {
       .finally(() => setLoading(false));
   }, [username]);
 
-  const filtered = recipes.filter((r) =>
-    r.name.toLowerCase().includes(filter.toLowerCase()),
-  );
+  const filtered = recipes
+    .filter((r) => r.name.toLowerCase().includes(filter.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   async function handleDelete() {
     if (!deleteTarget) return;
