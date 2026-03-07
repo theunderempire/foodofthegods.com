@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   addIngredients,
   clearAllIngredients,
@@ -26,11 +26,11 @@ export function IngredientList() {
   const [confirmClear, setConfirmClear] = useState<"all" | "marked" | null>(
     null,
   );
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const [addName, setAddName] = useState("");
   const [addAmount, setAddAmount] = useState("");
   const [addUnit, setAddUnit] = useState("");
   const [adding, setAdding] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!username) return;
@@ -104,7 +104,7 @@ export function IngredientList() {
         setAddName("");
         setAddAmount("");
         setAddUnit("");
-        nameInputRef.current?.focus();
+        setAddModalOpen(false);
       }
     } catch {
       setError("Failed to add ingredient.");
@@ -228,41 +228,70 @@ export function IngredientList() {
         </div>
       )}
 
-      <form className="add-item-form" onSubmit={handleAdd}>
-        <div className="add-item-fields">
-          <input
-            className="input input-sm add-item-amount"
-            type="number"
-            placeholder="Qty"
-            value={addAmount}
-            min="0"
-            step="any"
-            onChange={(e) => setAddAmount(e.target.value)}
-            required
-          />
-          <input
-            className="input input-sm add-item-unit"
-            placeholder="Unit"
-            value={addUnit}
-            onChange={(e) => setAddUnit(e.target.value)}
-          />
-          <input
-            ref={nameInputRef}
-            className="input input-sm"
-            placeholder="Ingredient name"
-            value={addName}
-            onChange={(e) => setAddName(e.target.value)}
-            required
-          />
+      <button className="fab" onClick={() => setAddModalOpen(true)} aria-label="Add ingredient">
+        +
+      </button>
+
+      {addModalOpen && (
+        <div className="dialog-overlay" onClick={() => setAddModalOpen(false)}>
+          <div className="dialog-box add-item-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2 className="dialog-title">Add Ingredient</h2>
+            <form onSubmit={handleAdd}>
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label>Name</label>
+                <input
+                  className="input"
+                  placeholder="Ingredient name"
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+              <div className="form-row" style={{ marginBottom: "1.5rem" }}>
+                <div className="form-group">
+                  <label>Quantity</label>
+                  <input
+                    className="input"
+                    type="number"
+                    placeholder="0"
+                    value={addAmount}
+                    min="0"
+                    step="any"
+                    onChange={(e) => setAddAmount(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Unit</label>
+                  <input
+                    className="input"
+                    placeholder="cup, oz, …"
+                    value={addUnit}
+                    onChange={(e) => setAddUnit(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="dialog-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setAddModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn"
+                  type="submit"
+                  disabled={adding || !addName.trim() || !addAmount}
+                >
+                  {adding ? "Adding…" : "Add"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-        <button
-          className="btn btn-sm"
-          type="submit"
-          disabled={adding || !addName.trim() || !addAmount}
-        >
-          {adding ? "Adding..." : "Add"}
-        </button>
-      </form>
+      )}
 
       {confirmClear === "all" && (
         <ConfirmDialog

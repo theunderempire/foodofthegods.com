@@ -935,40 +935,46 @@ textarea.input {
   font-size: 0.9rem;
 }
 
-/* ─── Add Item Form ───────────────────────────────────────────────────────── */
-.add-item-form {
+/* ─── Floating Action Button ──────────────────────────────────────────────── */
+.fab {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
   display: flex;
-  gap: 0.75rem;
-  align-items: flex-end;
-  margin-top: 2.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border);
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition), transform var(--transition);
+  z-index: 100;
 }
 
-.add-item-fields {
-  display: flex;
-  gap: 0.5rem;
-  flex: 1;
+.fab:hover {
+  background: var(--accent-dark, #8a4d0c);
+  transform: scale(1.07);
 }
 
-.add-item-amount {
-  max-width: 80px;
-  flex-shrink: 0;
+/* ─── Add Item Dialog ─────────────────────────────────────────────────────── */
+.add-item-dialog {
+  max-width: 420px;
 }
 
-.add-item-unit {
-  max-width: 90px;
-  flex-shrink: 0;
-}
-
-@media (max-width: 480px) {
-  .add-item-form {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .add-item-form .btn {
-    width: 100%;
-  }
+.dialog-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--track-wider);
+  color: var(--text-faint);
+  font-family: var(--font-sans);
+  margin-bottom: 1.5rem;
 }
 
 /* ─── Dialog ─────────────────────────────────────────────────────────────── */
