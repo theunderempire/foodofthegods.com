@@ -51,6 +51,20 @@ var RecipesService = function () {
     var recipeID = req.params.id;
 
     try {
+      const users = await userCollection.find(
+        { username: req.decoded.username },
+        { recipeList: 1 },
+      );
+      const ownsRecipe = users?.[0]?.recipeList?.some(
+        (id) => id.toString() === recipeID.toString(),
+      );
+      if (!ownsRecipe) {
+        console.warn(
+          `[recipes] deleteRecipe: recipe id="${recipeID}" not in recipeList for user="${req.decoded.username}"`,
+        );
+        return requestService.returnUnauthorized(res);
+      }
+
       const docs = await recipeCollection.find({ _id: recipeID }, {});
       if (!docs.length) {
         console.warn(`[recipes] deleteRecipe: recipe not found id="${recipeID}"`);
