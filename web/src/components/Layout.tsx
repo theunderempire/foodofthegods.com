@@ -15,7 +15,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <header className="navbar">
         <NavLink to="/recipes" className="navbar-brand">
           <svg className="brand-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
-            <rect x="12" y="18" width="8" height="11" rx="2" fill="#eedfc0"/>
+            <rect x="12" y="18" width="8" height="11" rx="2" fill="#c8a064"/>
             <ellipse cx="16" cy="19.5" rx="12.5" ry="3.5" fill="#8b1a10"/>
             <path d="M3 19 A 13 17 0 0 1 29 19 Z" fill="#cc2b1a"/>
             <circle cx="11" cy="12" r="2.4" fill="white" opacity="0.92"/>
