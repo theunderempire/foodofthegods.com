@@ -1,28 +1,28 @@
 /* ─── Variables ─────────────────────────────────────────────────────────── */
 :root {
-  --bg: #faf8f4;
-  --bg-card: #f3f0ea;
-  --bg-elevated: #ece8e0;
-  --bg-input: #ffffff;
-  --border: #ddd8ce;
-  --border-light: #e6e1d8;
-  --border-focus: #a85e10;
-  --text: #1a1714;
-  --text-muted: #6b5f4e;
-  --text-faint: #a89880;
-  --accent: #a85e10;
-  --accent-hover: #c07018;
-  --accent-soft: rgba(168, 94, 16, 0.08);
-  --success: #3a7a4a;
-  --danger: #b02818;
-  --danger-soft: rgba(176, 40, 24, 0.08);
-  --shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --bg: #f2ebe0;
+  --bg-card: #e9e0d0;
+  --bg-elevated: #dfd4be;
+  --bg-input: #f9f5ec;
+  --border: #c0a87a;
+  --border-light: #cfbb96;
+  --border-focus: #5e7040;
+  --text: #231508;
+  --text-muted: #5a3a1a;
+  --text-faint: #8c6a3a;
+  --accent: #5e7040;
+  --accent-hover: #4a5a30;
+  --accent-soft: rgba(94, 112, 64, 0.1);
+  --success: #3a6828;
+  --danger: #8b2c18;
+  --danger-soft: rgba(139, 44, 24, 0.08);
+  --shadow: 0 8px 32px rgba(28, 14, 4, 0.12);
+  --shadow-sm: 0 2px 8px rgba(28, 14, 4, 0.08);
   --radius: 1px;
   --radius-sm: 1px;
   --radius-lg: 2px;
-  --font-serif: "Playfair Display", Georgia, serif;
-  --font-sans: "Inter", system-ui, sans-serif;
+  --font-serif: "Lora", Georgia, serif;
+  --font-sans: "Nunito", system-ui, sans-serif;
   --transition: 0.2s ease;
   --track-wide: 0.12em;
   --track-wider: 0.18em;
@@ -130,7 +130,7 @@ h3 {
 }
 .brand-icon {
   color: var(--accent);
-  font-size: 0.9rem;
+  flex-shrink: 0;
 }
 
 .navbar-links {
@@ -208,7 +208,7 @@ h3 {
 
 .btn-primary {
   background: var(--accent);
-  color: #fefcf8;
+  color: #f5f0e8;
   border: 1px solid var(--accent);
 }
 .btn-primary:hover:not(:disabled) {
@@ -228,12 +228,12 @@ h3 {
 
 .btn-danger {
   background: var(--danger);
-  color: #fefcf8;
+  color: #f5f0e8;
   border: 1px solid var(--danger);
 }
 .btn-danger:hover:not(:disabled) {
-  background: #922818;
-  border-color: #922818;
+  background: #701f10;
+  border-color: #701f10;
 }
 
 .btn-danger-text {
@@ -958,7 +958,7 @@ textarea.input {
 }
 
 .fab:hover {
-  background: var(--accent-dark, #8a4d0c);
+  background: var(--accent-hover);
   transform: scale(1.07);
 }
 
@@ -981,7 +981,7 @@ textarea.input {
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(20, 16, 10, 0.5);
+  background: rgba(20, 10, 4, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
