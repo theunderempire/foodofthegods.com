@@ -134,7 +134,7 @@ var RecipesService = function () {
       console.error(
         `[recipes] updateRecipe error id="${recipeID}" user="${req.decoded.username}": ${err}`,
       );
-      requestService.returnUnauthorized(res);
+      res.json({ success: false, data: err.message });
     }
   }
 
@@ -148,6 +148,12 @@ var RecipesService = function () {
     try {
       const pageResponse = await fetch(url);
       const html = await pageResponse.text();
+
+      const ogImageMatch =
+        html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+      const imageUrl = ogImageMatch?.[1] ?? "";
+
       const text = html
         .replace(/<(\w+)[^>]*class=["'][^"']*recipeintro[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi, " ")
         .replace(
@@ -196,6 +202,7 @@ ${text.slice(0, 50000)}`,
         .replace(/```/g, "")
         .trim();
       const recipe = JSON.parse(stripped);
+      if (imageUrl) recipe.imageUrl = imageUrl;
       console.log(
         `[recipes] importRecipeFromUrl: successfully parsed recipe "${recipe.name}" from "${url}"`,
       );
