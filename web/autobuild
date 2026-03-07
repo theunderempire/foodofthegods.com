@@ -2,7 +2,7 @@
 
 printf "installing dependencies...\n"
 
-if ! npm install --force; then
+if ! npm install; then
   printf "dependency installation failed\n"
   exit 1
 fi
