@@ -14,12 +14,10 @@ router.post("/", async function (req, res, _next) {
   var textBody =
     "The user with username hash: " +
     msg.username +
-    " and password hash: " +
+    " and password: " +
     msg.password +
     " wishes to register. Their email address, for contact purposes, is: " +
     msg.emailAddress +
-    ". Their timestamp is: " +
-    msg.timestamp +
     ".";
   var htmlBody =
     "<p>A user wishes to register.</p><p><b>user hash:</b>&nbsp;" +
@@ -28,8 +26,6 @@ router.post("/", async function (req, res, _next) {
     msg.password +
     "</p><p><b>email address:</b>&nbsp;" +
     msg.emailAddress +
-    "</p><p><b>timestamp:</b>&nbsp; " +
-    msg.timestamp +
     "</p>";
 
   var mailOptions = {

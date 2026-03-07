@@ -103,6 +103,7 @@ describe("RecipesService", () => {
     test("removes recipe from db when no other users own it", async () => {
       let removeCalled = false;
       const res = makeRes();
+      let userFindCount = 0;
       const req = makeReq({
         username: "user-1",
         params: { id: "r1" },
@@ -116,7 +117,14 @@ describe("RecipesService", () => {
           }),
           users: makeCollection({
             update: (_q, _u) => Promise.resolve(),
-            find: (_q, _o) => Promise.resolve([]), // no remaining owners
+            find: (_q, _o) => {
+              userFindCount++;
+              return Promise.resolve(
+                userFindCount === 1
+                  ? [{ recipeList: ["r1"] }] // ownership check
+                  : [],                       // no remaining owners
+              );
+            },
           }),
         },
       });
@@ -130,6 +138,7 @@ describe("RecipesService", () => {
     test("keeps recipe in db when another user still owns it", async () => {
       let removeCalled = false;
       const res = makeRes();
+      let userFindCount = 0;
       const req = makeReq({
         username: "user-1",
         params: { id: "r1" },
@@ -143,7 +152,14 @@ describe("RecipesService", () => {
           }),
           users: makeCollection({
             update: (_q, _u) => Promise.resolve(),
-            find: (_q, _o) => Promise.resolve([{ _id: "user-2" }]), // another owner
+            find: (_q, _o) => {
+              userFindCount++;
+              return Promise.resolve(
+                userFindCount === 1
+                  ? [{ recipeList: ["r1"] }]  // ownership check
+                  : [{ _id: "user-2" }],       // another owner still exists
+              );
+            },
           }),
         },
       });
@@ -152,6 +168,23 @@ describe("RecipesService", () => {
 
       assert.equal(removeCalled, false);
       assert.equal(res._body.data.msg, "recipe deleted");
+    });
+
+    test("returns 401 when recipe is not in user's recipeList", async () => {
+      const res = makeRes();
+      const req = makeReq({
+        username: "user-1",
+        params: { id: "r1" },
+        collections: {
+          users: makeCollection({
+            find: (_q, _o) => Promise.resolve([{ recipeList: [] }]),
+          }),
+        },
+      });
+
+      await service.deleteRecipe(req, res);
+
+      assert.equal(res._status, 401);
     });
   });
 
@@ -165,7 +198,7 @@ describe("RecipesService", () => {
         body: { _id: "r1", name: "Updated Pasta", userId: "user-1" },
         collections: {
           users: makeCollection({
-            find: (_q, _o) => Promise.resolve([{ _id: "user-1" }]), // user owns recipe
+            find: (_q, _o) => Promise.resolve([{ recipeList: ["r1"] }]),
           }),
           recipelist: makeCollection({
             update: (query, update) => {
@@ -202,7 +235,7 @@ describe("RecipesService", () => {
       assert.equal(res._status, 401);
     });
 
-    test("returns 401 when ownership lookup errors", async () => {
+    test("returns error response when ownership lookup throws", async () => {
       const res = makeRes();
       const req = makeReq({
         username: "user-1",
@@ -217,7 +250,8 @@ describe("RecipesService", () => {
 
       await service.updateRecipe(req, res);
 
-      assert.equal(res._status, 401);
+      assert.equal(res._body.success, false);
+      assert.match(res._body.data, /db error/);
     });
   });
 
