@@ -1,0 +1,110 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
+import { RecipeList } from "../RecipeList";
+
+const mockGetRecipes = vi.fn();
+const mockNavigate = vi.fn();
+
+vi.mock("../../contexts/AuthContext", () => ({
+  useAuth: () => ({ username: "testuser-hash" }),
+}));
+
+vi.mock("../../api/recipes", () => ({
+  getRecipes: (...args: unknown[]) => mockGetRecipes(...args),
+  deleteRecipe: vi.fn().mockResolvedValue({ success: true }),
+}));
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return { ...actual, useNavigate: () => mockNavigate };
+});
+
+const mockRecipes = [
+  { _id: "1", name: "Pasta", prepDuration: "10 min", cookDuration: "20 min" },
+  { _id: "2", name: "Salad", prepDuration: "5 min", cookDuration: "" },
+  { _id: "3", name: "Soup", prepDuration: "", cookDuration: "30 min" },
+];
+
+describe("RecipeList", () => {
+  beforeEach(() => {
+    mockGetRecipes.mockReset();
+    mockNavigate.mockReset();
+  });
+
+  function renderList() {
+    return render(
+      <MemoryRouter>
+        <RecipeList />
+      </MemoryRouter>,
+    );
+  }
+
+  test("shows loading state initially", () => {
+    mockGetRecipes.mockImplementation(() => new Promise(() => {}));
+    renderList();
+    expect(screen.getByText("Loading recipes...")).toBeInTheDocument();
+  });
+
+  test("renders recipe cards after load", async () => {
+    mockGetRecipes.mockResolvedValue(mockRecipes);
+    renderList();
+    expect(await screen.findByText("Pasta")).toBeInTheDocument();
+    expect(screen.getByText("Salad")).toBeInTheDocument();
+    expect(screen.getByText("Soup")).toBeInTheDocument();
+  });
+
+  test("recipes are sorted alphabetically", async () => {
+    mockGetRecipes.mockResolvedValue([
+      { _id: "1", name: "Zucchini", prepDuration: "", cookDuration: "" },
+      { _id: "2", name: "Apple Pie", prepDuration: "", cookDuration: "" },
+      { _id: "3", name: "Muffins", prepDuration: "", cookDuration: "" },
+    ]);
+    renderList();
+    const titles = await screen.findAllByRole("heading", { level: 2 });
+    const names = titles.map((t) => t.textContent);
+    expect(names).toEqual(["Apple Pie", "Muffins", "Zucchini"]);
+  });
+
+  test("filters recipes by name", async () => {
+    mockGetRecipes.mockResolvedValue(mockRecipes);
+    renderList();
+    await screen.findByText("Pasta");
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Search recipes..."),
+      "pa",
+    );
+
+    expect(screen.getByText("Pasta")).toBeInTheDocument();
+    expect(screen.queryByText("Salad")).not.toBeInTheDocument();
+    expect(screen.queryByText("Soup")).not.toBeInTheDocument();
+  });
+
+  test("shows empty state when no recipes", async () => {
+    mockGetRecipes.mockResolvedValue([]);
+    renderList();
+    expect(await screen.findByText("No recipes yet.")).toBeInTheDocument();
+  });
+
+  test("shows no-match message when filter has no results", async () => {
+    mockGetRecipes.mockResolvedValue(mockRecipes);
+    renderList();
+    await screen.findByText("Pasta");
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Search recipes..."),
+      "xyz",
+    );
+
+    expect(screen.getByText(/No recipes match/)).toBeInTheDocument();
+  });
+
+  test("navigates to add recipe page", async () => {
+    mockGetRecipes.mockResolvedValue(mockRecipes);
+    renderList();
+    await screen.findByText("Pasta");
+    await userEvent.click(screen.getByRole("button", { name: "+ New Recipe" }));
+    expect(mockNavigate).toHaveBeenCalledWith("/recipes/add");
+  });
+});
