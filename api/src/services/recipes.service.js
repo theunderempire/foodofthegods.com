@@ -117,10 +117,13 @@ var RecipesService = function () {
 
     try {
       const users = await userCollection.find(
-        { username: req.decoded.username, recipeList: recipeID },
-        { _id: 1 },
+        { username: req.decoded.username },
+        { recipeList: 1 },
       );
-      if (!users || !users.length) {
+      const ownsRecipe = users?.[0]?.recipeList?.some(
+        (id) => id.toString() === recipeID.toString(),
+      );
+      if (!ownsRecipe) {
         console.warn(
           `[recipes] updateRecipe: recipe id="${recipeID}" not in recipeList for user="${req.decoded.username}"`,
         );
