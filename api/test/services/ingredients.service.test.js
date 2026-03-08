@@ -287,6 +287,161 @@ describe("IngredientService", () => {
     });
   });
 
+  describe("groupIngredientList", () => {
+    const GROUPED_RESPONSE = [
+      { name: "Dairy", items: [{ ingredient: SALT, completed: false }] },
+      { name: "Produce", items: [{ ingredient: SUGAR, completed: false }] },
+    ];
+
+    function makeGroupReq(collectionOverrides = {}) {
+      return makeIngredientReq({
+        collections: {
+          ingredientlist: makeCollection({
+            findOne: (_q, _o) =>
+              Promise.resolve(makeDocsWithList([{ ingredient: SALT, completed: false }])),
+            update: (_q, _u) => Promise.resolve(),
+            ...collectionOverrides,
+          }),
+        },
+      });
+    }
+
+    test("groups ingredients and saves result on Gemini success", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: JSON.stringify(GROUPED_RESPONSE) }] } }],
+        }),
+      });
+
+      try {
+        const res = makeRes();
+        await service.groupIngredientList(makeGroupReq(), res);
+
+        assert.equal(res._body.success, true);
+        assert.deepEqual(res._body.data.ingredientList.groups, GROUPED_RESPONSE);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("strips markdown fencing from Gemini response before parsing", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        ok: true,
+        json: async () => ({
+          candidates: [
+            {
+              content: {
+                parts: [{ text: "```json\n" + JSON.stringify(GROUPED_RESPONSE) + "\n```" }],
+              },
+            },
+          ],
+        }),
+      });
+
+      try {
+        const res = makeRes();
+        await service.groupIngredientList(makeGroupReq(), res);
+
+        assert.equal(res._body.success, true);
+        assert.deepEqual(res._body.data.ingredientList.groups, GROUPED_RESPONSE);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("returns success with rate-limited message on Gemini 429", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        ok: false,
+        status: 429,
+        text: async () => "Too Many Requests",
+      });
+
+      try {
+        const res = makeRes();
+        await service.groupIngredientList(makeGroupReq(), res);
+
+        assert.equal(res._body.success, true);
+        assert.equal(res._body.data, "Rate limited");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("returns failure with status on Gemini non-429 error", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        ok: false,
+        status: 400,
+        text: async () => "Bad Request",
+      });
+
+      try {
+        const res = makeRes();
+        await service.groupIngredientList(makeGroupReq(), res);
+
+        assert.equal(res._body.success, false);
+        assert.match(res._body.data, /400/);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("reads Gemini API key from process.env at call time", async () => {
+      const originalFetch = globalThis.fetch;
+      const originalKey = process.env.GEMINI_API_KEY;
+      process.env.GEMINI_API_KEY = "test-key-at-call-time";
+
+      let capturedHeaders;
+      globalThis.fetch = async (_url, opts) => {
+        capturedHeaders = opts.headers;
+        return {
+          ok: true,
+          json: async () => ({
+            candidates: [{ content: { parts: [{ text: JSON.stringify(GROUPED_RESPONSE) }] } }],
+          }),
+        };
+      };
+
+      try {
+        const res = makeRes();
+        await service.groupIngredientList(makeGroupReq(), res);
+
+        assert.equal(capturedHeaders["x-goog-api-key"], "test-key-at-call-time");
+      } finally {
+        globalThis.fetch = originalFetch;
+        process.env.GEMINI_API_KEY = originalKey;
+      }
+    });
+
+    test("returns failure when ingredient list has no groups", async () => {
+      const res = makeRes();
+      const req = makeIngredientReq({
+        collections: {
+          ingredientlist: makeCollection({
+            findOne: (_q, _o) => Promise.resolve({ ingredientList: { groups: [] } }),
+          }),
+        },
+      });
+
+      await service.groupIngredientList(req, res);
+
+      assert.equal(res._body.success, false);
+    });
+
+    test("returns 401 for unauthorized user", async () => {
+      const res = makeRes();
+      const req = makeIngredientReq({ params: { userId: "user-2" } });
+
+      await service.groupIngredientList(req, res);
+
+      assert.equal(res._status, 401);
+    });
+  });
+
   describe("updateIngredient", () => {
     test("updates the ingredient item in its group", async () => {
       const updatedSalt = { ingredient: { ...SALT, amount: 3, unit: "tbsp" }, completed: true };

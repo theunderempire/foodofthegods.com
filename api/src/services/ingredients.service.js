@@ -17,7 +17,6 @@ const IngredientService = function () {
 
   const geminiUrl =
     "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
-  const geminiAPIKey = secret.geminiApiKey;
 
   // Updates the list for the user with the passed id with the request body
   async function addIngredient(req, response) {
@@ -140,6 +139,7 @@ const IngredientService = function () {
   async function groupIngredientList(req, res) {
     const userId = req.params.userId;
     const collection = getIngredientListCollection(req);
+    const geminiAPIKey = secret.geminiApiKey;
 
     if (requestService.checkUser(req, userId)) {
       try {
@@ -243,7 +243,7 @@ const IngredientService = function () {
             } else {
               res.json({
                 success: false,
-                data: `Gemini error: ${response.status} ${response.message}`,
+                data: `Gemini error: ${response.status} ${errBody}`,
               });
             }
           }
@@ -259,6 +259,8 @@ const IngredientService = function () {
         );
         res.json({ success: false, data: err.message || err });
       }
+    } else {
+      requestService.returnUnauthorized(res);
     }
   }
 

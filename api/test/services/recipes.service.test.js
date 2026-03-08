@@ -329,6 +329,42 @@ describe("RecipesService", () => {
       }
     });
 
+    test("reads Gemini API key from process.env at call time", async () => {
+      const originalFetch = globalThis.fetch;
+      const originalKey = process.env.GEMINI_API_KEY;
+      process.env.GEMINI_API_KEY = "test-key-at-call-time";
+
+      let callCount = 0;
+      let capturedHeaders;
+      globalThis.fetch = async (_url, opts) => {
+        callCount++;
+        if (callCount === 1) {
+          return { text: async () => "<html>page</html>" };
+        }
+        capturedHeaders = opts?.headers;
+        return {
+          ok: true,
+          json: async () => ({
+            candidates: [
+              { content: { parts: [{ text: JSON.stringify({ name: "Pasta", ingredients: [], directions: [] }) }] } },
+            ],
+          }),
+        };
+      };
+
+      try {
+        const res = makeRes();
+        const req = makeReq({ body: { url: "https://example.com/recipe" } });
+
+        await service.importRecipeFromUrl(req, res);
+
+        assert.equal(capturedHeaders["x-goog-api-key"], "test-key-at-call-time");
+      } finally {
+        globalThis.fetch = originalFetch;
+        process.env.GEMINI_API_KEY = originalKey;
+      }
+    });
+
     test("returns error when Gemini response cannot be parsed", async () => {
       const originalFetch = globalThis.fetch;
       let callCount = 0;

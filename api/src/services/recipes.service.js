@@ -5,7 +5,6 @@ var requestService = new RequestService();
 
 const geminiUrl =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
-const geminiAPIKey = secret.geminiApiKey;
 
 // A service for making recipe operations
 var RecipesService = function () {
@@ -156,6 +155,7 @@ var RecipesService = function () {
   }
 
   async function importRecipeFromUrl(req, res) {
+    const geminiAPIKey = secret.geminiApiKey;
     const url = req.body.url;
     if (!url) {
       return res.json({ success: false, data: "url is required" });
