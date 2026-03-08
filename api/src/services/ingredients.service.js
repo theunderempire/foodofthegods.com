@@ -36,7 +36,10 @@ const IngredientService = function () {
           if (ungrouped) {
             ungrouped.items.push({ ingredient, completed: false });
           } else {
-            ingredientList.groups.push({ name: ungroupedName, items: [{ ingredient, completed: false }] });
+            ingredientList.groups.push({
+              name: ungroupedName,
+              items: [{ ingredient, completed: false }],
+            });
           }
         } else {
           ingredientList = {
@@ -86,10 +89,12 @@ const IngredientService = function () {
           }
         } else {
           ingredientList = {
-            groups: [{
-              name: ungroupedName,
-              items: ingredients.map((ingredient) => ({ ingredient, completed: false })),
-            }],
+            groups: [
+              {
+                name: ungroupedName,
+                items: ingredients.map((ingredient) => ({ ingredient, completed: false })),
+              },
+            ],
             lastModified: new Date().toString(),
           };
         }
@@ -223,7 +228,10 @@ const IngredientService = function () {
             const newDocs = { ...docs };
             newDocs.ingredientList.groups = groupedItems;
 
-            await collection.update({ userId }, { $set: { ingredientList: newDocs.ingredientList } });
+            await collection.update(
+              { userId },
+              { $set: { ingredientList: newDocs.ingredientList } },
+            );
             res.json({ success: true, data: newDocs });
           } else {
             const errBody = await response.text().catch(() => "(unreadable)");
@@ -233,7 +241,10 @@ const IngredientService = function () {
             if (response.status === 429) {
               res.json({ success: true, data: "Rate limited" });
             } else {
-              res.json({ success: false, data: `Gemini error: ${response.status}` });
+              res.json({
+                success: false,
+                data: `Gemini error: ${response.status} ${response.message}`,
+              });
             }
           }
         } else {
