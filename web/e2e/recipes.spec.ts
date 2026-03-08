@@ -18,6 +18,37 @@ test.describe("recipes", () => {
     await expect(page.getByRole("heading", { name: "Test" })).toBeVisible();
   });
 
+  test("restores search filter after navigating back from recipe", async ({ page }) => {
+    await page.fill('input[placeholder="Search recipes..."]', "Test");
+    await expect(page.locator(".recipe-card-title", { hasText: "Test" })).toBeVisible();
+    await expect(page.locator(".recipe-card-title", { hasText: "Banana Bread" })).not.toBeVisible();
+
+    await page.locator(".recipe-card-link", { hasText: "Test" }).click();
+    await expect(page).toHaveURL(/\/recipes\/recipe\//);
+
+    await page.goBack();
+    await expect(page).toHaveURL("/recipes");
+
+    await expect(page.locator('input[placeholder="Search recipes..."]')).toHaveValue("Test");
+    await expect(page.locator(".recipe-card-title", { hasText: "Test" })).toBeVisible();
+    await expect(page.locator(".recipe-card-title", { hasText: "Banana Bread" })).not.toBeVisible();
+  });
+
+  test("restores scroll position after navigating back from recipe", async ({ page }) => {
+    await page.evaluate(() => window.scrollTo(0, 300));
+    await page.waitForFunction(() => window.scrollY > 0);
+
+    await page.locator(".recipe-card-link").first().click();
+    await expect(page).toHaveURL(/\/recipes\/recipe\//);
+
+    await page.goBack();
+    await expect(page).toHaveURL("/recipes");
+    await page.locator(".recipe-card-title").first().waitFor();
+
+    const scrollY = await page.evaluate(() => window.scrollY);
+    expect(scrollY).toBeGreaterThan(0);
+  });
+
   test("create, edit, and delete a recipe", async ({ page }) => {
     // Create
     await page.click('button:has-text("+ New Recipe")');

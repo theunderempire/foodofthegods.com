@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useNavigationType } from "react-router-dom";
 import { deleteRecipe, getRecipes } from "../api/recipes";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useAuth } from "../contexts/AuthContext";
@@ -8,8 +8,13 @@ import type { RecipeListItem } from "../types/recipe";
 export function RecipeList() {
   const { username } = useAuth();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState(() =>
+    navigationType === "POP"
+      ? (sessionStorage.getItem("recipe-list-filter") ?? "")
+      : ""
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<RecipeListItem | null>(null);
@@ -21,6 +26,25 @@ export function RecipeList() {
       .catch(() => setError("Failed to load recipes."))
       .finally(() => setLoading(false));
   }, [username]);
+
+  useEffect(() => {
+    sessionStorage.setItem("recipe-list-filter", filter);
+  }, [filter]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      sessionStorage.setItem("recipe-list-scroll", String(window.scrollY));
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && navigationType === "POP") {
+      const saved = sessionStorage.getItem("recipe-list-scroll");
+      if (saved) requestAnimationFrame(() => window.scrollTo(0, parseInt(saved)));
+    }
+  }, [loading, navigationType]);
 
   const filtered = recipes
     .filter((r) => r.name.toLowerCase().includes(filter.toLowerCase()))
