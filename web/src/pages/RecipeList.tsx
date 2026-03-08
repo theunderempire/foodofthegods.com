@@ -9,11 +9,12 @@ export function RecipeList() {
   const { username } = useAuth();
   const navigate = useNavigate();
   const navigationType = useNavigationType();
+  const isBackNav =
+    navigationType === "POP" &&
+    (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming)?.type !== "reload";
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
   const [filter, setFilter] = useState(() =>
-    navigationType === "POP"
-      ? (sessionStorage.getItem("recipe-list-filter") ?? "")
-      : ""
+    isBackNav ? (sessionStorage.getItem("recipe-list-filter") ?? "") : ""
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -40,11 +41,11 @@ export function RecipeList() {
   }, []);
 
   useEffect(() => {
-    if (!loading && navigationType === "POP") {
+    if (!loading && isBackNav) {
       const saved = sessionStorage.getItem("recipe-list-scroll");
       if (saved) requestAnimationFrame(() => window.scrollTo(0, parseInt(saved)));
     }
-  }, [loading, navigationType]);
+  }, [loading, isBackNav]);
 
   const filtered = recipes
     .filter((r) => r.name.toLowerCase().includes(filter.toLowerCase()))

@@ -7,6 +7,12 @@ const mockGetRecipes = vi.fn();
 const mockNavigate = vi.fn();
 const mockUseNavigationType = vi.fn();
 
+function mockNavEntry(type: "navigate" | "reload" | "back_forward") {
+  vi.spyOn(performance, "getEntriesByType").mockReturnValue([
+    { type } as unknown as PerformanceEntry,
+  ]);
+}
+
 vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({ username: "testuser-hash" }),
 }));
@@ -36,6 +42,7 @@ describe("RecipeList", () => {
     mockGetRecipes.mockReset();
     mockNavigate.mockReset();
     mockUseNavigationType.mockReturnValue("PUSH");
+    mockNavEntry("navigate");
     sessionStorage.clear();
   });
 
@@ -120,6 +127,7 @@ describe("search state persistence", () => {
   beforeEach(() => {
     mockGetRecipes.mockReset();
     mockUseNavigationType.mockReturnValue("PUSH");
+    mockNavEntry("navigate");
     sessionStorage.clear();
   });
 
@@ -141,9 +149,10 @@ describe("search state persistence", () => {
     expect(sessionStorage.getItem("recipe-list-filter")).toBe("pa");
   });
 
-  test("restores filter from sessionStorage on POP navigation", async () => {
+  test("restores filter from sessionStorage on back navigation", async () => {
     sessionStorage.setItem("recipe-list-filter", "sal");
     mockUseNavigationType.mockReturnValue("POP");
+    mockNavEntry("back_forward");
     mockGetRecipes.mockResolvedValue(mockRecipes);
     renderList();
     await screen.findByText("Salad");
@@ -163,12 +172,25 @@ describe("search state persistence", () => {
     expect(screen.getByText("Salad")).toBeInTheDocument();
     expect(screen.getByText("Soup")).toBeInTheDocument();
   });
+
+  test("does not restore filter on page reload", async () => {
+    sessionStorage.setItem("recipe-list-filter", "sal");
+    mockUseNavigationType.mockReturnValue("POP");
+    mockNavEntry("reload");
+    mockGetRecipes.mockResolvedValue(mockRecipes);
+    renderList();
+    await screen.findByText("Pasta");
+
+    expect(screen.getByPlaceholderText("Search recipes...")).toHaveValue("");
+    expect(screen.getByText("Salad")).toBeInTheDocument();
+  });
 });
 
 describe("scroll position persistence", () => {
   beforeEach(() => {
     mockGetRecipes.mockReset();
     mockUseNavigationType.mockReturnValue("PUSH");
+    mockNavEntry("navigate");
     sessionStorage.clear();
   });
 
@@ -196,9 +218,10 @@ describe("scroll position persistence", () => {
     expect(sessionStorage.getItem("recipe-list-scroll")).toBe("400");
   });
 
-  test("restores scroll position on POP navigation after loading", async () => {
+  test("restores scroll position on back navigation after loading", async () => {
     sessionStorage.setItem("recipe-list-scroll", "350");
     mockUseNavigationType.mockReturnValue("POP");
+    mockNavEntry("back_forward");
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
       cb(0);
       return 0;
@@ -214,6 +237,19 @@ describe("scroll position persistence", () => {
 
   test("does not restore scroll on PUSH navigation", async () => {
     sessionStorage.setItem("recipe-list-scroll", "350");
+    const scrollToSpy = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+
+    mockGetRecipes.mockResolvedValue(mockRecipes);
+    renderList();
+    await screen.findByText("Pasta");
+
+    expect(scrollToSpy).not.toHaveBeenCalled();
+  });
+
+  test("does not restore scroll on page reload", async () => {
+    sessionStorage.setItem("recipe-list-scroll", "350");
+    mockUseNavigationType.mockReturnValue("POP");
+    mockNavEntry("reload");
     const scrollToSpy = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
 
     mockGetRecipes.mockResolvedValue(mockRecipes);
