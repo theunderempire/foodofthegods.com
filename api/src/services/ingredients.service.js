@@ -200,7 +200,8 @@ const IngredientService = function () {
                         "completed": false
                       }
                     ]
-                  ]`,
+                  }
+                ]`,
                     },
                   ],
                 },
@@ -230,6 +231,8 @@ const IngredientService = function () {
             );
             if (response.status === 429) {
               res.json({ success: true, data: "Rate limited" });
+            } else {
+              res.json({ success: false, data: `Gemini error: ${response.status}` });
             }
           }
         } else {
