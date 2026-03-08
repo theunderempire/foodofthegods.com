@@ -226,8 +226,9 @@ const IngredientService = function () {
             await collection.update({ userId }, { $set: { ingredientList: newDocs.ingredientList } });
             res.json({ success: true, data: newDocs });
           } else {
+            const errBody = await response.text().catch(() => "(unreadable)");
             console.warn(
-              `[ingredients] groupIngredientList: Gemini responded with status ${response.status} for user="${userId}"`,
+              `[ingredients] groupIngredientList: Gemini responded with status ${response.status} for user="${userId}": ${errBody}`,
             );
             if (response.status === 429) {
               res.json({ success: true, data: "Rate limited" });
