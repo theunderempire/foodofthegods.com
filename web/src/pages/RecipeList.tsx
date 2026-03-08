@@ -5,16 +5,32 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useAuth } from "../contexts/AuthContext";
 import type { RecipeListItem } from "../types/recipe";
 
+// Resets on every full page load (including refresh), persists across SPA navigation
+const SESSION_ID = Math.random().toString(36).slice(2);
+
+function readSaved(key: string): string | null {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const { sid, value } = JSON.parse(raw);
+    return sid === SESSION_ID ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSaved(key: string, value: string) {
+  sessionStorage.setItem(key, JSON.stringify({ sid: SESSION_ID, value }));
+}
+
 export function RecipeList() {
   const { username } = useAuth();
   const navigate = useNavigate();
   const navigationType = useNavigationType();
-  const isBackNav =
-    navigationType === "POP" &&
-    (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming)?.type !== "reload";
+  const isBackNav = navigationType === "POP";
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
   const [filter, setFilter] = useState(() =>
-    isBackNav ? (sessionStorage.getItem("recipe-list-filter") ?? "") : ""
+    isBackNav ? (readSaved("recipe-list-filter") ?? "") : ""
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -29,20 +45,18 @@ export function RecipeList() {
   }, [username]);
 
   useEffect(() => {
-    sessionStorage.setItem("recipe-list-filter", filter);
+    writeSaved("recipe-list-filter", filter);
   }, [filter]);
 
   useEffect(() => {
-    const onScroll = () => {
-      sessionStorage.setItem("recipe-list-scroll", String(window.scrollY));
-    };
+    const onScroll = () => writeSaved("recipe-list-scroll", String(window.scrollY));
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   useEffect(() => {
     if (!loading && isBackNav) {
-      const saved = sessionStorage.getItem("recipe-list-scroll");
+      const saved = readSaved("recipe-list-scroll");
       if (saved) requestAnimationFrame(() => window.scrollTo(0, parseInt(saved)));
     }
   }, [loading, isBackNav]);
