@@ -1,0 +1,224 @@
+[
+  {
+    "_id": { "$oid": "6244eb84c0198f0014e646b6" },
+    "name": "Test",
+    "prepDuration": "1 min",
+    "cookDuration": "2 min",
+    "servings": "45",
+    "imageUrl": "https://images.unsplash.com/photo-1549372691-289fcc650e4e?w=500",
+    "ingredients": [
+      { "name": "salt", "unit": "", "amount": "1", "id": 1648683881661 },
+      { "name": "water", "unit": "", "amount": "1", "id": 1648683893676 }
+    ],
+    "directions": [
+      { "text": "Mix 'em baby.", "duration": "1 second", "id": 1648683881661 },
+      { "text": "That's it!", "duration": "0 seconds", "id": 1648683881662 },
+      { "text": "Nothing else.", "duration": "5 seconds", "id": 1648683881663 }
+    ],
+    "userId": "658729026be8d220c4485c9b14fd1e26"
+  },
+  {
+    "_id": { "$oid": "6244eb84c0198f0014e646b7" },
+    "name": "Lemon Herb Roast Chicken",
+    "prepDuration": "20 min",
+    "cookDuration": "1 hr 20 min",
+    "servings": "4",
+    "imageUrl": "https://images.unsplash.com/photo-1606728035253-49e8a23146de?w=800",
+    "ingredients": [
+      { "name": "whole chicken", "unit": "lbs", "amount": "4", "id": 1 },
+      { "name": "lemon", "unit": "", "amount": "2", "id": 2 },
+      { "name": "garlic cloves", "unit": "", "amount": "6", "id": 3 },
+      { "name": "fresh rosemary", "unit": "sprigs", "amount": "4", "id": 4 },
+      { "name": "fresh thyme", "unit": "sprigs", "amount": "4", "id": 5 },
+      { "name": "unsalted butter", "unit": "tbsp", "amount": "4", "id": 6 },
+      { "name": "olive oil", "unit": "tbsp", "amount": "2", "id": 7 },
+      { "name": "salt", "unit": "tsp", "amount": "2", "id": 8 },
+      { "name": "black pepper", "unit": "tsp", "amount": "1", "id": 9 }
+    ],
+    "directions": [
+      {
+        "text": "Preheat oven to 425°F. Pat chicken dry with paper towels and season generously with salt and pepper inside and out.",
+        "duration": "5 min",
+        "id": 1
+      },
+      {
+        "text": "Mix softened butter with zest of one lemon, minced garlic, chopped rosemary, and thyme. Rub mixture under and over the skin.",
+        "duration": "5 min",
+        "id": 2
+      },
+      {
+        "text": "Stuff the cavity with halved lemons, remaining garlic, and herb sprigs. Truss the legs with kitchen twine.",
+        "duration": "5 min",
+        "id": 3
+      },
+      {
+        "text": "Drizzle with olive oil and roast for 1 hour 20 minutes, basting halfway through, until juices run clear and thigh reaches 165°F.",
+        "duration": "1 hr 20 min",
+        "id": 4
+      },
+      {
+        "text": "Rest for 15 minutes before carving.",
+        "duration": "15 min",
+        "id": 5
+      }
+    ],
+    "userId": "658729026be8d220c4485c9b14fd1e26"
+  },
+  {
+    "_id": { "$oid": "6244eb84c0198f0014e646b8" },
+    "name": "Mushroom Risotto",
+    "prepDuration": "15 min",
+    "cookDuration": "35 min",
+    "servings": "4",
+    "imageUrl": "https://images.unsplash.com/photo-1476124369491-e7addf5db371?w=800",
+    "ingredients": [
+      { "name": "arborio rice", "unit": "cups", "amount": "1.5", "id": 1 },
+      { "name": "mixed mushrooms", "unit": "oz", "amount": "12", "id": 2 },
+      {
+        "name": "chicken or vegetable stock",
+        "unit": "cups",
+        "amount": "5",
+        "id": 3
+      },
+      { "name": "dry white wine", "unit": "cup", "amount": "0.5", "id": 4 },
+      { "name": "shallots", "unit": "", "amount": "2", "id": 5 },
+      { "name": "garlic cloves", "unit": "", "amount": "3", "id": 6 },
+      { "name": "unsalted butter", "unit": "tbsp", "amount": "4", "id": 7 },
+      { "name": "parmesan", "unit": "oz", "amount": "2", "id": 8 },
+      { "name": "fresh thyme", "unit": "sprigs", "amount": "3", "id": 9 },
+      { "name": "salt and pepper", "unit": "", "amount": "", "id": 10 }
+    ],
+    "directions": [
+      {
+        "text": "Warm stock in a saucepan over low heat. In a separate large pan, sauté mushrooms in 2 tbsp butter over high heat until golden. Season and set aside.",
+        "duration": "8 min",
+        "id": 1
+      },
+      {
+        "text": "In the same pan, melt remaining butter over medium heat. Soften shallots and garlic until translucent, about 3 minutes.",
+        "duration": "3 min",
+        "id": 2
+      },
+      {
+        "text": "Add rice and toast, stirring, for 2 minutes. Pour in wine and stir until absorbed.",
+        "duration": "3 min",
+        "id": 3
+      },
+      {
+        "text": "Add warm stock one ladle at a time, stirring constantly and waiting until each addition is absorbed before adding the next. Continue for about 20 minutes until rice is al dente.",
+        "duration": "20 min",
+        "id": 4
+      },
+      {
+        "text": "Fold in mushrooms, grated parmesan, and thyme leaves. Adjust seasoning and serve immediately.",
+        "duration": "2 min",
+        "id": 5
+      }
+    ],
+    "userId": "658729026be8d220c4485c9b14fd1e26"
+  },
+  {
+    "_id": { "$oid": "6244eb84c0198f0014e646b9" },
+    "name": "Banana Bread",
+    "prepDuration": "10 min",
+    "cookDuration": "1 hr",
+    "servings": "10",
+    "imageUrl": "https://images.unsplash.com/photo-1569762404472-026308ba6b64?w=500",
+    "ingredients": [
+      { "name": "very ripe bananas", "unit": "", "amount": "3", "id": 1 },
+      {
+        "name": "all-purpose flour",
+        "unit": "cups",
+        "amount": "1.75",
+        "id": 2
+      },
+      { "name": "brown sugar", "unit": "cup", "amount": "0.75", "id": 3 },
+      { "name": "unsalted butter", "unit": "tbsp", "amount": "6", "id": 4 },
+      { "name": "eggs", "unit": "", "amount": "2", "id": 5 },
+      { "name": "vanilla extract", "unit": "tsp", "amount": "1", "id": 6 },
+      { "name": "baking soda", "unit": "tsp", "amount": "1", "id": 7 },
+      { "name": "salt", "unit": "tsp", "amount": "0.5", "id": 8 },
+      { "name": "cinnamon", "unit": "tsp", "amount": "0.5", "id": 9 }
+    ],
+    "directions": [
+      {
+        "text": "Preheat oven to 350°F. Grease a 9×5 loaf pan.",
+        "duration": "2 min",
+        "id": 1
+      },
+      {
+        "text": "Mash bananas in a large bowl until smooth. Whisk in melted butter, sugar, eggs, and vanilla.",
+        "duration": "3 min",
+        "id": 2
+      },
+      {
+        "text": "Stir in baking soda, salt, and cinnamon. Fold in flour until just combined — do not overmix.",
+        "duration": "2 min",
+        "id": 3
+      },
+      {
+        "text": "Pour batter into prepared pan and bake for 55–65 minutes, until a toothpick inserted in the center comes out clean.",
+        "duration": "1 hr",
+        "id": 4
+      },
+      {
+        "text": "Cool in pan for 10 minutes, then turn out onto a rack.",
+        "duration": "10 min",
+        "id": 5
+      }
+    ],
+    "userId": "658729026be8d220c4485c9b14fd1e26"
+  },
+  {
+    "_id": { "$oid": "6244eb84c0198f0014e646ba" },
+    "name": "Tomato Basil Pasta",
+    "prepDuration": "5 min",
+    "cookDuration": "25 min",
+    "servings": "4",
+    "imageUrl": "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=800",
+    "ingredients": [
+      {
+        "name": "spaghetti or linguine",
+        "unit": "oz",
+        "amount": "12",
+        "id": 1
+      },
+      {
+        "name": "crushed San Marzano tomatoes",
+        "unit": "oz",
+        "amount": "28",
+        "id": 2
+      },
+      { "name": "garlic cloves", "unit": "", "amount": "4", "id": 3 },
+      { "name": "olive oil", "unit": "tbsp", "amount": "3", "id": 4 },
+      { "name": "fresh basil", "unit": "leaves", "amount": "15", "id": 5 },
+      { "name": "red pepper flakes", "unit": "tsp", "amount": "0.25", "id": 6 },
+      { "name": "salt", "unit": "", "amount": "", "id": 7 },
+      { "name": "parmesan", "unit": "", "amount": "", "id": 8 }
+    ],
+    "directions": [
+      {
+        "text": "Cook pasta in well-salted boiling water until al dente. Reserve 1 cup of pasta water before draining.",
+        "duration": "10 min",
+        "id": 1
+      },
+      {
+        "text": "While pasta cooks, warm olive oil over medium heat. Add sliced garlic and red pepper flakes and cook until fragrant, about 2 minutes.",
+        "duration": "2 min",
+        "id": 2
+      },
+      {
+        "text": "Add crushed tomatoes, season with salt, and simmer for 15 minutes until slightly thickened.",
+        "duration": "15 min",
+        "id": 3
+      },
+      {
+        "text": "Toss drained pasta into the sauce with a splash of pasta water. Tear in fresh basil and toss to combine.",
+        "duration": "2 min",
+        "id": 4
+      },
+      { "text": "Serve with grated parmesan.", "duration": "", "id": 5 }
+    ],
+    "userId": "658729026be8d220c4485c9b14fd1e26"
+  }
+]
