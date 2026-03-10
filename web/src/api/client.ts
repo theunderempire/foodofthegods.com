@@ -2,7 +2,7 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 
 const COOKIE_NAME = 'FOTG_AUTH_TOKEN';
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://theunderempire.com:3000';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://theunderempire.com/foodofthegods-api';
 
 export const client = axios.create({ baseURL: BASE_URL });
 
