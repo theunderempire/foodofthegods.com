@@ -1,0 +1,37 @@
+{
+  "name": "foodofthegods-api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "NODE_ENV=production PORT=3000 node ./bin/www.js",
+    "start-dev": "NODE_ENV=development PORT=3000 nodemon --watch src --watch ./bin/www.js  ./bin/www.js",
+    "test": "node --test",
+    "lint": "eslint src test",
+    "format": "prettier --write src test"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "body-parser": "^1.18.2",
+    "debug": "~2.6.9",
+    "dotenv": "^8.2.0",
+    "express": "^4.15.5",
+    "jsonwebtoken": "^9.0.3",
+    "md5": "^2.2.1",
+    "mongo": "^0.1.0",
+    "monk": "^7.3.4",
+    "morgan": "^1.9.0",
+    "nodemailer": "^8.0.1",
+    "nodemon": "^3.1.11"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.0.2",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.4.0",
+    "prettier": "^3.8.1"
+  }
+}
