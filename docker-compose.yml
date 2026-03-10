@@ -1,20 +1,20 @@
 version: "3.8"
 services:
   # fotg-ui:
-  #   build: .
+  #   build: ./web
   #   container_name: foodofthegods-ui
   #   volumes:
-  #     - ./dist/foodofthegods:/usr/share/nginx/html
+  #     - ./web/dist/foodofthegods:/usr/share/nginx/html
   #   ports:
   #     - 80:80
   #   restart: unless-stopped
   #   networks:
   #     - fotg-network
   fotg-api:
-    build: ../foodofthegods-api
+    build: ./api
     container_name: foodofthegods-api
     volumes:
-      - ./../foodofthegods-api:/usr/src/app
+      - ./api:/usr/src/app
     depends_on:
       fotg-db:
         condition: service_healthy
@@ -32,7 +32,7 @@ services:
       - PUID=1000
       - PGID=1000
     volumes:
-      - ../foodofthegods-db/mongodb/database:/data/db
+      - ./db/mongodb/database:/data/db
     ports:
       - 27017:27017
     networks:
@@ -45,7 +45,7 @@ services:
       retries: 5
       start_period: 30s
   db-seed:
-    build: ../foodofthegods-db/mongodb/seed
+    build: ./db/mongodb/seed
     networks:
       - fotg-network
     depends_on:
