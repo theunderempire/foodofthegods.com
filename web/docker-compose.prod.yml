@@ -1,0 +1,16 @@
+services:
+  fotg-api:
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    environment:
+      - START_CMD=start
+      - DB_HOST_NAME=fotg-db
+  fotg-db:
+    volumes:
+      - mongodata:/data/db
+  db-seed:
+    profiles:
+      - seed
+
+volumes:
+  mongodata:
