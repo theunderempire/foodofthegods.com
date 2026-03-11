@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, "../../.env") });
 
 const db = monk(
-  `${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST_NAME}:27017/${process.env.DB_NAME}?authSource=admin`,
+  `${encodeURIComponent(process.env.DB_USERNAME)}:${encodeURIComponent(process.env.DB_PASSWORD)}@${process.env.DB_HOST_NAME}:27017/${process.env.DB_NAME}?authSource=admin`,
 );
 
 db.then(() => {
