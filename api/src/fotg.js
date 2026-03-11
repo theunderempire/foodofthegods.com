@@ -15,14 +15,14 @@ const db = monk(
 );
 
 db.then(() => {
-  console.log("database connected");
+  console.log(new Date().toISOString(), "database connected");
 });
 
-console.log("starting", process.env.NODE_ENV, process.env.PORT);
+console.log(new Date().toISOString(), "starting", process.env.NODE_ENV, process.env.PORT);
 
 var app = express();
 
-app.use(logger("dev"));
+app.use(logger(":date[iso] :method :url :status :response-time ms"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, "public")));
