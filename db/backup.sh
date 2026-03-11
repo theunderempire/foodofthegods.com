@@ -10,8 +10,8 @@ BACKUP_PATH="$BACKUP_DIR/mongo_$TIMESTAMP"
 RETENTION_DAYS="${RETENTION_DAYS:-7}"
 
 # Load env if not already set
-if [ -f "$(dirname "$0")/../.env.production" ]; then
-  export $(grep -v '^#' "$(dirname "$0")/../.env.production" | xargs)
+if [ -f "$(dirname "$0")/../.env" ]; then
+  export $(grep -v '^#' "$(dirname "$0")/../.env" | xargs)
 fi
 
 : "${DB_USERNAME:?DB_USERNAME not set}"
