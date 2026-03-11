@@ -1,15 +1,5 @@
 version: "3.8"
 services:
-  # fotg-ui:
-  #   build: ./web
-  #   container_name: foodofthegods-ui
-  #   volumes:
-  #     - ./web/dist/foodofthegods:/usr/share/nginx/html
-  #   ports:
-  #     - 80:80
-  #   restart: unless-stopped
-  #   networks:
-  #     - fotg-network
   fotg-api:
     build: ./api
     container_name: foodofthegods-api
@@ -25,16 +15,19 @@ services:
     restart: unless-stopped
     networks:
       - fotg-network
+
   fotg-db:
     image: mongo:3.6.23
     container_name: foodofthegods-db
     environment:
       - PUID=1000
       - PGID=1000
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=${MONGO_DB_NAME}
     volumes:
-      - ./db/mongodb/database:/data/db
-    ports:
-      - 27017:27017
+      - mongodata:/data/db
+    # No ports exposed - only accessible within Docker network
     networks:
       - fotg-network
     restart: unless-stopped
@@ -44,6 +37,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+
   db-seed:
     build: ./db/mongodb/seed
     networks:
@@ -55,3 +49,7 @@ services:
 networks:
   fotg-network:
     driver: bridge
+
+volumes:
+  mongodata:
+
