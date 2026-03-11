@@ -1,7 +1,7 @@
 services:
   fotg-api:
     env_file:
-      - ./.env.production
+      - ./.env
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt:ro
     environment:
