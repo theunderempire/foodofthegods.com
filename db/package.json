@@ -1,0 +1,10 @@
+{
+  "name": "foodofthegods-db",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "seed": "../scripts/seed-dev.sh",
+    "start:prod": "../scripts/start-prod.sh",
+    "backup": "./backup.sh"
+  }
+}

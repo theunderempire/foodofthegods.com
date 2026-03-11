@@ -1,8 +1,13 @@
-import CryptoJS from "crypto-js";
 import { client } from "./client";
 
-function md5(value: string): string {
-  return CryptoJS.MD5(value).toString();
+async function sha256(value: string): Promise<string> {
+  const buf = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 interface TokenPasswordResponse {
@@ -23,7 +28,7 @@ export async function login(
   rawPassword: string,
 ): Promise<string> {
   const tokenRes = await client.post<TokenPasswordResponse>("/token", {
-    username: md5(rawUsername),
+    username: await sha256(rawUsername),
     password: rawPassword,
   });
   return tokenRes.data.data.token;
@@ -35,7 +40,7 @@ export async function register(
   email: string,
 ): Promise<void> {
   await client.post("/mail", {
-    username: md5(rawUsername),
+    username: await sha256(rawUsername),
     password: rawPassword,
     emailAddress: email,
   });

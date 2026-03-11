@@ -31,6 +31,7 @@ docker compose up
 ```
 
 This starts:
+
 - `fotg-api` on port 3000 (live-reloads from `./api`)
 - `fotg-db` (MongoDB) on port 27017
 
@@ -71,14 +72,14 @@ npm run dev
 
 ## Web (`web/`)
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start Vite dev server |
-| `npm run build` | Type-check + production build |
-| `npm run preview` | Preview production build locally |
-| `npm test` | Run unit tests (Vitest) |
-| `npm run test:watch` | Unit tests in watch mode |
-| `npm run test:e2e` | Playwright end-to-end tests |
+| Command              | Description                      |
+| -------------------- | -------------------------------- |
+| `npm run dev`        | Start Vite dev server            |
+| `npm run build`      | Type-check + production build    |
+| `npm run preview`    | Preview production build locally |
+| `npm test`           | Run unit tests (Vitest)          |
+| `npm run test:watch` | Unit tests in watch mode         |
+| `npm run test:e2e`   | Playwright end-to-end tests      |
 
 **Environment variables** — copy `.env.example` to `.env.development`:
 
@@ -92,18 +93,18 @@ Production builds are output to `web/dist/` with base path `/foodofthegods/`.
 
 ## API (`api/`)
 
-| Command | Description |
-|---|---|
-| `npm run start-dev` | Start with nodemon (dev, HTTP) |
-| `npm start` | Start for production (HTTPS) |
-| `npm test` | Run tests (Node native test runner) |
-| `npm run lint` | ESLint |
-| `npm run format` | Prettier |
+| Command             | Description                         |
+| ------------------- | ----------------------------------- |
+| `npm run start-dev` | Start with nodemon (dev, HTTP)      |
+| `npm start`         | Start for production (HTTPS)        |
+| `npm test`          | Run tests (Node native test runner) |
+| `npm run lint`      | ESLint                              |
+| `npm run format`    | Prettier                            |
 
 **Environment variables** — copy `.env.example` to `.env.development` / `.env.production`:
 
 ```
-DB_SERVICE_NAME=   # MongoDB DB name
+DB_NAME=   # MongoDB DB name
 DB_HOST_NAME=      # MongoDB host (use "fotg-db" in Docker, "localhost" locally)
 JWT_SECRET=        # Secret for signing JWTs
 GEMINI_API_KEY=    # Google Gemini API key (recipe import)
@@ -111,6 +112,7 @@ REGISTRATION_EMAIL= # Email address for registration notifications
 ```
 
 In production the server runs HTTPS and reads Let's Encrypt certs from:
+
 ```
 /etc/letsencrypt/live/theunderempire.com/
 ```
@@ -121,7 +123,8 @@ In production the server runs HTTPS and reads Let's Encrypt certs from:
 
 MongoDB 3.6. Data is persisted to `db/mongodb/database/` in dev (bind mount) or a named Docker volume in production.
 
-Seed files are in `db/mongodb/seed/` and import three collections into the `foodofthegods-api` database:
+Seed files are in `db/mongodb/seed/` and import three collections into the database specified by `DB_NAME`:
+
 - `recipelist`
 - `ingredientlist`
 - `users`
@@ -137,6 +140,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
 Production overrides:
+
 - API runs in HTTPS mode (`START_CMD=start`)
 - SSL certs mounted from host `/etc/letsencrypt`
 - MongoDB uses a persistent named volume (`mongodata`)

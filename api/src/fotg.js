@@ -8,9 +8,11 @@ import monk from "monk";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-dotenv.config({ path: path.join(__dirname, `../.env.${process.env.NODE_ENV}`) });
+dotenv.config({ path: path.join(__dirname, `../../.env.${process.env.NODE_ENV}`) });
 
-const db = monk(`${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST_NAME}:27017/${process.env.DB_SERVICE_NAME}?authSource=admin`);
+const db = monk(
+  `${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST_NAME}:27017/${process.env.DB_NAME}?authSource=admin`,
+);
 
 db.then(() => {
   console.log("database connected");
