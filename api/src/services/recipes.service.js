@@ -13,6 +13,7 @@ var RecipesService = function () {
   this.getRecipesForUser = getRecipesForUser;
   this.getSingleRecipe = getSingleRecipe;
   this.importRecipeFromUrl = importRecipeFromUrl;
+  this.importRecipeFromText = importRecipeFromText;
   this.updateRecipe = updateRecipe;
 
   // Adds a recipe to a user's recipe list
@@ -154,8 +155,47 @@ var RecipesService = function () {
     }
   }
 
-  async function importRecipeFromUrl(req, res) {
+  async function callGemini(text) {
     const geminiAPIKey = secret.geminiApiKey;
+    const geminiResponse = await fetch(geminiUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `Extract the recipe from the following text and return ONLY a JSON object with no markdown fencing, no explanation, just the JSON. Use this exact shape:
+{
+  "name": "...",
+  "prepDuration": "...",
+  "cookDuration": "...",
+  "servings": "...",
+  "ingredients": [{ "id": 1, "name": "...", "amount": 1.5, "unit": "..." }],
+  "directions": [{ "id": 1, "text": "...", "duration": "" }]
+}
+
+Recipe text:
+${text.slice(0, 50000)}`,
+              },
+            ],
+          },
+        ],
+      }),
+      headers: {
+        "x-goog-api-key": geminiAPIKey,
+        "Content-Type": "application/json",
+      },
+    });
+    const responseBody = await geminiResponse.json();
+    const rawText = responseBody.candidates[0].content.parts[0].text;
+    const stripped = rawText
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+    return JSON.parse(stripped);
+  }
+
+  async function importRecipeFromUrl(req, res) {
     const url = req.body.url;
     if (!url) {
       return res.json({ success: false, data: "url is required" });
@@ -182,43 +222,7 @@ var RecipesService = function () {
         .replace(/\s+/g, " ")
         .trim();
 
-      const geminiResponse = await fetch(geminiUrl, {
-        method: "POST",
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `Extract the recipe from the following webpage text and return ONLY a JSON object with no markdown fencing, no explanation, just the JSON. Use this exact shape:
-{
-  "name": "...",
-  "prepDuration": "...",
-  "cookDuration": "...",
-  "servings": "...",
-  "ingredients": [{ "id": 1, "name": "...", "amount": 1.5, "unit": "..." }],
-  "directions": [{ "id": 1, "text": "...", "duration": "" }]
-}
-
-Webpage text:
-${text.slice(0, 50000)}`,
-                },
-              ],
-            },
-          ],
-        }),
-        headers: {
-          "x-goog-api-key": geminiAPIKey,
-          "Content-Type": "application/json",
-        },
-      });
-
-      const responseBody = await geminiResponse.json();
-      const rawText = responseBody.candidates[0].content.parts[0].text;
-      const stripped = rawText
-        .replace(/```json/g, "")
-        .replace(/```/g, "")
-        .trim();
-      const recipe = JSON.parse(stripped);
+      const recipe = await callGemini(text);
       if (imageUrl) recipe.imageUrl = imageUrl;
       console.log(
         `[recipes] importRecipeFromUrl: successfully parsed recipe "${recipe.name}" from "${url}"`,
@@ -226,10 +230,24 @@ ${text.slice(0, 50000)}`,
       res.json({ success: true, data: recipe });
     } catch (err) {
       console.error(`[recipes] importRecipeFromUrl error for "${url}": ${err.message || err}`);
-      res.json({
-        success: false,
-        data: err.message || "Failed to import recipe",
-      });
+      res.json({ success: false, data: err.message || "Failed to import recipe" });
+    }
+  }
+
+  async function importRecipeFromText(req, res) {
+    const text = req.body.text;
+    if (!text) {
+      return res.json({ success: false, data: "text is required" });
+    }
+
+    console.log(`[recipes] importRecipeFromText: parsing pasted recipe`);
+    try {
+      const recipe = await callGemini(text);
+      console.log(`[recipes] importRecipeFromText: successfully parsed recipe "${recipe.name}"`);
+      res.json({ success: true, data: recipe });
+    } catch (err) {
+      console.error(`[recipes] importRecipeFromText error: ${err.message || err}`);
+      res.json({ success: false, data: err.message || "Failed to parse recipe" });
     }
   }
 

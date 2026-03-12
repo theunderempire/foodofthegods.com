@@ -7,9 +7,7 @@ export interface ApiResponse<T> {
 }
 
 export async function getRecipes(userId: string): Promise<RecipeListItem[]> {
-  const res = await client.get<ApiResponse<RecipeListItem[]>>(
-    `/recipes/${userId}`,
-  );
+  const res = await client.get<ApiResponse<RecipeListItem[]>>(`/recipes/${userId}`);
 
   if (res.data.success) {
     return res.data.data;
@@ -30,13 +28,8 @@ export async function getRecipe(id: string): Promise<Recipe | null> {
   }
 }
 
-export async function addRecipe(
-  recipe: Recipe,
-): Promise<ApiResponse<{ msg: string }> | null> {
-  const res = await client.post<ApiResponse<{ msg: string }>>(
-    "/recipes",
-    recipe,
-  );
+export async function addRecipe(recipe: Recipe): Promise<ApiResponse<{ msg: string }> | null> {
+  const res = await client.post<ApiResponse<{ msg: string }>>("/recipes", recipe);
 
   if (res.data.success) {
     return res.data;
@@ -46,13 +39,8 @@ export async function addRecipe(
   }
 }
 
-export async function updateRecipe(
-  recipe: Recipe,
-): Promise<ApiResponse<{ msg: string }> | null> {
-  const res = await client.put<ApiResponse<{ msg: string }>>(
-    `/recipes/${recipe._id}`,
-    recipe,
-  );
+export async function updateRecipe(recipe: Recipe): Promise<ApiResponse<{ msg: string }> | null> {
+  const res = await client.put<ApiResponse<{ msg: string }>>(`/recipes/${recipe._id}`, recipe);
 
   if (res.data.success) {
     return res.data;
@@ -63,16 +51,17 @@ export async function updateRecipe(
 }
 
 export async function importRecipeFromUrl(url: string): Promise<Recipe | null> {
-  const res = await client.post<ApiResponse<Recipe>>('/recipes/import-url', { url });
+  const res = await client.post<ApiResponse<Recipe>>("/recipes/import-url", { url });
   return res.data.success ? res.data.data : null;
 }
 
-export async function deleteRecipe(
-  id: string,
-): Promise<ApiResponse<{ msg: string }> | null> {
-  const res = await client.delete<ApiResponse<{ msg: string }>>(
-    `/recipes/${id}`,
-  );
+export async function importRecipeFromText(text: string): Promise<Recipe | null> {
+  const res = await client.post<ApiResponse<Recipe>>("/recipes/import-text", { text });
+  return res.data.success ? res.data.data : null;
+}
+
+export async function deleteRecipe(id: string): Promise<ApiResponse<{ msg: string }> | null> {
+  const res = await client.delete<ApiResponse<{ msg: string }>>(`/recipes/${id}`);
 
   if (res.data.success) {
     return res.data;

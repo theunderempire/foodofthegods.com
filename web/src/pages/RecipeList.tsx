@@ -30,7 +30,7 @@ export function RecipeList() {
   const isBackNav = navigationType === "POP";
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
   const [filter, setFilter] = useState(() =>
-    isBackNav ? (readSaved("recipe-list-filter") ?? "") : ""
+    isBackNav ? (readSaved("recipe-list-filter") ?? "") : "",
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -87,12 +87,6 @@ export function RecipeList() {
     <div className="page">
       <div className="page-header">
         <h1 className="page-title">My Recipes</h1>
-        <button
-          className="btn btn-primary"
-          onClick={() => navigate("/recipes/add")}
-        >
-          + New Recipe
-        </button>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -119,10 +113,7 @@ export function RecipeList() {
           ) : (
             <>
               <p>No recipes yet.</p>
-              <button
-                className="btn btn-primary"
-                onClick={() => navigate("/recipes/add")}
-              >
+              <button className="btn btn-primary" onClick={() => navigate("/recipes/add")}>
                 Add your first recipe
               </button>
             </>
@@ -132,10 +123,7 @@ export function RecipeList() {
         <div className="recipe-grid">
           {filtered.map((recipe) => (
             <div key={recipe._id} className="recipe-card">
-              <Link
-                to={`/recipes/recipe/${recipe._id}`}
-                className="recipe-card-link"
-              >
+              <Link to={`/recipes/recipe/${recipe._id}`} className="recipe-card-link">
                 {recipe.imageUrl && (
                   <div className="recipe-card-image">
                     <img src={recipe.imageUrl} alt={recipe.name} />
@@ -180,6 +168,10 @@ export function RecipeList() {
           onCancel={() => setDeleteTarget(null)}
         />
       )}
+
+      <button className="fab" onClick={() => navigate("/recipes/add")} aria-label="Add recipe">
+        +
+      </button>
     </div>
   );
 }

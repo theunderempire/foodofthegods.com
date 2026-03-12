@@ -7,6 +7,10 @@ router.post("/import-url", function (req, res) {
   recipesService.importRecipeFromUrl(req, res);
 });
 
+router.post("/import-text", function (req, res) {
+  recipesService.importRecipeFromText(req, res);
+});
+
 /* GET recipes listing. */
 router.get("/:userId", function (req, res, _next) {
   recipesService.getRecipesForUser(req, res);

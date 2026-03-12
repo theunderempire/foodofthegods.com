@@ -960,6 +960,66 @@ textarea.input {
   transform: scale(1.07);
 }
 
+/* ─── Recipe Import ───────────────────────────────────────────────────────── */
+.import-select {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.import-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.import-option:hover {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+
+.import-option-icon {
+  font-size: 1.5rem;
+}
+
+.import-option-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.import-option-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.import-input-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.import-url-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.import-text-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 /* ─── Add Item Dialog ─────────────────────────────────────────────────────── */
 .add-item-dialog {
   max-width: 420px;
