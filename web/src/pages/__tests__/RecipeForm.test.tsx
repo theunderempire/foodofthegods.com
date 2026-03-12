@@ -15,6 +15,11 @@ vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({ username: "testuser-hash" }),
 }));
 
+const mockUseSettings = vi.fn();
+vi.mock("../../contexts/SettingsContext", () => ({
+  useSettings: () => mockUseSettings(),
+}));
+
 vi.mock("../../api/recipes", () => ({
   addRecipe: (...args: unknown[]) => mockAddRecipe(...args),
   updateRecipe: (...args: unknown[]) => mockUpdateRecipe(...args),
@@ -41,6 +46,7 @@ describe("RecipeForm", () => {
     mockImportRecipeFromText.mockReset();
     mockNavigate.mockReset();
     mockParams = {};
+    mockUseSettings.mockReturnValue({ hasGeminiKey: true, refreshSettings: vi.fn() });
   });
 
   function renderForm() {
@@ -82,7 +88,10 @@ describe("RecipeForm", () => {
   test("back button returns to select screen from URL step", async () => {
     renderForm();
     await userEvent.click(screen.getByText("Import from URL"));
-    await userEvent.click(screen.getByRole("button", { name: /back/i }));
+    // Two "← Back" buttons exist: page header (navigate(-1)) and step back button.
+    // Click the step-level back button (the second one).
+    const backButtons = screen.getAllByRole("button", { name: /back/i });
+    await userEvent.click(backButtons[backButtons.length - 1]);
     expect(screen.getByText("Enter Manually")).toBeInTheDocument();
   });
 
@@ -165,6 +174,23 @@ describe("RecipeForm", () => {
 
     expect(mockAddRecipe).toHaveBeenCalledWith(expect.objectContaining({ name: "My New Recipe" }));
     expect(mockNavigate).toHaveBeenCalledWith("/recipes");
+  });
+
+  test("disables AI import buttons and shows notice when no Gemini key", () => {
+    mockUseSettings.mockReturnValue({ hasGeminiKey: false, refreshSettings: vi.fn() });
+    renderForm();
+    expect(screen.getByRole("button", { name: /Import from URL/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Paste Recipe Text/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Enter Manually/i })).not.toBeDisabled();
+    expect(screen.getByText(/Add one in Settings/i)).toBeInTheDocument();
+  });
+
+  test("enables AI import buttons and hides notice when Gemini key is set", () => {
+    mockUseSettings.mockReturnValue({ hasGeminiKey: true, refreshSettings: vi.fn() });
+    renderForm();
+    expect(screen.getByRole("button", { name: /Import from URL/i })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /Paste Recipe Text/i })).not.toBeDisabled();
+    expect(screen.queryByText(/Add one in Settings/i)).not.toBeInTheDocument();
   });
 
   test("calls updateRecipe in edit mode", async () => {

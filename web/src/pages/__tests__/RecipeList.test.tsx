@@ -78,10 +78,7 @@ describe("RecipeList", () => {
     renderList();
     await screen.findByText("Pasta");
 
-    await userEvent.type(
-      screen.getByPlaceholderText("Search recipes..."),
-      "pa",
-    );
+    await userEvent.type(screen.getByPlaceholderText("Search recipes..."), "pa");
 
     expect(screen.getByText("Pasta")).toBeInTheDocument();
     expect(screen.queryByText("Salad")).not.toBeInTheDocument();
@@ -99,10 +96,7 @@ describe("RecipeList", () => {
     renderList();
     await screen.findByText("Pasta");
 
-    await userEvent.type(
-      screen.getByPlaceholderText("Search recipes..."),
-      "xyz",
-    );
+    await userEvent.type(screen.getByPlaceholderText("Search recipes..."), "xyz");
 
     expect(screen.getByText(/No recipes match/)).toBeInTheDocument();
   });
@@ -111,7 +105,7 @@ describe("RecipeList", () => {
     mockGetRecipes.mockResolvedValue(mockRecipes);
     renderList();
     await screen.findByText("Pasta");
-    await userEvent.click(screen.getByRole("button", { name: "+ New Recipe" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add recipe" }));
     expect(mockNavigate).toHaveBeenCalledWith("/recipes/add");
   });
 });

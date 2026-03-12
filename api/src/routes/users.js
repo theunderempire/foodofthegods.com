@@ -1,7 +1,7 @@
 import express from "express";
 const router = express.Router();
 
-router.get("/settings", async function (req, res) {
+export async function handleGetSettings(req, res) {
   const userCollection = req.db.get("users");
   try {
     const user = await userCollection.findOne({ username: req.decoded.username });
@@ -9,9 +9,9 @@ router.get("/settings", async function (req, res) {
   } catch {
     res.json({ geminiApiKey: null });
   }
-});
+}
 
-router.put("/settings", async function (req, res) {
+export async function handlePutSettings(req, res) {
   const userCollection = req.db.get("users");
   const { geminiApiKey } = req.body;
   try {
@@ -20,6 +20,9 @@ router.put("/settings", async function (req, res) {
   } catch (err) {
     res.json({ success: false, data: err.message });
   }
-});
+}
+
+router.get("/settings", handleGetSettings);
+router.put("/settings", handlePutSettings);
 
 export default router;
