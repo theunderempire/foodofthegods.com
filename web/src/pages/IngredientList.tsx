@@ -32,7 +32,7 @@ export function IngredientList() {
     item: IngredientListItem;
   } | null>(null);
   const [addName, setAddName] = useState("");
-  const [addAmount, setAddAmount] = useState("");
+  const [addAmount, setAddAmount] = useState("1");
   const [addUnit, setAddUnit] = useState("");
   const [adding, setAdding] = useState(false);
 
@@ -98,7 +98,7 @@ export function IngredientList() {
     setAddModalOpen(false);
     setEditTarget(null);
     setAddName("");
-    setAddAmount("");
+    setAddAmount("1");
     setAddUnit("");
   }
 
