@@ -501,6 +501,124 @@ describe("RecipesService", () => {
         globalThis.fetch = originalFetch;
       }
     });
+
+    test("handles Gemini response with missing commas between array objects", async () => {
+      const originalFetch = globalThis.fetch;
+      let callCount = 0;
+      // Simulate Gemini omitting commas between direction objects (the production error)
+      const malformedJson = `{
+  "name": "Test Recipe",
+  "prepDuration": "5 min",
+  "cookDuration": "10 min",
+  "servings": "2",
+  "ingredients": [{"id": 1, "name": "water", "amount": 1, "unit": "cup"}],
+  "directions": [
+    {"id": 1, "text": "Boil water.", "duration": ""}
+    {"id": 2, "text": "Add pasta.", "duration": ""}
+  ]
+}`;
+      globalThis.fetch = async () => {
+        callCount++;
+        if (callCount === 1) return { text: async () => "<html>page</html>" };
+        return {
+          json: async () => ({ candidates: [{ content: { parts: [{ text: malformedJson }] } }] }),
+        };
+      };
+
+      try {
+        const res = makeRes();
+        const req = makeReq({
+          body: { url: "https://example.com/recipe" },
+          collections: {
+            users: makeCollection({
+              findOne: () => Promise.resolve({ username: "testuser", geminiApiKey: "test-key" }),
+            }),
+          },
+        });
+
+        await service.importRecipeFromUrl(req, res);
+
+        assert.equal(res._body.success, true);
+        assert.equal(res._body.data.name, "Test Recipe");
+        assert.equal(res._body.data.directions.length, 2);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("handles Gemini response with trailing commas", async () => {
+      const originalFetch = globalThis.fetch;
+      let callCount = 0;
+      const trailingCommaJson = `{
+  "name": "Soup",
+  "prepDuration": "5 min",
+  "cookDuration": "15 min",
+  "servings": "2",
+  "ingredients": [{"id": 1, "name": "water", "amount": 1, "unit": "cup",}],
+  "directions": [{"id": 1, "text": "Boil.", "duration": ""},],
+}`;
+      globalThis.fetch = async () => {
+        callCount++;
+        if (callCount === 1) return { text: async () => "<html>page</html>" };
+        return {
+          json: async () => ({
+            candidates: [{ content: { parts: [{ text: trailingCommaJson }] } }],
+          }),
+        };
+      };
+
+      try {
+        const res = makeRes();
+        const req = makeReq({
+          body: { url: "https://example.com/recipe" },
+          collections: {
+            users: makeCollection({
+              findOne: () => Promise.resolve({ username: "testuser", geminiApiKey: "test-key" }),
+            }),
+          },
+        });
+
+        await service.importRecipeFromUrl(req, res);
+
+        assert.equal(res._body.success, true);
+        assert.equal(res._body.data.name, "Soup");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("handles Gemini response with surrounding prose", async () => {
+      const originalFetch = globalThis.fetch;
+      let callCount = 0;
+      const withProse =
+        'Here is the recipe:\n{"name":"Pasta","prepDuration":"5 min","cookDuration":"10 min","servings":"2","ingredients":[],"directions":[]}\nLet me know if you need anything else!';
+      globalThis.fetch = async () => {
+        callCount++;
+        if (callCount === 1) return { text: async () => "<html>page</html>" };
+        return {
+          json: async () => ({ candidates: [{ content: { parts: [{ text: withProse }] } }] }),
+        };
+      };
+
+      try {
+        const res = makeRes();
+        const req = makeReq({
+          body: { url: "https://example.com/recipe" },
+          collections: {
+            users: makeCollection({
+              findOne: () => Promise.resolve({ username: "testuser", geminiApiKey: "test-key" }),
+            }),
+          },
+        });
+
+        await service.importRecipeFromUrl(req, res);
+
+        assert.equal(res._body.success, true);
+        assert.equal(res._body.data.name, "Pasta");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
   });
 
   describe("importRecipeFromText", () => {

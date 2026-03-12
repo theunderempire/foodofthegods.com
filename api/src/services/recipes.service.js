@@ -186,11 +186,25 @@ ${text.slice(0, 50000)}`,
     });
     const responseBody = await geminiResponse.json();
     const rawText = responseBody.candidates[0].content.parts[0].text;
-    const stripped = rawText
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
+
+    // Strip markdown fencing (case-insensitive)
+    let json = rawText
+      .replace(/```json\s*/gi, "")
+      .replace(/```\s*/g, "")
       .trim();
-    return JSON.parse(stripped);
+
+    // Extract the outermost JSON object, ignoring any surrounding prose
+    const jsonMatch = json.match(/\{[\s\S]*\}/);
+    if (jsonMatch) json = jsonMatch[0];
+
+    // Fix common LLM JSON issues:
+    // 1. Trailing commas before } or ]
+    json = json.replace(/,(\s*[}\]])/g, "$1");
+    // 2. Missing commas between adjacent objects or between } and [
+    json = json.replace(/\}(\s*)\{/g, "},$1{");
+    json = json.replace(/\](\s*)\{/g, "],$1{");
+
+    return JSON.parse(json);
   }
 
   async function importRecipeFromUrl(req, res) {
