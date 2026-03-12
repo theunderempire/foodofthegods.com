@@ -2,6 +2,7 @@
   "private": true,
   "scripts": {
     "build:all": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build",
+    "deploy": "npm run --prefix api deploy && (cd web && ./autobuild)",
     "prepare": "husky",
     "postinstall": "npm install --prefix api && npm install --prefix web"
   },
