@@ -27,6 +27,10 @@ export function IngredientList() {
   const [error, setError] = useState("");
   const [confirmClear, setConfirmClear] = useState<"all" | "marked" | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<{
+    groupName: string;
+    item: IngredientListItem;
+  } | null>(null);
   const [addName, setAddName] = useState("");
   const [addAmount, setAddAmount] = useState("");
   const [addUnit, setAddUnit] = useState("");
@@ -83,28 +87,56 @@ export function IngredientList() {
     }
   }
 
-  async function handleAdd(e: React.FormEvent) {
+  function openEditModal(groupName: string, item: IngredientListItem) {
+    setEditTarget({ groupName, item });
+    setAddName(item.ingredient.name);
+    setAddAmount(String(item.ingredient.amount));
+    setAddUnit(item.ingredient.unit ?? "");
+  }
+
+  function closeModal() {
+    setAddModalOpen(false);
+    setEditTarget(null);
+    setAddName("");
+    setAddAmount("");
+    setAddUnit("");
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!username || !addName.trim() || !addAmount) return;
     setAdding(true);
     try {
-      const updated = await addIngredients(username, [
-        {
-          id: Date.now(),
-          name: addName.trim(),
-          amount: parseFloat(addAmount),
-          unit: addUnit.trim() || undefined,
-        },
-      ]);
+      let updated;
+      if (editTarget) {
+        updated = await updateIngredient(username, {
+          groupName: editTarget.groupName,
+          ingredientListItem: {
+            ...editTarget.item,
+            ingredient: {
+              ...editTarget.item.ingredient,
+              name: addName.trim(),
+              amount: parseFloat(addAmount),
+              unit: addUnit.trim() || undefined,
+            },
+          },
+        });
+      } else {
+        updated = await addIngredients(username, [
+          {
+            id: Date.now(),
+            name: addName.trim(),
+            amount: parseFloat(addAmount),
+            unit: addUnit.trim() || undefined,
+          },
+        ]);
+      }
       if (updated) {
         setList(updated);
-        setAddName("");
-        setAddAmount("");
-        setAddUnit("");
-        setAddModalOpen(false);
+        closeModal();
       }
     } catch {
-      setError("Failed to add ingredient.");
+      setError(editTarget ? "Failed to update ingredient." : "Failed to add ingredient.");
     } finally {
       setAdding(false);
     }
@@ -201,6 +233,13 @@ export function IngredientList() {
                           <span className="item-name">{item.ingredient.name}</span>
                         </label>
                         <button
+                          className="edit-btn"
+                          onClick={() => openEditModal(group.name, item)}
+                          aria-label="Edit"
+                        >
+                          &#9998;
+                        </button>
+                        <button
                           className="remove-btn"
                           onClick={() => handleRemove(group.name, item.ingredient.id)}
                           aria-label="Remove"
@@ -220,11 +259,11 @@ export function IngredientList() {
         +
       </button>
 
-      {addModalOpen && (
-        <div className="dialog-overlay" onClick={() => setAddModalOpen(false)}>
+      {(addModalOpen || editTarget) && (
+        <div className="dialog-overlay" onClick={closeModal}>
           <div className="dialog-box add-item-dialog" onClick={(e) => e.stopPropagation()}>
-            <h2 className="dialog-title">Add Ingredient</h2>
-            <form onSubmit={handleAdd}>
+            <h2 className="dialog-title">{editTarget ? "Edit Ingredient" : "Add Ingredient"}</h2>
+            <form onSubmit={handleSubmit}>
               <div className="form-group" style={{ marginBottom: "1rem" }}>
                 <label>Name</label>
                 <input
@@ -261,11 +300,7 @@ export function IngredientList() {
                 </div>
               </div>
               <div className="dialog-actions">
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => setAddModalOpen(false)}
-                >
+                <button type="button" className="btn btn-ghost" onClick={closeModal}>
                   Cancel
                 </button>
                 <button
@@ -273,7 +308,7 @@ export function IngredientList() {
                   type="submit"
                   disabled={adding || !addName.trim() || !addAmount}
                 >
-                  {adding ? "Adding…" : "Add"}
+                  {adding ? "Saving…" : editTarget ? "Save" : "Add"}
                 </button>
               </div>
             </form>

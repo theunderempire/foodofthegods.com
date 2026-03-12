@@ -136,6 +136,44 @@ describe("IngredientList", () => {
     expect(mockRemoveIngredient).toHaveBeenCalledWith("testuser-hash", "Uncategorized", 1);
   });
 
+  test("opens edit modal pre-filled and saves updated ingredient", async () => {
+    mockGetIngredientList.mockResolvedValue(mockList);
+    mockUpdateIngredient.mockResolvedValue({
+      groups: [
+        {
+          name: "Uncategorized",
+          items: [
+            { completed: false, ingredient: { id: 1, name: "butter", amount: 4, unit: "tbsp" } },
+            { completed: false, ingredient: { id: 2, name: "eggs", amount: 3, unit: "" } },
+          ],
+        },
+      ],
+      lastModified: "",
+    });
+    renderList();
+    await screen.findByText("butter");
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
+
+    expect(screen.getByRole("heading", { name: "Edit Ingredient" })).toBeInTheDocument();
+    const nameInput = screen.getByPlaceholderText("Ingredient name");
+    expect(nameInput).toHaveValue("butter");
+
+    await userEvent.clear(screen.getByPlaceholderText("0"));
+    await userEvent.type(screen.getByPlaceholderText("0"), "4");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(mockUpdateIngredient).toHaveBeenCalledWith(
+      "testuser-hash",
+      expect.objectContaining({
+        groupName: "Uncategorized",
+        ingredientListItem: expect.objectContaining({
+          ingredient: expect.objectContaining({ name: "butter", amount: 4 }),
+        }),
+      }),
+    );
+  });
+
   test("Auto-group button is disabled when no Gemini key", async () => {
     mockUseSettings.mockReturnValue({ hasGeminiKey: false, refreshSettings: vi.fn() });
     mockGetIngredientList.mockResolvedValue(mockList);
