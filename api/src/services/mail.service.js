@@ -47,7 +47,7 @@ export class MailService {
   }
 
   async register(req, res) {
-    const { username, email } = req.body;
+    const { username, displayUsername, email } = req.body;
     if (!username || !email) {
       return res
         .status(400)
@@ -67,6 +67,7 @@ export class MailService {
       const approvalToken = generateToken();
       await pending.insert({
         username,
+        displayUsername: displayUsername ?? null,
         email,
         status: "pending_approval",
         approvalToken,
@@ -123,12 +124,15 @@ export class MailService {
       );
 
       const setPasswordLink = appUrl(`/set-password?token=${setPasswordToken}`);
+      const usernameNote = record.displayUsername
+        ? `\n\nYour username is: ${record.displayUsername}`
+        : "";
       await this._createTransporter().sendMail({
         from: '"Food of the Gods" <admin@theunderempire.com>',
         to: record.email,
         subject: "Set Your Password — Food of the Gods",
-        text: `Your registration has been approved!\n\nClick the link below to set your password (valid for 24 hours):\n\n${setPasswordLink}`,
-        html: `<p>Your registration has been approved!</p><p><a href="${setPasswordLink}">Set Your Password</a></p><p><small>This link expires in 24 hours.</small></p>`,
+        text: `Your registration has been approved!${usernameNote}\n\nClick the link below to set your password (valid for 24 hours):\n\n${setPasswordLink}`,
+        html: `<p>Your registration has been approved!</p>${record.displayUsername ? `<p><b>Your username is:</b> ${record.displayUsername}</p>` : ""}<p><a href="${setPasswordLink}">Set Your Password</a></p><p><small>This link expires in 24 hours.</small></p>`,
       });
 
       console.log(`[mail] approved registration for ${record.email}`);

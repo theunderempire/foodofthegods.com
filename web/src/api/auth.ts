@@ -29,6 +29,7 @@ export async function login(rawUsername: string, rawPassword: string): Promise<s
 export async function register(rawUsername: string, email: string): Promise<void> {
   await client.post("/mail", {
     username: await sha256(rawUsername),
+    displayUsername: rawUsername,
     email,
   });
 }
