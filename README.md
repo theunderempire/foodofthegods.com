@@ -106,12 +106,11 @@ cp .env.example .env
 | `DB_HOST_NAME`            | MongoDB host (`fotg-db` in Docker, `localhost` otherwise)         |
 | `JWT_SECRET`              | Secret for signing JWTs                                           |
 | `GEMINI_API_KEY`          | Google Gemini API key (used for recipe import)                    |
-| `REGISTRATION_EMAIL`      | Email address that receives registration approval requests        |
 | `APP_URL`                 | Frontend base URL, used in registration emails (no trailing slash)|
 | `API_URL`                 | API base URL, used in registration emails (no trailing slash)     |
 | `SMTP_HOST`               | SMTP server hostname (e.g. `smtp.gmail.com`)                      |
 | `SMTP_PORT`               | SMTP port (`587` for TLS, `465` for SSL)                          |
-| `SMTP_USER`               | SMTP username / email address                                     |
+| `SMTP_USER`               | SMTP username / email address (also receives registration emails) |
 | `SMTP_PASS`               | SMTP password or app password                                     |
 | `SMTP_REJECT_UNAUTHORIZED`| Set to `false` to allow self-signed certs (default `true`)        |
 

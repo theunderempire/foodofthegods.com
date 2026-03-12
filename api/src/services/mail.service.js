@@ -77,7 +77,7 @@ export class MailService {
       const approvalLink = apiUrl(`/mail/approve/${approvalToken}`);
       await this._createTransporter().sendMail({
         from: '"Food of the Gods" <admin@theunderempire.com>',
-        to: process.env.REGISTRATION_EMAIL,
+        to: process.env.SMTP_USER,
         subject: "New Registration Request",
         text: `A user wants to register.\n\nEmail: ${email}\nUsername hash: ${username}\n\nApprove: ${approvalLink}`,
         html: `<p>A user wants to register.</p><p><b>Email:</b> ${email}</p><p><b>Username hash:</b> ${username}</p><br><p><a href="${approvalLink}">Approve Registration</a></p><p><small>Link expires in 7 days.</small></p>`,
@@ -159,12 +159,10 @@ export class MailService {
       }
       if (new Date(record.tokenExpiry) < new Date()) {
         await pending.remove({ _id: record._id });
-        return res
-          .status(410)
-          .json({
-            success: false,
-            data: { message: "This link has expired. Please request a new registration." },
-          });
+        return res.status(410).json({
+          success: false,
+          data: { message: "This link has expired. Please request a new registration." },
+        });
       }
 
       const hashedPassword = await bcrypt.hash(password, 12);
