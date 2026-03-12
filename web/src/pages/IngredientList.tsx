@@ -6,6 +6,7 @@ import {
   getIngredientList,
   groupIngredients,
   removeIngredient,
+  subscribeToList,
   updateIngredient,
 } from "../api/ingredientList";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -18,7 +19,7 @@ import type {
 } from "../types/ingredientList";
 
 export function IngredientList() {
-  const { username } = useAuth();
+  const { username, token } = useAuth();
   const { hasGeminiKey } = useSettings();
   const [list, setList] = useState<IngredientListType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,6 +44,11 @@ export function IngredientList() {
       .catch(() => setError("Failed to load shopping list."))
       .finally(() => setLoading(false));
   }, [username]);
+
+  useEffect(() => {
+    if (!username || !token) return;
+    return subscribeToList(username, token, (updatedList) => setList(updatedList));
+  }, [username, token]);
 
   async function handleToggle(group: IngredientListGroup, item: IngredientListItem) {
     if (!username) return;

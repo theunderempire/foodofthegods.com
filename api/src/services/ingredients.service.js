@@ -1,5 +1,6 @@
 import secret from "../secret.js";
 import RequestService from "./request.service.js";
+import { broadcast } from "./sse.js";
 
 const requestService = new RequestService();
 
@@ -49,9 +50,11 @@ const IngredientService = function () {
 
         if (docs) {
           await collection.update({ userId }, { $set: { ingredientList } });
+          broadcast(userId, { ...docs, ingredientList });
           response.json({ success: true, data: { ...docs, ingredientList } });
         } else {
           const newDoc = await collection.insert({ userId, ingredientList });
+          broadcast(userId, newDoc);
           response.json({ success: true, data: newDoc });
         }
       } catch (err) {
@@ -100,9 +103,11 @@ const IngredientService = function () {
 
         if (docs) {
           await collection.update({ userId }, { $set: { ingredientList } });
+          broadcast(userId, { ...docs, ingredientList });
           response.json({ success: true, data: { ...docs, ingredientList } });
         } else {
           const newDoc = await collection.insert({ userId, ingredientList });
+          broadcast(userId, newDoc);
           response.json({ success: true, data: newDoc });
         }
       } catch (err) {
@@ -232,6 +237,7 @@ const IngredientService = function () {
               { userId },
               { $set: { ingredientList: newDocs.ingredientList } },
             );
+            broadcast(userId, newDocs);
             res.json({ success: true, data: newDocs });
           } else {
             const errBody = await response.text().catch(() => "(unreadable)");
@@ -277,6 +283,7 @@ const IngredientService = function () {
         };
 
         await collection.update({ userId }, { $set: { ingredientList: docs.ingredientList } });
+        broadcast(userId, docs);
         response.json({ success: true, data: docs });
       } catch (err) {
         console.error(`[ingredients] removeAllIngredients error user="${userId}": ${err}`);
@@ -314,6 +321,7 @@ const IngredientService = function () {
             }
 
             await collection.update({ userId }, { $set: { ingredientList: docs.ingredientList } });
+            broadcast(userId, docs);
             res.json({ success: true, data: docs });
           } else {
             res.json({
@@ -366,6 +374,7 @@ const IngredientService = function () {
         });
 
         await collection.update({ userId }, { $set: { ingredientList: docs.ingredientList } });
+        broadcast(userId, docs);
         response.json({ success: true, data: docs });
       } catch (err) {
         console.error(`[ingredients] removeMarkedIngredients error user="${userId}": ${err}`);
@@ -397,6 +406,7 @@ const IngredientService = function () {
           if (itemIndex !== -1) {
             itemGroup.items[itemIndex] = ingredientItem;
             await collection.update({ userId }, { $set: { ingredientList: docs.ingredientList } });
+            broadcast(userId, docs);
             response.json({ success: true, data: docs });
           } else {
             response.json({
