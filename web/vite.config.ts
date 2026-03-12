@@ -1,13 +1,14 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  base: mode === 'development' ? '/' : '/foodofthegods/',
+  base: mode === "development" ? "/" : "/foodofthegods/",
+  envDir: "..",
   test: {
-    environment: 'jsdom',
+    environment: "jsdom",
     globals: true,
-    setupFiles: ['./src/test/setup.ts'],
-    exclude: ['node_modules', 'e2e'],
+    setupFiles: ["./src/test/setup.ts"],
+    exclude: ["node_modules", "e2e"],
   },
-}))
+}));

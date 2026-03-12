@@ -34,10 +34,9 @@ function appUrl(path) {
 }
 
 function apiUrl(path) {
-  const base = (process.env.API_URL ?? "https://theunderempire.com/foodofthegods-api").replace(
-    /\/$/,
-    "",
-  );
+  const base = (
+    process.env.VITE_API_BASE_URL ?? "https://theunderempire.com/foodofthegods-api"
+  ).replace(/\/$/, "");
   return `${base}${path}`;
 }
 
