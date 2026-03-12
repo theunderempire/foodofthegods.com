@@ -12,6 +12,11 @@ vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({ username: "testuser-hash" }),
 }));
 
+const mockUseSettings = vi.fn();
+vi.mock("../../contexts/SettingsContext", () => ({
+  useSettings: () => mockUseSettings(),
+}));
+
 vi.mock("../../api/ingredientList", () => ({
   getIngredientList: (...args: unknown[]) => mockGetIngredientList(...args),
   addIngredients: (...args: unknown[]) => mockAddIngredients(...args),
@@ -47,6 +52,7 @@ describe("IngredientList", () => {
     mockAddIngredients.mockReset();
     mockRemoveIngredient.mockReset();
     mockUpdateIngredient.mockReset();
+    mockUseSettings.mockReturnValue({ hasGeminiKey: true, refreshSettings: vi.fn() });
   });
 
   function renderList() {
@@ -66,9 +72,7 @@ describe("IngredientList", () => {
   test("shows empty state when list is empty", async () => {
     mockGetIngredientList.mockResolvedValue(null);
     renderList();
-    expect(
-      await screen.findByText("Your shopping list is empty."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Your shopping list is empty.")).toBeInTheDocument();
   });
 
   test("renders ingredient items", async () => {
@@ -112,9 +116,7 @@ describe("IngredientList", () => {
 
     expect(mockAddIngredients).toHaveBeenCalledWith(
       "testuser-hash",
-      expect.arrayContaining([
-        expect.objectContaining({ name: "flour", amount: 2, unit: "cups" }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ name: "flour", amount: 2, unit: "cups" })]),
     );
     expect(screen.queryByText("Add Ingredient")).not.toBeInTheDocument();
   });
@@ -131,10 +133,22 @@ describe("IngredientList", () => {
     const removeButtons = screen.getAllByRole("button", { name: "Remove" });
     await userEvent.click(removeButtons[0]);
 
-    expect(mockRemoveIngredient).toHaveBeenCalledWith(
-      "testuser-hash",
-      "Uncategorized",
-      1,
-    );
+    expect(mockRemoveIngredient).toHaveBeenCalledWith("testuser-hash", "Uncategorized", 1);
+  });
+
+  test("Auto-group button is disabled when no Gemini key", async () => {
+    mockUseSettings.mockReturnValue({ hasGeminiKey: false, refreshSettings: vi.fn() });
+    mockGetIngredientList.mockResolvedValue(mockList);
+    renderList();
+    await screen.findByText("butter");
+    expect(screen.getByRole("button", { name: /Auto-group/i })).toBeDisabled();
+  });
+
+  test("Auto-group button is enabled when Gemini key is set", async () => {
+    mockUseSettings.mockReturnValue({ hasGeminiKey: true, refreshSettings: vi.fn() });
+    mockGetIngredientList.mockResolvedValue(mockList);
+    renderList();
+    await screen.findByText("butter");
+    expect(screen.getByRole("button", { name: /Auto-group/i })).not.toBeDisabled();
   });
 });

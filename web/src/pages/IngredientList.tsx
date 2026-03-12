@@ -10,6 +10,7 @@ import {
 } from "../api/ingredientList";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useAuth } from "../contexts/AuthContext";
+import { useSettings } from "../contexts/SettingsContext";
 import type {
   IngredientList as IngredientListType,
   IngredientListGroup,
@@ -18,14 +19,13 @@ import type {
 
 export function IngredientList() {
   const { username } = useAuth();
+  const { hasGeminiKey } = useSettings();
   const [list, setList] = useState<IngredientListType | null>(null);
   const [loading, setLoading] = useState(true);
   const [grouping, setGrouping] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [error, setError] = useState("");
-  const [confirmClear, setConfirmClear] = useState<"all" | "marked" | null>(
-    null,
-  );
+  const [confirmClear, setConfirmClear] = useState<"all" | "marked" | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addName, setAddName] = useState("");
   const [addAmount, setAddAmount] = useState("");
@@ -40,10 +40,7 @@ export function IngredientList() {
       .finally(() => setLoading(false));
   }, [username]);
 
-  async function handleToggle(
-    group: IngredientListGroup,
-    item: IngredientListItem,
-  ) {
+  async function handleToggle(group: IngredientListGroup, item: IngredientListItem) {
     if (!username) return;
     const updated = await updateIngredient(username, {
       groupName: group.name,
@@ -126,16 +123,11 @@ export function IngredientList() {
     }
   }
 
-  const totalItems =
-    list?.groups.reduce((sum, g) => sum + g.items.length, 0) ?? 0;
+  const totalItems = list?.groups.reduce((sum, g) => sum + g.items.length, 0) ?? 0;
   const markedItems =
-    list?.groups.reduce(
-      (sum, g) => sum + g.items.filter((i) => i.completed).length,
-      0,
-    ) ?? 0;
+    list?.groups.reduce((sum, g) => sum + g.items.filter((i) => i.completed).length, 0) ?? 0;
 
-  if (loading)
-    return <div className="page-loading">Loading shopping list...</div>;
+  if (loading) return <div className="page-loading">Loading shopping list...</div>;
 
   return (
     <div className="page">
@@ -145,8 +137,12 @@ export function IngredientList() {
           <button
             className="btn btn-ghost btn-sm"
             onClick={handleGroup}
-            disabled={grouping || totalItems === 0}
-            title="Auto-group by store section using AI"
+            disabled={grouping || totalItems === 0 || !hasGeminiKey}
+            title={
+              !hasGeminiKey
+                ? "Add a Gemini API key in Settings to use Auto-group"
+                : "Auto-group by store section using AI"
+            }
           >
             {grouping ? "Grouping..." : <>&#x2728;Auto-group</>}
           </button>
@@ -176,9 +172,7 @@ export function IngredientList() {
       {totalItems === 0 ? (
         <div className="empty-state">
           <p>Your shopping list is empty.</p>
-          <p className="empty-hint">
-            Add ingredients from a recipe to get started.
-          </p>
+          <p className="empty-hint">Add ingredients from a recipe to get started.</p>
         </div>
       ) : (
         <div className="shopping-list">
@@ -202,19 +196,13 @@ export function IngredientList() {
                           />
                           <span className="item-amount">
                             {item.ingredient.amount}
-                            {item.ingredient.unit
-                              ? ` ${item.ingredient.unit}`
-                              : ""}
+                            {item.ingredient.unit ? ` ${item.ingredient.unit}` : ""}
                           </span>
-                          <span className="item-name">
-                            {item.ingredient.name}
-                          </span>
+                          <span className="item-name">{item.ingredient.name}</span>
                         </label>
                         <button
                           className="remove-btn"
-                          onClick={() =>
-                            handleRemove(group.name, item.ingredient.id)
-                          }
+                          onClick={() => handleRemove(group.name, item.ingredient.id)}
                           aria-label="Remove"
                         >
                           &#x2715;
