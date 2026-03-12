@@ -121,7 +121,7 @@ export function RecipeViewer() {
 
         {recipe.imageUrl && (
           <div className="recipe-hero-image">
-            <img src={recipe.imageUrl} alt={recipe.name} />
+            <img src={recipe.imageUrl} alt={recipe.name} loading="lazy" />
           </div>
         )}
 

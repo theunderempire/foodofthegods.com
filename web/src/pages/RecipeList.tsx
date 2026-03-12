@@ -126,7 +126,7 @@ export function RecipeList() {
               <Link to={`/recipes/recipe/${recipe._id}`} className="recipe-card-link">
                 {recipe.imageUrl && (
                   <div className="recipe-card-image">
-                    <img src={recipe.imageUrl} alt={recipe.name} />
+                    <img src={recipe.imageUrl} alt={recipe.name} loading="lazy" />
                   </div>
                 )}
                 <h2 className="recipe-card-title">{recipe.name}</h2>
