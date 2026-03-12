@@ -2,26 +2,14 @@
 
 import app from "../src/fotg.js";
 import debugLib from "debug";
-import https from "https";
 import http from "http";
-import fs from "fs";
 
 const debug = debugLib("foodofthegods-api:server");
-const ENV_PROD = "production";
-const env = process.env.NODE_ENV;
 const port = normalizePort(process.env.PORT);
 
 app.set("port", port);
 
-let server;
-
-if (env === ENV_PROD) {
-  const key = fs.readFileSync("/etc/letsencrypt/live/theunderempire.com/privkey.pem");
-  const cert = fs.readFileSync("/etc/letsencrypt/live/theunderempire.com/fullchain.pem");
-  server = https.createServer({ key, cert }, app);
-} else {
-  server = http.createServer({}, app);
-}
+const server = http.createServer(app);
 
 server.listen(port);
 server.on("error", onError);

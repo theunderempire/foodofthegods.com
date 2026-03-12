@@ -2,8 +2,6 @@ services:
   fotg-api:
     env_file:
       - ./.env
-    volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro
     environment:
       - START_CMD=start
       - DB_HOST_NAME=fotg-db
