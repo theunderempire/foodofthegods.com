@@ -1,17 +1,86 @@
 {
   "_id": { "$oid": "5fab30aa5b44892e627c3fc6" },
-  "userId": "5d9c68c6c50ed3d02a2fcf54f63993b6",
+  "userId": "ae5deb822e0d71992900471a7199d0d95b8e7c9d05c40a8245a281fd2c1d6684",
   "ingredientList": {
     "groups": [
       {
         "name": "Dairy & Refrigerated",
         "items": [
           {
+            "ingredient": { "name": "milk", "unit": "gal", "amount": 1, "id": 1768253081061 },
+            "completed": false
+          },
+          {
             "ingredient": {
-              "name": "milk",
-              "unit": "",
-              "amount": 1,
-              "id": 1768253081061
+              "name": "cheddar cheese",
+              "unit": "oz",
+              "amount": 8,
+              "id": 1768253081062
+            },
+            "completed": false
+          },
+          {
+            "ingredient": { "name": "butter", "unit": "stick", "amount": 2, "id": 1768253081063 },
+            "completed": true
+          }
+        ]
+      },
+      {
+        "name": "Meat & Seafood",
+        "items": [
+          {
+            "ingredient": {
+              "name": "chicken thighs",
+              "unit": "lb",
+              "amount": 2,
+              "id": 1768253082001
+            },
+            "completed": false
+          },
+          {
+            "ingredient": { "name": "ground beef", "unit": "lb", "amount": 1, "id": 1768253082002 },
+            "completed": false
+          }
+        ]
+      },
+      {
+        "name": "Produce",
+        "items": [
+          {
+            "ingredient": { "name": "celery", "unit": "", "amount": 1, "id": 1768253083936 },
+            "completed": false
+          },
+          {
+            "ingredient": { "name": "apples", "unit": "lb", "amount": 1, "id": 1768253093736 },
+            "completed": false
+          },
+          {
+            "ingredient": { "name": "garlic", "unit": "head", "amount": 1, "id": 1768253083937 },
+            "completed": true
+          },
+          {
+            "ingredient": { "name": "yellow onion", "unit": "", "amount": 2, "id": 1768253083938 },
+            "completed": false
+          }
+        ]
+      },
+      {
+        "name": "Pantry",
+        "items": [
+          {
+            "ingredient": { "name": "olive oil", "unit": "", "amount": 1, "id": 1768253101307 },
+            "completed": false
+          },
+          {
+            "ingredient": { "name": "mayo", "unit": "", "amount": 1, "id": 1768253105464 },
+            "completed": false
+          },
+          {
+            "ingredient": {
+              "name": "chicken broth",
+              "unit": "oz",
+              "amount": 32,
+              "id": 1768253101308
             },
             "completed": false
           }
@@ -21,64 +90,39 @@
         "name": "Household",
         "items": [
           {
-            "ingredient": {
-              "name": "toilet paper",
-              "unit": "",
-              "amount": 1,
-              "id": 1768253098184
-            },
+            "ingredient": { "name": "toilet paper", "unit": "", "amount": 1, "id": 1768253098184 },
+            "completed": false
+          },
+          {
+            "ingredient": { "name": "dish soap", "unit": "", "amount": 1, "id": 1768253098185 },
             "completed": false
           }
         ]
       },
       {
-        "name": "Pantry",
+        "name": "ungrouped",
         "items": [
           {
-            "ingredient": {
-              "name": "olive oil",
-              "unit": "",
-              "amount": 1,
-              "id": 1768253101307
-            },
+            "ingredient": { "name": "sriracha", "unit": "", "amount": 1, "id": 1768253199001 },
             "completed": false
           },
           {
             "ingredient": {
-              "name": "mayo",
-              "unit": "",
-              "amount": 1,
-              "id": 1768253105464
-            },
-            "completed": false
-          }
-        ]
-      },
-      {
-        "name": "Produce",
-        "items": [
-          {
-            "ingredient": {
-              "name": "celery",
-              "unit": "",
-              "amount": 1,
-              "id": 1768253083936
+              "name": "vanilla extract",
+              "unit": "oz",
+              "amount": 2,
+              "id": 1768253199002
             },
             "completed": false
           },
           {
-            "ingredient": {
-              "name": "apples",
-              "unit": "lb",
-              "amount": 1,
-              "id": 1768253093736
-            },
+            "ingredient": { "name": "aluminum foil", "unit": "", "amount": 1, "id": 1768253199003 },
             "completed": false
           }
         ]
       }
     ],
-    "lastModified": "2026-01-12T21:25:16.280Z"
+    "lastModified": "2026-03-12T00:00:00.000Z"
   },
   "completedList": null
 }
