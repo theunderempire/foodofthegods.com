@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  addIngredient,
-  addIngredients,
-  getIngredientList,
-} from "../api/ingredientList";
+import { addIngredient, addIngredients, getIngredientList } from "../api/ingredientList";
 import { getRecipe } from "../api/recipes";
 import { useAuth } from "../contexts/AuthContext";
 import type { IngredientList } from "../types/ingredientList";
@@ -21,9 +17,7 @@ export function RecipeViewer() {
   const [addingToList, setAddingToList] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
-  const [addingIngredientId, setAddingIngredientId] = useState<number | null>(
-    null,
-  );
+  const [addingIngredientId, setAddingIngredientId] = useState<number | null>(null);
   const [shoppingList, setShoppingList] = useState<IngredientList | null>(null);
 
   useEffect(() => {
@@ -82,7 +76,7 @@ export function RecipeViewer() {
   }
 
   function handleCopyShareLink() {
-    const link = `${window.location.origin}/recipes/share/${recipeId}`;
+    const link = `${window.location.origin}${import.meta.env.BASE_URL}recipes/share/${recipeId}`;
     navigator.clipboard.writeText(link).then(() => {
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
@@ -98,9 +92,7 @@ export function RecipeViewer() {
     );
   if (!recipe) return null;
 
-  const newIngredientCount = recipe.ingredients.filter(
-    (ing) => !isInList(ing.name),
-  ).length;
+  const newIngredientCount = recipe.ingredients.filter((ing) => !isInList(ing.name)).length;
   const allAdded = newIngredientCount === 0;
 
   return (
@@ -111,10 +103,7 @@ export function RecipeViewer() {
         </button>
         {isAuthenticated && id && (
           <div className="viewer-actions">
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={handleCopyShareLink}
-            >
+            <button className="btn btn-ghost btn-sm" onClick={handleCopyShareLink}>
               {copySuccess ? "Link copied!" : "Share"}
             </button>
             <button
@@ -204,19 +193,9 @@ export function RecipeViewer() {
                             ? `${ing.name} already in shopping list`
                             : `Add ${ing.name} to shopping list`
                         }
-                        title={
-                          alreadyAdded
-                            ? "Already in shopping list"
-                            : "Add to shopping list"
-                        }
+                        title={alreadyAdded ? "Already in shopping list" : "Add to shopping list"}
                       >
-                        {addingIngredientId === ing.id ? (
-                          "..."
-                        ) : alreadyAdded ? (
-                          <>&#x2713;</>
-                        ) : (
-                          "+"
-                        )}
+                        {addingIngredientId === ing.id ? "..." : alreadyAdded ? <>&#x2713;</> : "+"}
                       </button>
                     )}
                   </li>
@@ -235,9 +214,7 @@ export function RecipeViewer() {
                   <div className="direction-step">{i + 1}</div>
                   <div className="direction-content">
                     <p>{dir.text}</p>
-                    {dir.duration && (
-                      <span className="direction-duration">{dir.duration}</span>
-                    )}
+                    {dir.duration && <span className="direction-duration">{dir.duration}</span>}
                   </div>
                 </li>
               ))}
