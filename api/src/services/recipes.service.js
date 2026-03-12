@@ -203,7 +203,13 @@ ${text.slice(0, 50000)}`,
 
     console.log(`[recipes] importRecipeFromUrl: fetching "${url}"`);
     try {
-      const pageResponse = await fetch(url);
+      const pageResponse = await fetch(url, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+      });
       const html = await pageResponse.text();
 
       const ogImageMatch =
@@ -211,16 +217,43 @@ ${text.slice(0, 50000)}`,
         html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
       const imageUrl = ogImageMatch?.[1] ?? "";
 
-      const text = html
-        .replace(/<(\w+)[^>]*class=["'][^"']*recipeintro[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi, " ")
-        .replace(
-          /<(script|style|nav|header|footer|aside|noscript|iframe|svg)[^>]*>[\s\S]*?<\/\1>/gi,
-          " ",
-        )
-        .replace(/<!--[\s\S]*?-->/g, " ")
-        .replace(/<[^>]*>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+      // Prefer JSON-LD structured data if present (cleaner than stripping HTML)
+      const jsonLdMatch = html.match(
+        /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+      );
+      let text;
+      if (jsonLdMatch) {
+        const schemas = jsonLdMatch
+          .map((tag) => {
+            try {
+              return JSON.parse(tag.replace(/<\/?script[^>]*>/gi, "").trim());
+            } catch {
+              return null;
+            }
+          })
+          .filter(Boolean);
+        const recipe = schemas.find(
+          (s) =>
+            s["@type"] === "Recipe" || (Array.isArray(s["@type"]) && s["@type"].includes("Recipe")),
+        );
+        if (recipe) {
+          text = JSON.stringify(recipe);
+          console.log(`[recipes] importRecipeFromUrl: using JSON-LD schema for "${url}"`);
+        }
+      }
+
+      if (!text) {
+        text = html
+          .replace(/<(\w+)[^>]*class=["'][^"']*recipeintro[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi, " ")
+          .replace(
+            /<(script|style|nav|header|footer|aside|noscript|iframe|svg)[^>]*>[\s\S]*?<\/\1>/gi,
+            " ",
+          )
+          .replace(/<!--[\s\S]*?-->/g, " ")
+          .replace(/<[^>]*>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
 
       const recipe = await callGemini(text);
       if (imageUrl) recipe.imageUrl = imageUrl;
