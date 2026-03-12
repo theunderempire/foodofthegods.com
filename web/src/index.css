@@ -766,7 +766,7 @@ textarea.input {
 .items-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1.5rem;
 }
 
 .list-item-row {
@@ -808,6 +808,11 @@ textarea.input {
   letter-spacing: 0.05em;
 }
 
+.ingredient-inputs {
+  flex: 1;
+  display: flex;
+  gap: 0.5rem;
+}
 .input-amount {
   max-width: 80px;
 }
@@ -1144,5 +1149,12 @@ textarea.input {
   }
   .recipe-card-actions {
     opacity: 1;
+  }
+  .ingredient-inputs {
+    flex-direction: column;
+  }
+  .ingredient-inputs .input {
+    max-width: none;
+    width: 100%;
   }
 }

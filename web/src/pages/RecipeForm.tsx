@@ -380,31 +380,33 @@ export function RecipeForm() {
                       &#x25BC;
                     </button>
                   </div>
-                  <input
-                    type="number"
-                    className="input input-sm input-amount"
-                    value={ing.amount || ""}
-                    onChange={(e) =>
-                      updateIngredient(idx, { amount: parseFloat(e.target.value) || 0 })
-                    }
-                    placeholder="Amt"
-                    min="0"
-                    step="any"
-                  />
-                  <input
-                    type="text"
-                    className="input input-sm input-unit"
-                    value={ing.unit ?? ""}
-                    onChange={(e) => updateIngredient(idx, { unit: e.target.value })}
-                    placeholder="Unit"
-                  />
-                  <input
-                    type="text"
-                    className="input input-sm input-name"
-                    value={ing.name}
-                    onChange={(e) => updateIngredient(idx, { name: e.target.value })}
-                    placeholder="Ingredient name"
-                  />
+                  <div className="ingredient-inputs">
+                    <input
+                      type="text"
+                      className="input input-sm input-name"
+                      value={ing.name}
+                      onChange={(e) => updateIngredient(idx, { name: e.target.value })}
+                      placeholder="Ingredient name"
+                    />
+                    <input
+                      type="number"
+                      className="input input-sm input-amount"
+                      value={ing.amount || ""}
+                      onChange={(e) =>
+                        updateIngredient(idx, { amount: parseFloat(e.target.value) || 0 })
+                      }
+                      placeholder="Amount"
+                      min="0"
+                      step="any"
+                    />
+                    <input
+                      type="text"
+                      className="input input-sm input-unit"
+                      value={ing.unit ?? ""}
+                      onChange={(e) => updateIngredient(idx, { unit: e.target.value })}
+                      placeholder="Unit"
+                    />
+                  </div>
                   <button
                     type="button"
                     className="remove-btn"
