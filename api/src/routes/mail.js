@@ -2,12 +2,15 @@ import express from "express";
 import nodemailer from "nodemailer";
 const router = express.Router();
 
-var transporter = nodemailer.createTransport({
-  port: 25,
-  tls: {
-    rejectUnauthorized: true,
-  },
-});
+function createTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST ?? "localhost",
+    port: parseInt(process.env.SMTP_PORT ?? "25", 10),
+    tls: {
+      rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== "false",
+    },
+  });
+}
 
 router.post("/", async function (req, res, _next) {
   var msg = req.body;
@@ -37,7 +40,7 @@ router.post("/", async function (req, res, _next) {
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
+    const info = await createTransporter().sendMail(mailOptions);
     console.log("Registration email sent: " + info.response);
     res.json({ success: true, msg: "Registration request sent." });
   } catch (error) {

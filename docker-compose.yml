@@ -12,6 +12,8 @@ services:
       - .env
     environment:
       - START_CMD=start-dev
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - 3000:3000
     restart: unless-stopped
