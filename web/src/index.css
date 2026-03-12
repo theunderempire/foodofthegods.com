@@ -1181,3 +1181,56 @@ textarea.input {
     width: 100%;
   }
 }
+
+/* ─── Toast notifications ────────────────────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 1000;
+  pointer-events: none;
+  width: max-content;
+  max-width: min(480px, calc(100vw - 2rem));
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  pointer-events: all;
+  animation: toast-in 0.2s ease;
+}
+.toast-error {
+  background: var(--danger);
+  color: #fff;
+  border: 1px solid color-mix(in srgb, var(--danger) 70%, black);
+}
+.toast-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.toast-dismiss:hover {
+  opacity: 1;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

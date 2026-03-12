@@ -15,10 +15,17 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
+function dispatchError(message: string) {
+  console.error("[api]", message);
+  window.dispatchEvent(new CustomEvent("api-error", { detail: message }));
+}
+
 client.interceptors.response.use(
   (response) => {
     if (response.data?.success === false) {
-      return Promise.reject(new Error(response.data?.data?.message ?? "Request failed"));
+      const message = response.data?.data?.message ?? "Request failed";
+      dispatchError(message);
+      return Promise.reject(new Error(message));
     }
     return response;
   },
@@ -27,7 +34,10 @@ client.interceptors.response.use(
       Cookies.remove(COOKIE_NAME);
       localStorage.removeItem("username");
       window.location.href = import.meta.env.BASE_URL + "login";
+      return Promise.reject(error);
     }
+    const message = error.response?.data?.data?.message ?? error.message ?? "Network error";
+    dispatchError(message);
     return Promise.reject(error);
   },
 );
