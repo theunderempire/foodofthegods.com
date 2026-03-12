@@ -992,9 +992,27 @@ textarea.input {
   transition: border-color 0.15s, background 0.15s;
 }
 
-.import-option:hover {
+.import-option:hover:not(:disabled) {
   border-color: var(--accent);
   background: var(--surface-hover);
+}
+
+.import-option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+.import-api-key-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  color: var(--text);
 }
 
 .import-option-icon {

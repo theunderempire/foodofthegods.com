@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   addRecipe,
   getRecipe,
@@ -8,6 +8,7 @@ import {
   updateRecipe,
 } from "../api/recipes";
 import { useAuth } from "../contexts/AuthContext";
+import { useSettings } from "../contexts/SettingsContext";
 import type { Direction, Ingredient, Recipe } from "../types/recipe";
 import { NotFound } from "./NotFound";
 
@@ -29,6 +30,7 @@ export function RecipeForm() {
   const { id } = useParams<{ id?: string }>();
   const isEdit = !!id;
   const { username } = useAuth();
+  const { hasGeminiKey } = useSettings();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<Step>(isEdit ? "form" : "select");
@@ -201,12 +203,25 @@ export function RecipeForm() {
 
       {step === "select" && (
         <div className="import-select">
-          <button className="import-option" onClick={() => setStep("url")}>
+          {!hasGeminiKey && (
+            <div className="import-api-key-notice">
+              <span>&#128274;</span>
+              <span>
+                AI import requires a Gemini API key. <Link to="/settings">Add one in Settings</Link>{" "}
+                to unlock these options.
+              </span>
+            </div>
+          )}
+          <button className="import-option" onClick={() => setStep("url")} disabled={!hasGeminiKey}>
             <span className="import-option-icon">&#127758;</span>
             <span className="import-option-label">Import from URL</span>
             <span className="import-option-desc">Paste a link to a recipe page</span>
           </button>
-          <button className="import-option" onClick={() => setStep("text")}>
+          <button
+            className="import-option"
+            onClick={() => setStep("text")}
+            disabled={!hasGeminiKey}
+          >
             <span className="import-option-icon">&#128203;</span>
             <span className="import-option-label">Paste Recipe Text</span>
             <span className="import-option-desc">Paste raw recipe text to parse</span>

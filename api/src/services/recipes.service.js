@@ -1,5 +1,4 @@
 import RequestService from "./request.service.js";
-import secret from "../secret.js";
 
 var requestService = new RequestService();
 
@@ -155,8 +154,7 @@ var RecipesService = function () {
     }
   }
 
-  async function callGemini(text) {
-    const geminiAPIKey = secret.geminiApiKey;
+  async function callGemini(text, apiKey) {
     const geminiResponse = await fetch(geminiUrl, {
       method: "POST",
       body: JSON.stringify({
@@ -182,7 +180,7 @@ ${text.slice(0, 50000)}`,
         ],
       }),
       headers: {
-        "x-goog-api-key": geminiAPIKey,
+        "x-goog-api-key": apiKey,
         "Content-Type": "application/json",
       },
     });
@@ -199,6 +197,12 @@ ${text.slice(0, 50000)}`,
     const url = req.body.url;
     if (!url) {
       return res.json({ success: false, data: "url is required" });
+    }
+
+    const userDoc = await getUserCollection(req).findOne({ username: req.decoded.username });
+    const apiKey = userDoc?.geminiApiKey;
+    if (!apiKey) {
+      return res.json({ success: false, data: "No Gemini API key set. Add one in Settings." });
     }
 
     console.log(`[recipes] importRecipeFromUrl: fetching "${url}"`);
@@ -255,7 +259,7 @@ ${text.slice(0, 50000)}`,
           .trim();
       }
 
-      const recipe = await callGemini(text);
+      const recipe = await callGemini(text, apiKey);
       if (imageUrl) recipe.imageUrl = imageUrl;
       console.log(
         `[recipes] importRecipeFromUrl: successfully parsed recipe "${recipe.name}" from "${url}"`,
@@ -273,9 +277,15 @@ ${text.slice(0, 50000)}`,
       return res.json({ success: false, data: "text is required" });
     }
 
+    const userDoc = await getUserCollection(req).findOne({ username: req.decoded.username });
+    const apiKey = userDoc?.geminiApiKey;
+    if (!apiKey) {
+      return res.json({ success: false, data: "No Gemini API key set. Add one in Settings." });
+    }
+
     console.log(`[recipes] importRecipeFromText: parsing pasted recipe`);
     try {
-      const recipe = await callGemini(text);
+      const recipe = await callGemini(text, apiKey);
       console.log(`[recipes] importRecipeFromText: successfully parsed recipe "${recipe.name}"`);
       res.json({ success: true, data: recipe });
     } catch (err) {

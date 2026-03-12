@@ -265,6 +265,21 @@ describe("RecipesService", () => {
       assert.equal(res._body.success, false);
     });
 
+    test("returns error when user has no geminiApiKey", async () => {
+      const res = makeRes();
+      const req = makeReq({
+        body: { url: "https://example.com/recipe" },
+        collections: {
+          users: makeCollection({ findOne: () => Promise.resolve({ username: "testuser" }) }),
+        },
+      });
+
+      await service.importRecipeFromUrl(req, res);
+
+      assert.equal(res._body.success, false);
+      assert.match(res._body.data, /No Gemini API key set/);
+    });
+
     test("fetches page and returns parsed recipe on success", async () => {
       const originalFetch = globalThis.fetch;
       let callCount = 0;
@@ -299,7 +314,14 @@ describe("RecipesService", () => {
 
       try {
         const res = makeRes();
-        const req = makeReq({ body: { url: "https://example.com/recipe" } });
+        const req = makeReq({
+          body: { url: "https://example.com/recipe" },
+          collections: {
+            users: makeCollection({
+              findOne: () => Promise.resolve({ username: "testuser", geminiApiKey: "test-key" }),
+            }),
+          },
+        });
 
         await service.importRecipeFromUrl(req, res);
 
@@ -318,7 +340,14 @@ describe("RecipesService", () => {
 
       try {
         const res = makeRes();
-        const req = makeReq({ body: { url: "https://example.com/recipe" } });
+        const req = makeReq({
+          body: { url: "https://example.com/recipe" },
+          collections: {
+            users: makeCollection({
+              findOne: () => Promise.resolve({ username: "testuser", geminiApiKey: "test-key" }),
+            }),
+          },
+        });
 
         await service.importRecipeFromUrl(req, res);
 
@@ -329,11 +358,8 @@ describe("RecipesService", () => {
       }
     });
 
-    test("reads Gemini API key from process.env at call time", async () => {
+    test("calls Gemini with the user's API key", async () => {
       const originalFetch = globalThis.fetch;
-      const originalKey = process.env.GEMINI_API_KEY;
-      process.env.GEMINI_API_KEY = "test-key-at-call-time";
-
       let callCount = 0;
       let capturedHeaders;
       globalThis.fetch = async (_url, opts) => {
@@ -360,14 +386,21 @@ describe("RecipesService", () => {
 
       try {
         const res = makeRes();
-        const req = makeReq({ body: { url: "https://example.com/recipe" } });
+        const req = makeReq({
+          body: { url: "https://example.com/recipe" },
+          collections: {
+            users: makeCollection({
+              findOne: () =>
+                Promise.resolve({ username: "testuser", geminiApiKey: "user-specific-key" }),
+            }),
+          },
+        });
 
         await service.importRecipeFromUrl(req, res);
 
-        assert.equal(capturedHeaders["x-goog-api-key"], "test-key-at-call-time");
+        assert.equal(capturedHeaders["x-goog-api-key"], "user-specific-key");
       } finally {
         globalThis.fetch = originalFetch;
-        process.env.GEMINI_API_KEY = originalKey;
       }
     });
 
@@ -388,7 +421,14 @@ describe("RecipesService", () => {
 
       try {
         const res = makeRes();
-        const req = makeReq({ body: { url: "https://example.com/recipe" } });
+        const req = makeReq({
+          body: { url: "https://example.com/recipe" },
+          collections: {
+            users: makeCollection({
+              findOne: () => Promise.resolve({ username: "testuser", geminiApiKey: "test-key" }),
+            }),
+          },
+        });
 
         await service.importRecipeFromUrl(req, res);
 
@@ -441,7 +481,14 @@ describe("RecipesService", () => {
 
       try {
         const res = makeRes();
-        const req = makeReq({ body: { url: "https://example.com/recipe" } });
+        const req = makeReq({
+          body: { url: "https://example.com/recipe" },
+          collections: {
+            users: makeCollection({
+              findOne: () => Promise.resolve({ username: "testuser", geminiApiKey: "test-key" }),
+            }),
+          },
+        });
 
         await service.importRecipeFromUrl(req, res);
 
@@ -464,6 +511,21 @@ describe("RecipesService", () => {
       await service.importRecipeFromText(req, res);
 
       assert.equal(res._body.success, false);
+    });
+
+    test("returns error when user has no geminiApiKey", async () => {
+      const res = makeRes();
+      const req = makeReq({
+        body: { text: "Some recipe text" },
+        collections: {
+          users: makeCollection({ findOne: () => Promise.resolve({ username: "testuser" }) }),
+        },
+      });
+
+      await service.importRecipeFromText(req, res);
+
+      assert.equal(res._body.success, false);
+      assert.match(res._body.data, /No Gemini API key set/);
     });
 
     test("calls Gemini and returns parsed recipe on success", async () => {
@@ -493,7 +555,14 @@ describe("RecipesService", () => {
 
       try {
         const res = makeRes();
-        const req = makeReq({ body: { text: "Pasted soup recipe text here" } });
+        const req = makeReq({
+          body: { text: "Pasted soup recipe text here" },
+          collections: {
+            users: makeCollection({
+              findOne: () => Promise.resolve({ username: "testuser", geminiApiKey: "test-key" }),
+            }),
+          },
+        });
 
         await service.importRecipeFromText(req, res);
 
@@ -512,7 +581,14 @@ describe("RecipesService", () => {
 
       try {
         const res = makeRes();
-        const req = makeReq({ body: { text: "Some recipe text" } });
+        const req = makeReq({
+          body: { text: "Some recipe text" },
+          collections: {
+            users: makeCollection({
+              findOne: () => Promise.resolve({ username: "testuser", geminiApiKey: "test-key" }),
+            }),
+          },
+        });
 
         await service.importRecipeFromText(req, res);
 
@@ -533,7 +609,14 @@ describe("RecipesService", () => {
 
       try {
         const res = makeRes();
-        const req = makeReq({ body: { text: "Some recipe text" } });
+        const req = makeReq({
+          body: { text: "Some recipe text" },
+          collections: {
+            users: makeCollection({
+              findOne: () => Promise.resolve({ username: "testuser", geminiApiKey: "test-key" }),
+            }),
+          },
+        });
 
         await service.importRecipeFromText(req, res);
 

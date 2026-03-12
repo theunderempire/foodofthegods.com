@@ -8,6 +8,7 @@ import { RecipeForm } from "./pages/RecipeForm";
 import { RecipeList } from "./pages/RecipeList";
 import { RecipeViewer } from "./pages/RecipeViewer";
 import { Register } from "./pages/Register";
+import { Settings } from "./pages/Settings";
 import { RegisterThanks } from "./pages/RegisterThanks";
 import { SetPassword } from "./pages/SetPassword";
 
@@ -68,6 +69,17 @@ export function App() {
           <ProtectedRoute>
             <Layout>
               <IngredientList />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Settings />
             </Layout>
           </ProtectedRoute>
         }

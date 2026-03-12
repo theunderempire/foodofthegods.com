@@ -53,6 +53,7 @@ import recipe from "./routes/recipe.js";
 import { router as token, tokenCheck } from "./routes/token.js";
 import ingredientList from "./routes/ingredientList.js";
 import mail from "./routes/mail.js";
+import users from "./routes/users.js";
 
 app.use("/", index);
 app.use("/mail", mail);
@@ -61,6 +62,7 @@ app.use("/recipe", recipe);
 app.use(tokenCheck);
 app.use("/ingredientList", ingredientList);
 app.use("/recipes", recipes);
+app.use("/users", users);
 
 // catch 404 and forward to error handler
 app.use(function (_req, _res, next) {
