@@ -3,13 +3,19 @@ import nodemailer from "nodemailer";
 const router = express.Router();
 
 function createTransporter() {
-  return nodemailer.createTransport({
+  const port = parseInt(process.env.SMTP_PORT ?? "587", 10);
+  const config = {
     host: process.env.SMTP_HOST ?? "localhost",
-    port: parseInt(process.env.SMTP_PORT ?? "25", 10),
+    port,
+    secure: port === 465,
     tls: {
       rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== "false",
     },
-  });
+  };
+  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    config.auth = { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS };
+  }
+  return nodemailer.createTransport(config);
 }
 
 router.post("/", async function (req, res, _next) {
