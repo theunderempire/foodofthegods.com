@@ -82,10 +82,11 @@ describe("RecipeViewer", () => {
     expect(screen.getByText("Layer and bake.")).toBeInTheDocument();
   });
 
-  test("shows error when recipe fails to load", async () => {
+  test("shows NotFound page when recipe fails to load", async () => {
     mockGetRecipe.mockRejectedValue(new Error("not found"));
     renderViewer();
-    expect(await screen.findByText("Recipe not found.")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "404" })).toBeInTheDocument();
+    expect(screen.getByText("Recipe not found.")).toBeInTheDocument();
   });
 
   test("shows Share and Edit buttons when authenticated", async () => {
@@ -100,8 +101,6 @@ describe("RecipeViewer", () => {
     mockGetRecipe.mockResolvedValue(mockRecipe);
     renderViewer();
     await screen.findByRole("heading", { name: "Grandma's Lasagna" });
-    expect(
-      screen.getByRole("button", { name: "+ Shopping List" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ Shopping List" })).toBeInTheDocument();
   });
 });

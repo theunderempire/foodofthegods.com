@@ -1092,6 +1092,29 @@ textarea.input {
   background: var(--text-faint);
 }
 
+/* ─── 404 ────────────────────────────────────────────────────────────────────── */
+.not-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 60vh;
+  text-align: center;
+}
+
+.not-found-code {
+  font-size: 6rem;
+  font-weight: 700;
+  color: var(--text-faint);
+  line-height: 1;
+}
+
+.not-found-message {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
 /* ─── Responsive ─────────────────────────────────────────────────────────────── */
 @media (max-width: 700px) {
   .navbar {

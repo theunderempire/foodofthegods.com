@@ -5,6 +5,7 @@ import { getRecipe } from "../api/recipes";
 import { useAuth } from "../contexts/AuthContext";
 import type { IngredientList } from "../types/ingredientList";
 import type { Ingredient, Recipe } from "../types/recipe";
+import { NotFound } from "./NotFound";
 
 export function RecipeViewer() {
   const { id, shareId } = useParams<{ id?: string; shareId?: string }>();
@@ -84,13 +85,7 @@ export function RecipeViewer() {
   }
 
   if (loading) return <div className="page-loading">Loading recipe...</div>;
-  if (error)
-    return (
-      <div className="page">
-        <div className="alert alert-error">{error}</div>
-      </div>
-    );
-  if (!recipe) return null;
+  if (error || !recipe) return <NotFound message="Recipe not found." />;
 
   const newIngredientCount = recipe.ingredients.filter((ing) => !isInList(ing.name)).length;
   const allAdded = newIngredientCount === 0;

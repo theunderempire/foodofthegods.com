@@ -6,6 +6,8 @@ import { RecipeForm } from "../RecipeForm";
 const mockAddRecipe = vi.fn();
 const mockUpdateRecipe = vi.fn();
 const mockGetRecipe = vi.fn();
+const mockImportRecipeFromUrl = vi.fn();
+const mockImportRecipeFromText = vi.fn();
 const mockNavigate = vi.fn();
 let mockParams: Record<string, string> = {};
 
@@ -17,7 +19,8 @@ vi.mock("../../api/recipes", () => ({
   addRecipe: (...args: unknown[]) => mockAddRecipe(...args),
   updateRecipe: (...args: unknown[]) => mockUpdateRecipe(...args),
   getRecipe: (...args: unknown[]) => mockGetRecipe(...args),
-  importRecipeFromUrl: vi.fn(),
+  importRecipeFromUrl: (...args: unknown[]) => mockImportRecipeFromUrl(...args),
+  importRecipeFromText: (...args: unknown[]) => mockImportRecipeFromText(...args),
 }));
 
 vi.mock("react-router-dom", async () => {
@@ -34,6 +37,8 @@ describe("RecipeForm", () => {
     mockAddRecipe.mockReset();
     mockUpdateRecipe.mockReset();
     mockGetRecipe.mockReset();
+    mockImportRecipeFromUrl.mockReset();
+    mockImportRecipeFromText.mockReset();
     mockNavigate.mockReset();
     mockParams = {};
   });
@@ -46,9 +51,72 @@ describe("RecipeForm", () => {
     );
   }
 
+  async function navigateToForm() {
+    await userEvent.click(screen.getByText("Enter Manually"));
+  }
+
   test("renders New Recipe title in add mode", () => {
     renderForm();
     expect(screen.getByRole("heading", { name: "New Recipe" })).toBeInTheDocument();
+  });
+
+  test("shows import option selection screen for new recipes", () => {
+    renderForm();
+    expect(screen.getByText("Import from URL")).toBeInTheDocument();
+    expect(screen.getByText("Paste Recipe Text")).toBeInTheDocument();
+    expect(screen.getByText("Enter Manually")).toBeInTheDocument();
+  });
+
+  test("shows URL input when Import from URL is selected", async () => {
+    renderForm();
+    await userEvent.click(screen.getByText("Import from URL"));
+    expect(screen.getByLabelText("Recipe URL")).toBeInTheDocument();
+  });
+
+  test("shows text input when Paste Recipe Text is selected", async () => {
+    renderForm();
+    await userEvent.click(screen.getByText("Paste Recipe Text"));
+    expect(screen.getByLabelText("Recipe Text")).toBeInTheDocument();
+  });
+
+  test("back button returns to select screen from URL step", async () => {
+    renderForm();
+    await userEvent.click(screen.getByText("Import from URL"));
+    await userEvent.click(screen.getByRole("button", { name: /back/i }));
+    expect(screen.getByText("Enter Manually")).toBeInTheDocument();
+  });
+
+  test("populates form and advances to form step after URL import", async () => {
+    mockImportRecipeFromUrl.mockResolvedValue({
+      name: "Imported Pasta",
+      prepDuration: "10 min",
+      cookDuration: "20 min",
+      servings: "4",
+      ingredients: [{ id: 1, name: "pasta", amount: 1, unit: "cup" }],
+      directions: [{ id: 1, text: "Boil.", duration: "" }],
+    });
+    renderForm();
+    await userEvent.click(screen.getByText("Import from URL"));
+    await userEvent.type(screen.getByLabelText("Recipe URL"), "https://example.com/recipe");
+    await userEvent.click(screen.getByRole("button", { name: "Import" }));
+    expect(await screen.findByDisplayValue("Imported Pasta")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create Recipe" })).toBeInTheDocument();
+  });
+
+  test("populates form and advances to form step after text import", async () => {
+    mockImportRecipeFromText.mockResolvedValue({
+      name: "Pasted Soup",
+      prepDuration: "5 min",
+      cookDuration: "15 min",
+      servings: "2",
+      ingredients: [{ id: 1, name: "water", amount: 1, unit: "cup" }],
+      directions: [{ id: 1, text: "Boil water.", duration: "" }],
+    });
+    renderForm();
+    await userEvent.click(screen.getByText("Paste Recipe Text"));
+    await userEvent.type(screen.getByLabelText("Recipe Text"), "Pasted soup recipe...");
+    await userEvent.click(screen.getByRole("button", { name: "Import" }));
+    expect(await screen.findByDisplayValue("Pasted Soup")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create Recipe" })).toBeInTheDocument();
   });
 
@@ -71,8 +139,16 @@ describe("RecipeForm", () => {
     expect(screen.getByDisplayValue("Test Recipe")).toBeInTheDocument();
   });
 
+  test("shows 404 page when edit recipe fails to load", async () => {
+    mockParams = { id: "recipe-1" };
+    mockGetRecipe.mockRejectedValue(new Error("not found"));
+    renderForm();
+    expect(await screen.findByText("Recipe not found.")).toBeInTheDocument();
+  });
+
   test("shows error when submitting a whitespace-only name", async () => {
     renderForm();
+    await navigateToForm();
     await userEvent.type(screen.getByLabelText("Recipe Name *"), "   ");
     await userEvent.click(screen.getByRole("button", { name: "Create Recipe" }));
     expect(screen.getByText("Recipe name is required.")).toBeInTheDocument();
@@ -82,13 +158,12 @@ describe("RecipeForm", () => {
   test("calls addRecipe and navigates on valid submit", async () => {
     mockAddRecipe.mockResolvedValue({ success: true, data: { msg: "recipe added" } });
     renderForm();
+    await navigateToForm();
 
     await userEvent.type(screen.getByLabelText("Recipe Name *"), "My New Recipe");
     await userEvent.click(screen.getByRole("button", { name: "Create Recipe" }));
 
-    expect(mockAddRecipe).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "My New Recipe" }),
-    );
+    expect(mockAddRecipe).toHaveBeenCalledWith(expect.objectContaining({ name: "My New Recipe" }));
     expect(mockNavigate).toHaveBeenCalledWith("/recipes");
   });
 

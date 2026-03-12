@@ -9,6 +9,7 @@ import {
 } from "../api/recipes";
 import { useAuth } from "../contexts/AuthContext";
 import type { Direction, Ingredient, Recipe } from "../types/recipe";
+import { NotFound } from "./NotFound";
 
 type Step = "select" | "url" | "text" | "form";
 
@@ -185,6 +186,7 @@ export function RecipeForm() {
   }
 
   if (loading) return <div className="page-loading">Loading recipe...</div>;
+  if (isEdit && error) return <NotFound message="Recipe not found." />;
 
   return (
     <div className="page page-narrow">

@@ -122,7 +122,7 @@ describe("RecipesService", () => {
               return Promise.resolve(
                 userFindCount === 1
                   ? [{ recipeList: ["r1"] }] // ownership check
-                  : [],                       // no remaining owners
+                  : [], // no remaining owners
               );
             },
           }),
@@ -156,8 +156,8 @@ describe("RecipesService", () => {
               userFindCount++;
               return Promise.resolve(
                 userFindCount === 1
-                  ? [{ recipeList: ["r1"] }]  // ownership check
-                  : [{ _id: "user-2" }],       // another owner still exists
+                  ? [{ recipeList: ["r1"] }] // ownership check
+                  : [{ _id: "user-2" }], // another owner still exists
               );
             },
           }),
@@ -346,7 +346,13 @@ describe("RecipesService", () => {
           ok: true,
           json: async () => ({
             candidates: [
-              { content: { parts: [{ text: JSON.stringify({ name: "Pasta", ingredients: [], directions: [] }) }] } },
+              {
+                content: {
+                  parts: [
+                    { text: JSON.stringify({ name: "Pasta", ingredients: [], directions: [] }) },
+                  ],
+                },
+              },
             ],
           }),
         };
@@ -385,6 +391,151 @@ describe("RecipesService", () => {
         const req = makeReq({ body: { url: "https://example.com/recipe" } });
 
         await service.importRecipeFromUrl(req, res);
+
+        assert.equal(res._body.success, false);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("extracts recipe from JSON-LD structured data when present", async () => {
+      const originalFetch = globalThis.fetch;
+      let callCount = 0;
+      let capturedGeminiText;
+      const jsonLdRecipe = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Recipe",
+        name: "JSON-LD Pasta",
+        recipeIngredient: ["2 cups pasta", "1 cup sauce"],
+        recipeInstructions: [{ "@type": "HowToStep", text: "Boil pasta." }],
+      });
+      const htmlWithJsonLd = `<html><head><script type="application/ld+json">${jsonLdRecipe}</script></head><body>Some page text</body></html>`;
+
+      globalThis.fetch = async (_url, opts) => {
+        callCount++;
+        if (callCount === 1) {
+          return { text: async () => htmlWithJsonLd };
+        }
+        const body = JSON.parse(opts.body);
+        capturedGeminiText = body.contents[0].parts[0].text;
+        return {
+          json: async () => ({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        name: "JSON-LD Pasta",
+                        ingredients: [],
+                        directions: [],
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+        };
+      };
+
+      try {
+        const res = makeRes();
+        const req = makeReq({ body: { url: "https://example.com/recipe" } });
+
+        await service.importRecipeFromUrl(req, res);
+
+        assert.equal(res._body.success, true);
+        assert.ok(
+          capturedGeminiText.includes("JSON-LD Pasta"),
+          "Gemini should receive the JSON-LD content",
+        );
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+  });
+
+  describe("importRecipeFromText", () => {
+    test("returns error immediately when text is missing", async () => {
+      const res = makeRes();
+      const req = makeReq({ body: {} });
+
+      await service.importRecipeFromText(req, res);
+
+      assert.equal(res._body.success, false);
+    });
+
+    test("calls Gemini and returns parsed recipe on success", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        json: async () => ({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      name: "Pasted Soup",
+                      prepDuration: "5 min",
+                      cookDuration: "15 min",
+                      servings: "2",
+                      ingredients: [{ id: 1, name: "water", amount: 1, unit: "cup" }],
+                      directions: [{ id: 1, text: "Boil water.", duration: "" }],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      });
+
+      try {
+        const res = makeRes();
+        const req = makeReq({ body: { text: "Pasted soup recipe text here" } });
+
+        await service.importRecipeFromText(req, res);
+
+        assert.equal(res._body.success, true);
+        assert.equal(res._body.data.name, "Pasted Soup");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("returns error when Gemini call throws", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => {
+        throw new Error("Gemini unavailable");
+      };
+
+      try {
+        const res = makeRes();
+        const req = makeReq({ body: { text: "Some recipe text" } });
+
+        await service.importRecipeFromText(req, res);
+
+        assert.equal(res._body.success, false);
+        assert.match(res._body.data, /Gemini unavailable/);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("returns error when Gemini response cannot be parsed", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: "not valid json {{" }] } }],
+        }),
+      });
+
+      try {
+        const res = makeRes();
+        const req = makeReq({ body: { text: "Some recipe text" } });
+
+        await service.importRecipeFromText(req, res);
 
         assert.equal(res._body.success, false);
       } finally {
