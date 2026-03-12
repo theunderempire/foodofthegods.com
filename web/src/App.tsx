@@ -9,6 +9,7 @@ import { RecipeList } from "./pages/RecipeList";
 import { RecipeViewer } from "./pages/RecipeViewer";
 import { Register } from "./pages/Register";
 import { RegisterThanks } from "./pages/RegisterThanks";
+import { SetPassword } from "./pages/SetPassword";
 
 export function App() {
   return (
@@ -17,6 +18,7 @@ export function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/register/thanks" element={<RegisterThanks />} />
+      <Route path="/set-password" element={<SetPassword />} />
       <Route path="/recipes/share/:shareId" element={<RecipeViewer />} />
 
       {/* Protected routes */}

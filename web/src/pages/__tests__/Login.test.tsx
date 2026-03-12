@@ -60,6 +60,19 @@ describe("Login", () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
+  test("shows success message passed via router state", () => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          { pathname: "/login", state: { message: "Account created! You can now sign in." } },
+        ]}
+      >
+        <Login />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Account created! You can now sign in.")).toBeInTheDocument();
+  });
+
   test("disables button while loading", async () => {
     mockLogin.mockImplementation(() => new Promise(() => {})); // never resolves
     renderLogin();

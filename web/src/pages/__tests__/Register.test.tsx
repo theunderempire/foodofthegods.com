@@ -29,48 +29,33 @@ describe("Register", () => {
     );
   }
 
-  async function fillForm({
-    username = "validuser",
-    email = "test@example.com",
-    password = "password123",
-    passwordConfirm = "password123",
-  } = {}) {
+  async function fillForm({ username = "validuser", email = "test@example.com" } = {}) {
     await userEvent.type(screen.getByLabelText("Username"), username);
     await userEvent.type(screen.getByLabelText("Email"), email);
-    await userEvent.type(screen.getByLabelText("Password"), password);
-    await userEvent.type(
-      screen.getByLabelText("Confirm Password"),
-      passwordConfirm,
-    );
   }
+
+  test("renders username and email fields only (no password)", () => {
+    renderRegister();
+    expect(screen.getByLabelText("Username")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Confirm Password")).not.toBeInTheDocument();
+  });
 
   test("shows error when username is too short", async () => {
     renderRegister();
     await fillForm({ username: "short" });
     await userEvent.click(screen.getByRole("button", { name: "Request Access" }));
-    expect(
-      screen.getByText("Username must be at least 8 characters."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Username must be at least 8 characters.")).toBeInTheDocument();
     expect(mockRegister).not.toHaveBeenCalled();
   });
 
-  test("shows error when passwords do not match", async () => {
-    renderRegister();
-    await fillForm({ password: "password123", passwordConfirm: "different" });
-    await userEvent.click(screen.getByRole("button", { name: "Request Access" }));
-    expect(screen.getByText("Passwords do not match.")).toBeInTheDocument();
-  });
-
-  test("calls register and navigates on valid submit", async () => {
+  test("calls register with username and email then navigates", async () => {
     mockRegister.mockResolvedValue(undefined);
     renderRegister();
     await fillForm();
     await userEvent.click(screen.getByRole("button", { name: "Request Access" }));
-    expect(mockRegister).toHaveBeenCalledWith(
-      "validuser",
-      "password123",
-      "test@example.com",
-    );
+    expect(mockRegister).toHaveBeenCalledWith("validuser", "test@example.com");
     expect(mockNavigate).toHaveBeenCalledWith("/register/thanks");
   });
 
@@ -80,9 +65,7 @@ describe("Register", () => {
     await fillForm();
     await userEvent.click(screen.getByRole("button", { name: "Request Access" }));
     expect(
-      await screen.findByText(
-        "Failed to send registration request. Please try again.",
-      ),
+      await screen.findByText("Failed to send registration request. Please try again."),
     ).toBeInTheDocument();
   });
 });

@@ -323,6 +323,11 @@ textarea.input {
   border-color: var(--danger);
   color: #8a1a0c;
 }
+.alert-success {
+  background: rgba(58, 104, 40, 0.08);
+  border-color: var(--success);
+  color: var(--success);
+}
 
 /* ─── Auth pages ─────────────────────────────────────────────────────────── */
 .auth-page {

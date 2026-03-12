@@ -11,6 +11,10 @@ export function makeRes() {
     res._body = data;
     return res;
   };
+  res.send = (data) => {
+    res._body = data;
+    return res;
+  };
   return res;
 }
 
