@@ -5,6 +5,6 @@ export async function getSettings(): Promise<{ geminiApiKey: string | null }> {
   return res.data;
 }
 
-export async function saveSettings(geminiApiKey: string): Promise<void> {
+export async function saveSettings(geminiApiKey: string | null): Promise<void> {
   await client.put("/users/settings", { geminiApiKey });
 }

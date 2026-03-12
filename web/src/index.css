@@ -1249,6 +1249,11 @@ textarea.input {
   color: #fff;
   border: 1px solid color-mix(in srgb, var(--danger) 70%, black);
 }
+.toast-success {
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, black);
+}
 .toast-dismiss {
   background: none;
   border: none;
