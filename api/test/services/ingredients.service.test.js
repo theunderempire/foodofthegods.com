@@ -293,14 +293,17 @@ describe("IngredientService", () => {
       { name: "Produce", items: [{ ingredient: SUGAR, completed: false }] },
     ];
 
-    function makeGroupReq(collectionOverrides = {}) {
+    function makeGroupReq({ ingredientlistOverrides = {}, geminiApiKey = "test-key" } = {}) {
       return makeIngredientReq({
         collections: {
+          users: makeCollection({
+            findOne: (_q, _o) => Promise.resolve({ geminiApiKey }),
+          }),
           ingredientlist: makeCollection({
             findOne: (_q, _o) =>
               Promise.resolve(makeDocsWithList([{ ingredient: SALT, completed: false }])),
             update: (_q, _u) => Promise.resolve(),
-            ...collectionOverrides,
+            ...ingredientlistOverrides,
           }),
         },
       });
@@ -390,10 +393,8 @@ describe("IngredientService", () => {
       }
     });
 
-    test("reads Gemini API key from process.env at call time", async () => {
+    test("reads Gemini API key from the user's database record", async () => {
       const originalFetch = globalThis.fetch;
-      const originalKey = process.env.GEMINI_API_KEY;
-      process.env.GEMINI_API_KEY = "test-key-at-call-time";
 
       let capturedHeaders;
       globalThis.fetch = async (_url, opts) => {
@@ -408,22 +409,27 @@ describe("IngredientService", () => {
 
       try {
         const res = makeRes();
-        await service.groupIngredientList(makeGroupReq(), res);
+        await service.groupIngredientList(makeGroupReq({ geminiApiKey: "user-db-key" }), res);
 
-        assert.equal(capturedHeaders["x-goog-api-key"], "test-key-at-call-time");
+        assert.equal(capturedHeaders["x-goog-api-key"], "user-db-key");
       } finally {
         globalThis.fetch = originalFetch;
-        process.env.GEMINI_API_KEY = originalKey;
       }
+    });
+
+    test("returns failure when no Gemini API key is configured", async () => {
+      const res = makeRes();
+      await service.groupIngredientList(makeGroupReq({ geminiApiKey: null }), res);
+
+      assert.equal(res._body.success, false);
+      assert.match(res._body.data, /No Gemini API key/);
     });
 
     test("returns failure when ingredient list has no groups", async () => {
       const res = makeRes();
-      const req = makeIngredientReq({
-        collections: {
-          ingredientlist: makeCollection({
-            findOne: (_q, _o) => Promise.resolve({ ingredientList: { groups: [] } }),
-          }),
+      const req = makeGroupReq({
+        ingredientlistOverrides: {
+          findOne: (_q, _o) => Promise.resolve({ ingredientList: { groups: [] } }),
         },
       });
 

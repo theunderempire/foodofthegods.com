@@ -144,10 +144,18 @@ const IngredientService = function () {
   async function groupIngredientList(req, res) {
     const userId = req.params.userId;
     const collection = getIngredientListCollection(req);
-    const geminiAPIKey = secret.geminiApiKey;
 
     if (requestService.checkUser(req, userId)) {
       try {
+        const userCollection = req.db.get("users");
+        const user = await userCollection.findOne({ username: req.decoded.username });
+        const geminiAPIKey = user?.geminiApiKey;
+
+        if (!geminiAPIKey) {
+          res.json({ success: false, data: "No Gemini API key configured" });
+          return;
+        }
+
         const docs = await collection.findOne({ userId }, {});
         if (docs?.ingredientList?.groups?.length) {
           console.log(`[ingredients] groupIngredientList: calling Gemini for user="${userId}"`);
