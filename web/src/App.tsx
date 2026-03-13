@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { IngredientList } from "./pages/IngredientList";
@@ -86,6 +86,7 @@ export function App() {
       />
 
       {/* Fallback */}
+      <Route path="/" element={<Navigate to="/recipes" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

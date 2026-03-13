@@ -44,7 +44,17 @@ export function Settings() {
         <h2 className="form-section-title">AI Import</h2>
         <form onSubmit={handleSave}>
           <div className="form-group">
-            <label htmlFor="geminiApiKey">Gemini API Key</label>
+            <label htmlFor="geminiApiKey">
+              Gemini API Key{" "}
+              <a
+                href="https://ai.google.dev/gemini-api/docs/api-key"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="link-subtle"
+              >
+                (how to get one)
+              </a>
+            </label>
             <input
               id="geminiApiKey"
               type="password"

@@ -300,6 +300,17 @@ textarea.input {
   letter-spacing: var(--track-wider);
 }
 
+.link-subtle {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.link-subtle:hover {
+  text-decoration: underline;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
