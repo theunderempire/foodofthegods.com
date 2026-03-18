@@ -7,9 +7,7 @@ test.describe("recipes", () => {
   });
 
   test("recipe list shows seed recipe", async ({ page }) => {
-    await expect(
-      page.locator(".recipe-card-title", { hasText: "Test" }),
-    ).toBeVisible();
+    await expect(page.locator(".recipe-card-title", { hasText: "Test" })).toBeVisible();
   });
 
   test("view single recipe shows details", async ({ page }) => {
@@ -35,10 +33,11 @@ test.describe("recipes", () => {
   });
 
   test("restores scroll position after navigating back from recipe", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 200 });
     await page.evaluate(() => window.scrollTo(0, 300));
-    await page.waitForFunction(() => window.scrollY > 0);
-
-    await page.locator(".recipe-card-link").first().click();
+    await page.evaluate(() =>
+      (document.querySelector(".recipe-card-link") as HTMLAnchorElement).click(),
+    );
     await expect(page).toHaveURL(/\/recipes\/recipe\//);
 
     await page.goBack();
@@ -51,8 +50,9 @@ test.describe("recipes", () => {
 
   test("create, edit, and delete a recipe", async ({ page }) => {
     // Create
-    await page.click('button:has-text("+ New Recipe")');
+    await page.click('[aria-label="Add recipe"]');
     await expect(page).toHaveURL("/recipes/add");
+    await page.click('button:has-text("Enter Manually")');
 
     await page.fill("#name", "E2E Test Recipe");
     await page.fill("#prepDuration", "5 min");
@@ -64,9 +64,7 @@ test.describe("recipes", () => {
 
     await page.click('button:has-text("Create Recipe")');
     await expect(page).toHaveURL("/recipes");
-    await expect(
-      page.locator(".recipe-card-title", { hasText: "E2E Test Recipe" }),
-    ).toBeVisible();
+    await expect(page.locator(".recipe-card-title", { hasText: "E2E Test Recipe" })).toBeVisible();
 
     // Edit
     const card = page.locator(".recipe-card", {

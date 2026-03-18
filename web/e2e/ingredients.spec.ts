@@ -13,12 +13,14 @@ test.describe("ingredients", () => {
   });
 
   test("add and remove an ingredient", async ({ page }) => {
+    const name = `butter-${Date.now()}`;
+
     // Open add modal
     await page.click('[aria-label="Add ingredient"]');
     await expect(page.locator(".add-item-dialog")).toBeVisible();
 
     // Fill form
-    await page.locator('.add-item-dialog input[placeholder="Ingredient name"]').fill("butter");
+    await page.locator('.add-item-dialog input[placeholder="Ingredient name"]').fill(name);
     await page.locator('.add-item-dialog input[type="number"]').fill("2");
     await page.locator('.add-item-dialog input[placeholder="cup, oz, …"]').fill("tbsp");
 
@@ -26,16 +28,14 @@ test.describe("ingredients", () => {
     await expect(page.locator(".add-item-dialog")).not.toBeVisible();
 
     // Verify it appears
-    await expect(page.locator(".item-name", { hasText: "butter" })).toBeVisible();
+    await expect(page.locator(".item-name", { hasText: name })).toBeVisible();
 
     // Remove it
     const item = page.locator(".shopping-item", {
-      has: page.locator(".item-name", { hasText: "butter" }),
+      has: page.locator(".item-name", { hasText: name }),
     });
     await item.locator('[aria-label="Remove"]').click();
-    await expect(
-      page.locator(".item-name", { hasText: "butter" }),
-    ).not.toBeVisible();
+    await expect(page.locator(".item-name", { hasText: name })).not.toBeVisible();
   });
 
   test("toggle an ingredient as completed", async ({ page }) => {
