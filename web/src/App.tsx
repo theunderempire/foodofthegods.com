@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { BASE_URL } from "./api/client";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { IngredientList } from "./pages/IngredientList";
@@ -13,6 +15,20 @@ import { RegisterThanks } from "./pages/RegisterThanks";
 import { SetPassword } from "./pages/SetPassword";
 
 export function App() {
+  useEffect(() => {
+    async function checkHealth() {
+      try {
+        const res = await fetch(`${BASE_URL}/health`);
+        if (!res.ok) throw new Error();
+      } catch {
+        window.dispatchEvent(new CustomEvent("api-error", { detail: "API is unreachable" }));
+      }
+    }
+    checkHealth();
+    const id = setInterval(checkHealth, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <Routes>
       {/* Public routes */}
