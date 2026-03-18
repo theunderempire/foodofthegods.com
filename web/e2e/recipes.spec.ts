@@ -34,6 +34,7 @@ test.describe("recipes", () => {
 
   test("restores scroll position after navigating back from recipe", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 200 });
+    await page.locator(".recipe-card-link").first().waitFor();
     await page.evaluate(() => window.scrollTo(0, 300));
     await page.evaluate(() =>
       (document.querySelector(".recipe-card-link") as HTMLAnchorElement).click(),
