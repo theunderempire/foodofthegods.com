@@ -110,6 +110,7 @@ describe("IngredientList", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Add ingredient" }));
     await userEvent.type(screen.getByPlaceholderText("Ingredient name"), "flour");
+    await userEvent.clear(screen.getByPlaceholderText("0"));
     await userEvent.type(screen.getByPlaceholderText("0"), "2");
     await userEvent.type(screen.getByPlaceholderText("cup, oz, …"), "cups");
     await userEvent.click(screen.getByRole("button", { name: "Add" }));

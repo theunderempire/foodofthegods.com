@@ -55,6 +55,15 @@ import ingredientList from "./routes/ingredientList.js";
 import mail from "./routes/mail.js";
 import users from "./routes/users.js";
 
+app.get("/health", async (_req, res) => {
+  try {
+    await db.executeWhenOpened();
+    res.json({ success: true, db: "connected" });
+  } catch {
+    res.status(503).json({ success: false, db: "disconnected" });
+  }
+});
+
 app.use("/", index);
 app.use("/mail", mail);
 app.use("/token", token);
