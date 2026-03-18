@@ -20,7 +20,7 @@ fi
 
 printf '\nbuild completed!\n'
 
-DEPLOY_DIR="/var/www/html/theunderempire.com/public_html/foodofthegods"
+DEPLOY_DIR="$HOME/docker/caddy/site/foodofthegods"
 
 printf '\nremoving old build\n'
 if ! rm -rf "$DEPLOY_DIR"/*; then
@@ -29,7 +29,7 @@ if ! rm -rf "$DEPLOY_DIR"/*; then
 fi
 
 printf '\ndeploying new build...\n'
-if mv ./dist/* "$DEPLOY_DIR"/ && rm -rf ./dist && cp .htaccess "$DEPLOY_DIR"/.htaccess; then
+if mv ./dist/* "$DEPLOY_DIR"/ && rm -rf ./dist; then
   printf '\ndeploy completed!\n'
 else
   printf '\nthere was an error while deploying\n'
