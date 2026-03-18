@@ -5,12 +5,23 @@ services:
     environment:
       - START_CMD=start
       - DB_HOST_NAME=fotg-db
+    ports: []
+    networks:
+      - fotg-network
+      - caddy-net
+
   fotg-db:
     volumes:
       - mongodata:/data/db
+
   db-seed:
     profiles:
       - seed
+
+networks:
+  fotg-network:
+  caddy-net:
+    external: true
 
 volumes:
   mongodata:
