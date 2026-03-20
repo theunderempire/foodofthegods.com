@@ -7,6 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "swagger": "node swagger.js",
     "start": "NODE_ENV=production PORT=3000 node ./bin/www.js",
     "start-dev": "NODE_ENV=development PORT=3000 nodemon --watch src --watch ./bin/www.js  ./bin/www.js",
     "test": "node --test",
@@ -26,7 +27,9 @@
     "monk": "^7.3.4",
     "morgan": "^1.9.0",
     "nodemailer": "^8.0.1",
-    "nodemon": "^3.1.11"
+    "nodemon": "^3.1.11",
+    "swagger-autogen": "^2.23.7",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

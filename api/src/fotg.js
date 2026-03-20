@@ -1,10 +1,14 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
 import logger from "morgan";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import monk from "monk";
+import swaggerUi from "swagger-ui-express";
+
+const require = createRequire(import.meta.url);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -54,6 +58,9 @@ import { router as token, tokenCheck } from "./routes/token.js";
 import ingredientList from "./routes/ingredientList.js";
 import mail from "./routes/mail.js";
 import users from "./routes/users.js";
+
+const swaggerDoc = require("../swagger_output.json");
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 
 app.get("/health", async (_req, res) => {
   try {
