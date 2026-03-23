@@ -5,8 +5,13 @@ import { makeRes, makeReq, makeCollection } from "../helpers/mocks.js";
 
 const service = new IngredientService();
 
-const SALT = { id: 1, name: "salt", amount: 1, unit: "tsp" };
-const SUGAR = { id: 2, name: "sugar", amount: 1, unit: "cup" };
+// UUIDs represent IDs as they would exist in the database after being assigned by the service
+const SALT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+const SUGAR_ID = "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb";
+const SALT = { id: SALT_ID, name: "salt", amount: 1, unit: "tsp" };
+const SUGAR = { id: SUGAR_ID, name: "sugar", amount: 1, unit: "cup" };
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function makeDocsWithList(items = [], groupName = "ungrouped") {
   return { ingredientList: { groups: [{ name: groupName, items }] } };
@@ -62,8 +67,28 @@ describe("IngredientService", () => {
 
       const items = res._body.data.ingredientList.groups[0].items;
       assert.equal(items.length, 1);
-      assert.deepEqual(items[0].ingredient, SALT);
+      assert.equal(items[0].ingredient.name, SALT.name);
+      assert.equal(items[0].ingredient.amount, SALT.amount);
+      assert.equal(items[0].ingredient.unit, SALT.unit);
       assert.equal(items[0].completed, false);
+    });
+
+    test("assigns a UUID as the ingredient id", async () => {
+      const res = makeRes();
+      const req = makeIngredientReq({
+        body: { ingredient: SALT },
+        collections: {
+          ingredientlist: makeCollection({
+            findOne: (_q, _o) => Promise.resolve(makeDocsWithList([])),
+            update: (_q, _u) => Promise.resolve(),
+          }),
+        },
+      });
+
+      await service.addIngredient(req, res);
+
+      const id = res._body.data.ingredientList.groups[0].items[0].ingredient.id;
+      assert.match(String(id), UUID_REGEX);
     });
 
     test("creates new ingredientList when none exists", async () => {
@@ -83,7 +108,8 @@ describe("IngredientService", () => {
       const groups = res._body.data.ingredientList.groups;
       assert.equal(groups.length, 1);
       assert.equal(groups[0].name, "ungrouped");
-      assert.deepEqual(groups[0].items[0].ingredient, SALT);
+      assert.equal(groups[0].items[0].ingredient.name, SALT.name);
+      assert.match(String(groups[0].items[0].ingredient.id), UUID_REGEX);
     });
 
     test("returns 401 for unauthorized user", async () => {
@@ -113,8 +139,78 @@ describe("IngredientService", () => {
 
       const items = res._body.data.ingredientList.groups[0].items;
       assert.equal(items.length, 2);
-      assert.deepEqual(items[0].ingredient, SALT);
-      assert.deepEqual(items[1].ingredient, SUGAR);
+      assert.equal(items[0].ingredient.name, SALT.name);
+      assert.equal(items[1].ingredient.name, SUGAR.name);
+    });
+
+    test("assigns a UUID to each added ingredient", async () => {
+      const res = makeRes();
+      const req = makeIngredientReq({
+        body: { ingredients: [SALT, SUGAR] },
+        collections: {
+          ingredientlist: makeCollection({
+            findOne: (_q, _o) => Promise.resolve(makeDocsWithList([])),
+            update: (_q, _u) => Promise.resolve(),
+          }),
+        },
+      });
+
+      await service.addManyIngredients(req, res);
+
+      const items = res._body.data.ingredientList.groups[0].items;
+      for (const item of items) {
+        assert.match(String(item.ingredient.id), UUID_REGEX);
+      }
+    });
+
+    test("assigns unique UUIDs when ingredients from two recipes share the same id", async () => {
+      // Simulates adding ingredients from two recipes where both have id:1, id:2, etc.
+      const recipeAIngredients = [
+        { id: 1, name: "flour", amount: 2, unit: "cup" },
+        { id: 2, name: "sugar", amount: 1, unit: "cup" },
+      ];
+      const recipeBIngredients = [
+        { id: 1, name: "butter", amount: 0.5, unit: "cup" },
+        { id: 2, name: "eggs", amount: 2 },
+      ];
+
+      // Add recipe A
+      const resA = makeRes();
+      const reqA = makeIngredientReq({
+        body: { ingredients: recipeAIngredients },
+        collections: {
+          ingredientlist: makeCollection({
+            findOne: (_q, _o) => Promise.resolve(makeDocsWithList([])),
+            update: (_q, _u) => Promise.resolve(),
+          }),
+        },
+      });
+      await service.addManyIngredients(reqA, resA);
+
+      const listAfterA = resA._body.data.ingredientList;
+
+      // Add recipe B on top of recipe A's list
+      const resB = makeRes();
+      const reqB = makeIngredientReq({
+        body: { ingredients: recipeBIngredients },
+        collections: {
+          ingredientlist: makeCollection({
+            findOne: (_q, _o) => Promise.resolve({ ingredientList: listAfterA }),
+            update: (_q, _u) => Promise.resolve(),
+          }),
+        },
+      });
+      await service.addManyIngredients(reqB, resB);
+
+      const allItems = resB._body.data.ingredientList.groups[0].items;
+      assert.equal(allItems.length, 4);
+
+      const ids = allItems.map((i) => i.ingredient.id);
+      const uniqueIds = new Set(ids);
+      assert.equal(uniqueIds.size, 4, "all four ingredients must have unique IDs");
+      for (const id of ids) {
+        assert.match(String(id), UUID_REGEX);
+      }
     });
 
     test("returns 401 for unauthorized user", async () => {
@@ -135,7 +231,7 @@ describe("IngredientService", () => {
       ];
       const res = makeRes();
       const req = makeIngredientReq({
-        params: { userId: "user-1", groupName: "ungrouped", itemId: "1" },
+        params: { userId: "user-1", groupName: "ungrouped", itemId: SALT_ID },
         collections: {
           ingredientlist: makeCollection({
             findOne: (_q, _o) =>
@@ -149,13 +245,13 @@ describe("IngredientService", () => {
 
       const items = res._body.data.ingredientList.groups[0].items;
       assert.equal(items.length, 1);
-      assert.equal(items[0].ingredient.id, SUGAR.id);
+      assert.equal(items[0].ingredient.id, SUGAR_ID);
     });
 
     test("removes the group when it becomes empty after removal", async () => {
       const res = makeRes();
       const req = makeIngredientReq({
-        params: { userId: "user-1", groupName: "ungrouped", itemId: "1" },
+        params: { userId: "user-1", groupName: "ungrouped", itemId: SALT_ID },
         collections: {
           ingredientlist: makeCollection({
             findOne: (_q, _o) =>
@@ -173,7 +269,11 @@ describe("IngredientService", () => {
     test("responds with not-found message when item does not exist in group", async () => {
       const res = makeRes();
       const req = makeIngredientReq({
-        params: { userId: "user-1", groupName: "ungrouped", itemId: "99" },
+        params: {
+          userId: "user-1",
+          groupName: "ungrouped",
+          itemId: "cccccccc-cccc-4ccc-cccc-cccccccccccc",
+        },
         collections: {
           ingredientlist: makeCollection({
             findOne: (_q, _o) =>

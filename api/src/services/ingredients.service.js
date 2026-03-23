@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import secret from "../secret.js";
 import RequestService from "./request.service.js";
 import { broadcast } from "./sse.js";
@@ -32,18 +33,24 @@ const IngredientService = function () {
         let ingredientList;
         if (docs?.ingredientList) {
           ingredientList = docs.ingredientList;
+          const newItem = { ingredient: { ...ingredient, id: randomUUID() }, completed: false };
           const ungrouped = ingredientList.groups.find((g) => g.name === ungroupedName);
           if (ungrouped) {
-            ungrouped.items.push({ ingredient, completed: false });
+            ungrouped.items.push(newItem);
           } else {
             ingredientList.groups.push({
               name: ungroupedName,
-              items: [{ ingredient, completed: false }],
+              items: [newItem],
             });
           }
         } else {
           ingredientList = {
-            groups: [{ name: ungroupedName, items: [{ ingredient, completed: false }] }],
+            groups: [
+              {
+                name: ungroupedName,
+                items: [{ ingredient: { ...ingredient, id: randomUUID() }, completed: false }],
+              },
+            ],
             lastModified: new Date().toString(),
           };
         }
@@ -76,27 +83,22 @@ const IngredientService = function () {
         const docs = await collection.findOne({ userId }, {});
 
         let ingredientList;
+        const toItems = (ing) => ({ ingredient: { ...ing, id: randomUUID() }, completed: false });
+
         if (docs?.ingredientList) {
           ingredientList = docs.ingredientList;
           const ungrouped = ingredientList.groups.find((g) => g.name === ungroupedName);
           if (ungrouped) {
-            ungrouped.items = ungrouped.items.concat(
-              ingredients.map((ingredient) => ({ ingredient, completed: false })),
-            );
+            ungrouped.items = ungrouped.items.concat(ingredients.map(toItems));
           } else {
             ingredientList.groups.push({
               name: ungroupedName,
-              items: ingredients.map((ingredient) => ({ ingredient, completed: false })),
+              items: ingredients.map(toItems),
             });
           }
         } else {
           ingredientList = {
-            groups: [
-              {
-                name: ungroupedName,
-                items: ingredients.map((ingredient) => ({ ingredient, completed: false })),
-              },
-            ],
+            groups: [{ name: ungroupedName, items: ingredients.map(toItems) }],
             lastModified: new Date().toString(),
           };
         }
@@ -305,7 +307,7 @@ const IngredientService = function () {
   async function removeIngredient(req, res) {
     const userId = req.params.userId;
     const collection = getIngredientListCollection(req);
-    const ingredientId = parseInt(req.params.itemId);
+    const ingredientId = req.params.itemId;
     const groupName = req.params.groupName;
 
     if (requestService.checkUser(req, userId)) {

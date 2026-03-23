@@ -65,7 +65,7 @@ export async function updateIngredient(
 export async function removeIngredient(
   userId: string,
   groupName: string,
-  itemId: number,
+  itemId: number | string,
 ): Promise<IngredientList | null> {
   const res = await client.delete<ApiResponse<IngredientListContainer>>(
     url(userId, `/${groupName}/${itemId}`),
