@@ -14,16 +14,12 @@ import { NotFound } from "./NotFound";
 
 type Step = "select" | "url" | "text" | "form";
 
-function blankIngredient(id: number): Ingredient {
-  return { id, name: "", amount: 0, unit: "" };
+function blankIngredient(): Ingredient {
+  return { id: crypto.randomUUID(), name: "", amount: 0, unit: "" };
 }
 
-function blankDirection(id: number): Direction {
-  return { id, text: "", duration: "" };
-}
-
-function nextId(items: { id: number }[]): number {
-  return items.length === 0 ? 1 : Math.max(...items.map((i) => i.id)) + 1;
+function blankDirection(): Direction {
+  return { id: crypto.randomUUID(), text: "", duration: "" };
 }
 
 export function RecipeForm() {
@@ -39,8 +35,8 @@ export function RecipeForm() {
   const [cookDuration, setCookDuration] = useState("");
   const [servings, setServings] = useState("");
   const [imageUrl, setImageUrl] = useState("");
-  const [ingredients, setIngredients] = useState<Ingredient[]>([blankIngredient(1)]);
-  const [directions, setDirections] = useState<Direction[]>([blankDirection(1)]);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([blankIngredient()]);
+  const [directions, setDirections] = useState<Direction[]>([blankDirection()]);
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -58,8 +54,8 @@ export function RecipeForm() {
         setCookDuration(r.cookDuration ?? "");
         setServings(r.servings ?? "");
         setImageUrl(r.imageUrl ?? "");
-        setIngredients(r.ingredients.length > 0 ? r.ingredients : [blankIngredient(1)]);
-        setDirections(r.directions.length > 0 ? r.directions : [blankDirection(1)]);
+        setIngredients(r.ingredients.length > 0 ? r.ingredients : [blankIngredient()]);
+        setDirections(r.directions.length > 0 ? r.directions : [blankDirection()]);
       })
       .catch(() => setError("Failed to load recipe."))
       .finally(() => setLoading(false));
@@ -71,8 +67,8 @@ export function RecipeForm() {
     setCookDuration(recipe.cookDuration ?? "");
     setServings(recipe.servings ?? "");
     setImageUrl(recipe.imageUrl ?? "");
-    setIngredients(recipe.ingredients?.length > 0 ? recipe.ingredients : [blankIngredient(1)]);
-    setDirections(recipe.directions?.length > 0 ? recipe.directions : [blankDirection(1)]);
+    setIngredients(recipe.ingredients?.length > 0 ? recipe.ingredients : [blankIngredient()]);
+    setDirections(recipe.directions?.length > 0 ? recipe.directions : [blankDirection()]);
     setStep("form");
   }
 
@@ -117,7 +113,7 @@ export function RecipeForm() {
     setIngredients((prev) => prev.map((ing, i) => (i === idx ? { ...ing, ...patch } : ing)));
   }
   function addIngredient() {
-    setIngredients((prev) => [...prev, blankIngredient(nextId(prev))]);
+    setIngredients((prev) => [...prev, blankIngredient()]);
   }
   function removeIngredient(idx: number) {
     setIngredients((prev) => prev.filter((_, i) => i !== idx));
@@ -137,7 +133,7 @@ export function RecipeForm() {
     setDirections((prev) => prev.map((d, i) => (i === idx ? { ...d, ...patch } : d)));
   }
   function addDirection() {
-    setDirections((prev) => [...prev, blankDirection(nextId(prev))]);
+    setDirections((prev) => [...prev, blankDirection()]);
   }
   function removeDirection(idx: number) {
     setDirections((prev) => prev.filter((_, i) => i !== idx));

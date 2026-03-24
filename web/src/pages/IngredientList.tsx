@@ -59,7 +59,7 @@ export function IngredientList() {
     setList(updated);
   }
 
-  async function handleRemove(groupName: string, itemId: number) {
+  async function handleRemove(groupName: string, itemId: string | number) {
     if (!username) return;
     const updated = await removeIngredient(username, groupName, itemId);
     setList(updated);

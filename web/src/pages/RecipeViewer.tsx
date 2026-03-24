@@ -18,7 +18,7 @@ export function RecipeViewer() {
   const [addingToList, setAddingToList] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
-  const [addingIngredientId, setAddingIngredientId] = useState<number | null>(null);
+  const [addingIngredientId, setAddingIngredientId] = useState<string | number | null>(null);
   const [shoppingList, setShoppingList] = useState<IngredientList | null>(null);
 
   useEffect(() => {
