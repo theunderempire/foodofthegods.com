@@ -28,7 +28,7 @@ export async function generateThumbnail(recipeId, imageUrl) {
       .toFile(path.join(THUMBNAILS_DIR, filename));
 
     const apiBase = process.env.VITE_API_BASE_URL ?? "";
-    return `${apiBase}/thumbnails/${filename}`;
+    return `${apiBase}/thumbnails/${filename}?v=${Date.now()}`;
   } catch (err) {
     console.warn(
       `[thumbnail] failed to generate thumbnail for recipe "${recipeId}": ${err.message}`,

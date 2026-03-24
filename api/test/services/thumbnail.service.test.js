@@ -81,7 +81,7 @@ describe("thumbnail.service", () => {
       try {
         const result = await generateThumbnail(recipeId, "https://example.com/img.jpg");
         assert.ok(result, "should return a URL");
-        assert.match(result, /\/thumbnails\/r-thumb-success\.jpg$/);
+        assert.match(result, /\/thumbnails\/r-thumb-success\.jpg\?v=\d+$/);
         const stat = await fs.stat(path.join(THUMBNAILS_DIR, `${recipeId}.jpg`));
         assert.ok(stat.size > 0, "thumbnail file should exist and have content");
       } finally {

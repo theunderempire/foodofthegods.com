@@ -95,7 +95,10 @@ describe("RecipesService", () => {
 
         assert.equal(res._body.data.msg, "recipe added");
         assert.ok(recipeUpdateArgs, "should call update with thumbnail URL");
-        assert.match(recipeUpdateArgs.$set.imageUrl, /\/thumbnails\/add-thumb-success\.jpg$/);
+        assert.match(
+          recipeUpdateArgs.$set.imageUrl,
+          /\/thumbnails\/add-thumb-success\.jpg\?v=\d+$/,
+        );
       } finally {
         globalThis.fetch = originalFetch;
         await fs.unlink(path.join(THUMBNAILS_DIR, `${recipeId}.jpg`)).catch(() => {});
@@ -356,7 +359,7 @@ describe("RecipesService", () => {
         assert.equal(res._body.data.msg, "recipe updated");
         assert.match(
           updateArgs.$set.imageUrl,
-          /\/thumbnails\/update-thumb-success\.jpg$/,
+          /\/thumbnails\/update-thumb-success\.jpg\?v=\d+$/,
           "imageUrl should be replaced with local thumbnail URL",
         );
       } finally {
