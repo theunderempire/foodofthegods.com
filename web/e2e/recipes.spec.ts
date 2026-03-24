@@ -49,6 +49,25 @@ test.describe("recipes", () => {
     expect(scrollY).toBeGreaterThan(0);
   });
 
+  test("recipe cards display images for recipes with imageUrl", async ({ page }) => {
+    const card = page.locator(".recipe-card", {
+      has: page.locator(".recipe-card-title", { hasText: "Lemon Herb Roast Chicken" }),
+    });
+    const img = card.locator(".recipe-card-image img");
+    await expect(img).toBeVisible();
+    await expect(img).toHaveAttribute("src", /\/thumbnails\//);
+  });
+
+  test("recipe card image is not broken", async ({ page }) => {
+    const card = page.locator(".recipe-card", {
+      has: page.locator(".recipe-card-title", { hasText: "Lemon Herb Roast Chicken" }),
+    });
+    const img = card.locator(".recipe-card-image img");
+    await expect(img).toBeVisible();
+    const naturalWidth = await img.evaluate((el: HTMLImageElement) => el.naturalWidth);
+    expect(naturalWidth).toBeGreaterThan(0);
+  });
+
   test("create, edit, and delete a recipe", async ({ page }) => {
     // Create
     await page.click('[aria-label="Add recipe"]');
