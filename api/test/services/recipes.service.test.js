@@ -1,11 +1,39 @@
-import { describe, test } from "node:test";
+import { describe, test, before } from "node:test";
 import assert from "node:assert/strict";
+import sharp from "sharp";
+import { promises as fs } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import RecipesService from "../../src/services/recipes.service.js";
 import { makeRes, makeReq, makeCollection } from "../helpers/mocks.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const THUMBNAILS_DIR = path.join(__dirname, "../../public/thumbnails");
 
 const service = new RecipesService();
 
 describe("RecipesService", () => {
+  let tinyJpeg;
+
+  before(async () => {
+    tinyJpeg = await sharp({
+      create: { width: 1, height: 1, channels: 3, background: { r: 100, g: 100, b: 100 } },
+    })
+      .jpeg()
+      .toBuffer();
+  });
+
+  function makeFetchWithJpeg(jpeg) {
+    return async () => ({
+      ok: true,
+      headers: { get: () => null },
+      arrayBuffer: async () => {
+        const ab = new ArrayBuffer(jpeg.byteLength);
+        new Uint8Array(ab).set(jpeg);
+        return ab;
+      },
+    });
+  }
   describe("addRecipeForUser", () => {
     test("inserts recipe and responds with success when userId matches token", async () => {
       let inserted = null;
@@ -40,6 +68,69 @@ describe("RecipesService", () => {
 
       assert.equal(res._status, 401);
       assert.equal(res._body.success, false);
+    });
+
+    test("overwrites imageUrl with local thumbnail URL when imageUrl is provided", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = makeFetchWithJpeg(tinyJpeg);
+      let recipeUpdateArgs = null;
+      const recipeId = "add-thumb-success";
+      try {
+        const res = makeRes();
+        const req = makeReq({
+          username: "user-1",
+          body: { name: "Pasta", userId: "user-1", imageUrl: "https://example.com/img.jpg" },
+          collections: {
+            recipelist: makeCollection({
+              insert: (doc) => Promise.resolve({ ...doc, _id: recipeId }),
+              update: (_q, update) => {
+                recipeUpdateArgs = update;
+                return Promise.resolve();
+              },
+            }),
+          },
+        });
+
+        await service.addRecipeForUser(req, res);
+
+        assert.equal(res._body.data.msg, "recipe added");
+        assert.ok(recipeUpdateArgs, "should call update with thumbnail URL");
+        assert.match(recipeUpdateArgs.$set.imageUrl, /\/thumbnails\/add-thumb-success\.jpg$/);
+      } finally {
+        globalThis.fetch = originalFetch;
+        await fs.unlink(path.join(THUMBNAILS_DIR, `${recipeId}.jpg`)).catch(() => {});
+      }
+    });
+
+    test("saves recipe successfully when thumbnail generation fails", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => {
+        throw new Error("Network error");
+      };
+      let recipeUpdateCalled = false;
+      try {
+        const res = makeRes();
+        const req = makeReq({
+          username: "user-1",
+          body: { name: "Pasta", userId: "user-1", imageUrl: "https://example.com/img.jpg" },
+          collections: {
+            recipelist: makeCollection({
+              insert: (doc) => Promise.resolve({ ...doc, _id: "add-thumb-fail" }),
+              update: () => {
+                recipeUpdateCalled = true;
+                return Promise.resolve();
+              },
+            }),
+          },
+        });
+
+        await service.addRecipeForUser(req, res);
+
+        assert.equal(res._body.data.msg, "recipe added");
+        assert.equal(recipeUpdateCalled, false, "should not update imageUrl when thumbnail fails");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
     });
   });
 
@@ -233,6 +324,82 @@ describe("RecipesService", () => {
       await service.updateRecipe(req, res);
 
       assert.equal(res._status, 401);
+    });
+
+    test("generates thumbnail and replaces imageUrl when imageUrl changes", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = makeFetchWithJpeg(tinyJpeg);
+      let updateArgs = null;
+      const recipeId = "update-thumb-success";
+      try {
+        const res = makeRes();
+        const req = makeReq({
+          username: "user-1",
+          params: { id: recipeId },
+          body: { _id: recipeId, name: "Pasta", imageUrl: "https://example.com/new.jpg" },
+          collections: {
+            users: makeCollection({
+              find: () => Promise.resolve([{ recipeList: [recipeId] }]),
+            }),
+            recipelist: makeCollection({
+              findOne: () => Promise.resolve({ imageUrl: "https://example.com/old.jpg" }),
+              update: (_q, update) => {
+                updateArgs = update;
+                return Promise.resolve();
+              },
+            }),
+          },
+        });
+
+        await service.updateRecipe(req, res);
+
+        assert.equal(res._body.data.msg, "recipe updated");
+        assert.match(
+          updateArgs.$set.imageUrl,
+          /\/thumbnails\/update-thumb-success\.jpg$/,
+          "imageUrl should be replaced with local thumbnail URL",
+        );
+      } finally {
+        globalThis.fetch = originalFetch;
+        await fs.unlink(path.join(THUMBNAILS_DIR, `${recipeId}.jpg`)).catch(() => {});
+      }
+    });
+
+    test("does not regenerate thumbnail when imageUrl is unchanged", async () => {
+      const originalFetch = globalThis.fetch;
+      let fetchCalled = false;
+      globalThis.fetch = async () => {
+        fetchCalled = true;
+        return {
+          ok: true,
+          headers: { get: () => null },
+          arrayBuffer: async () => new ArrayBuffer(0),
+        };
+      };
+      try {
+        const res = makeRes();
+        const req = makeReq({
+          username: "user-1",
+          params: { id: "r1" },
+          body: { _id: "r1", name: "Updated Name", imageUrl: "https://example.com/same.jpg" },
+          collections: {
+            users: makeCollection({
+              find: () => Promise.resolve([{ recipeList: ["r1"] }]),
+            }),
+            recipelist: makeCollection({
+              findOne: () => Promise.resolve({ imageUrl: "https://example.com/same.jpg" }),
+              update: () => Promise.resolve(),
+            }),
+          },
+        });
+
+        await service.updateRecipe(req, res);
+
+        assert.equal(res._body.data.msg, "recipe updated");
+        assert.equal(fetchCalled, false, "should not fetch image when imageUrl has not changed");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
     });
 
     test("returns error response when ownership lookup throws", async () => {
