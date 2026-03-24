@@ -6,7 +6,7 @@ export interface Ingredient {
 }
 
 export interface Direction {
-  id: number;
+  id: number | string;
   text: string;
   duration: string;
 }
