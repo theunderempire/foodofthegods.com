@@ -51,7 +51,6 @@ app.use(function (req, _res, next) {
   next();
 });
 
-import index from "./routes/index.js";
 import recipes from "./routes/recipes.js";
 import recipe from "./routes/recipe.js";
 import { router as token, tokenCheck } from "./routes/token.js";
@@ -71,7 +70,6 @@ app.get("/health", async (_req, res) => {
   }
 });
 
-app.use("/", index);
 app.use("/mail", mail);
 app.use("/token", token);
 app.use("/recipe", recipe);

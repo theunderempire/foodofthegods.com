@@ -1,5 +1,4 @@
 import { randomUUID } from "crypto";
-import secret from "../secret.js";
 import RequestService from "./request.service.js";
 import { broadcast } from "./sse.js";
 
