@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import RequestService from "./request.service.js";
 import { generateThumbnail, deleteThumbnail } from "./thumbnail.service.js";
 
@@ -215,7 +216,10 @@ ${text.slice(0, 50000)}`,
     json = json.replace(/\}(\s*)\{/g, "},$1{");
     json = json.replace(/\](\s*)\{/g, "],$1{");
 
-    return JSON.parse(json);
+    const parsed = JSON.parse(json);
+    parsed.ingredients = (parsed.ingredients ?? []).map((i) => ({ ...i, id: randomUUID() }));
+    parsed.directions = (parsed.directions ?? []).map((d) => ({ ...d, id: randomUUID() }));
+    return parsed;
   }
 
   async function importRecipeFromUrl(req, res) {

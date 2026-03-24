@@ -789,6 +789,77 @@ describe("RecipesService", () => {
         globalThis.fetch = originalFetch;
       }
     });
+
+    test("replaces Gemini integer ids with UUIDs on ingredients and directions", async () => {
+      const originalFetch = globalThis.fetch;
+      let callCount = 0;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+      globalThis.fetch = async () => {
+        callCount++;
+        if (callCount === 1) return { text: async () => "<html>page</html>" };
+        return {
+          json: async () => ({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        name: "Pasta",
+                        prepDuration: "5 min",
+                        cookDuration: "10 min",
+                        servings: "2",
+                        ingredients: [
+                          { id: 1, name: "water", amount: 1, unit: "cup" },
+                          { id: 2, name: "salt", amount: 1, unit: "tsp" },
+                        ],
+                        directions: [
+                          { id: 1, text: "Boil water.", duration: "" },
+                          { id: 2, text: "Add salt.", duration: "" },
+                        ],
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+        };
+      };
+
+      try {
+        const res = makeRes();
+        const req = makeReq({
+          body: { url: "https://example.com/recipe" },
+          collections: {
+            users: makeCollection({
+              findOne: () => Promise.resolve({ username: "testuser", geminiApiKey: "test-key" }),
+            }),
+          },
+        });
+
+        await service.importRecipeFromUrl(req, res);
+
+        assert.equal(res._body.success, true);
+        const { ingredients, directions } = res._body.data;
+        assert.equal(ingredients.length, 2);
+        assert.equal(directions.length, 2);
+        for (const ingredient of ingredients) {
+          assert.match(ingredient.id, uuidRegex, "ingredient id should be a UUID");
+        }
+        for (const direction of directions) {
+          assert.match(direction.id, uuidRegex, "direction id should be a UUID");
+        }
+        // other fields should be preserved
+        assert.equal(ingredients[0].name, "water");
+        assert.equal(directions[0].text, "Boil water.");
+        // all ids should be unique
+        const allIds = [...ingredients, ...directions].map((x) => x.id);
+        assert.equal(new Set(allIds).size, allIds.length, "all ids should be unique");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
   });
 
   describe("importRecipeFromText", () => {
@@ -909,6 +980,72 @@ describe("RecipesService", () => {
         await service.importRecipeFromText(req, res);
 
         assert.equal(res._body.success, false);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("replaces Gemini integer ids with UUIDs on ingredients and directions", async () => {
+      const originalFetch = globalThis.fetch;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+      globalThis.fetch = async () => ({
+        json: async () => ({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      name: "Pasted Soup",
+                      prepDuration: "5 min",
+                      cookDuration: "15 min",
+                      servings: "2",
+                      ingredients: [
+                        { id: 1, name: "water", amount: 1, unit: "cup" },
+                        { id: 2, name: "salt", amount: 1, unit: "tsp" },
+                      ],
+                      directions: [
+                        { id: 1, text: "Boil water.", duration: "" },
+                        { id: 2, text: "Add salt.", duration: "" },
+                      ],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      });
+
+      try {
+        const res = makeRes();
+        const req = makeReq({
+          body: { text: "Pasted soup recipe text here" },
+          collections: {
+            users: makeCollection({
+              findOne: () => Promise.resolve({ username: "testuser", geminiApiKey: "test-key" }),
+            }),
+          },
+        });
+
+        await service.importRecipeFromText(req, res);
+
+        assert.equal(res._body.success, true);
+        const { ingredients, directions } = res._body.data;
+        assert.equal(ingredients.length, 2);
+        assert.equal(directions.length, 2);
+        for (const ingredient of ingredients) {
+          assert.match(ingredient.id, uuidRegex, "ingredient id should be a UUID");
+        }
+        for (const direction of directions) {
+          assert.match(direction.id, uuidRegex, "direction id should be a UUID");
+        }
+        // other fields should be preserved
+        assert.equal(ingredients[0].name, "water");
+        assert.equal(directions[0].text, "Boil water.");
+        // all ids should be unique
+        const allIds = [...ingredients, ...directions].map((x) => x.id);
+        assert.equal(new Set(allIds).size, allIds.length, "all ids should be unique");
       } finally {
         globalThis.fetch = originalFetch;
       }
