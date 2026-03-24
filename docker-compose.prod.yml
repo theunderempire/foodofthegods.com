@@ -9,6 +9,8 @@ services:
     networks:
       - fotg-network
       - caddy-net
+    volumes:
+      - thumbnails:/usr/src/app/public/thumbnails
 
   fotg-db:
     volumes:
@@ -25,3 +27,4 @@ networks:
 
 volumes:
   mongodata:
+  thumbnails:

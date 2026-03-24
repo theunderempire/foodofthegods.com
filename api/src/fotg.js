@@ -29,7 +29,7 @@ var app = express();
 app.use(logger(":date[iso] :method :url :status :response-time ms"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "../public")));
 
 // CORS
 app.use(function (req, res, next) {

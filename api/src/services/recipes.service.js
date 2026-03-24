@@ -1,4 +1,5 @@
 import RequestService from "./request.service.js";
+import { generateThumbnail, deleteThumbnail } from "./thumbnail.service.js";
 
 var requestService = new RequestService();
 
@@ -28,6 +29,10 @@ var RecipesService = function () {
           { username: req.decoded.username },
           { $push: { recipeList: result._id } },
         );
+        const thumbnailUrl = await generateThumbnail(result._id, req.body.imageUrl);
+        if (thumbnailUrl) {
+          await recipeCollection.update({ _id: result._id }, { $set: { imageUrl: thumbnailUrl } });
+        }
         requestService.printMsg(res, null, "recipe added");
       } catch (err) {
         console.error(
@@ -78,6 +83,7 @@ var RecipesService = function () {
       if (!usersWithRecipe.length) {
         console.log(`[recipes] deleting recipe from db id="${recipeID}" (no remaining owners)`);
         await recipeCollection.remove({ _id: recipeID });
+        await deleteThumbnail(recipeID);
       }
 
       requestService.printMsg(res, null, "recipe deleted");
@@ -143,6 +149,11 @@ var RecipesService = function () {
         return requestService.returnUnauthorized(res);
       }
       const { _id, ...fields } = updatedRecipe;
+      const existing = await collection.findOne({ _id: recipeID }, { imageUrl: 1 });
+      if (fields.imageUrl !== existing?.imageUrl) {
+        const thumbnailUrl = await generateThumbnail(recipeID, fields.imageUrl);
+        if (thumbnailUrl) fields.imageUrl = thumbnailUrl;
+      }
       await collection.update({ _id: recipeID }, { $set: fields });
       console.log(`[recipes] recipe updated id="${recipeID}" user="${req.decoded.username}"`);
       requestService.printMsg(res, null, "recipe updated");

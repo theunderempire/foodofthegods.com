@@ -5,6 +5,9 @@ node_modules/
 dist/
 dist-ssr/
 
+# Generated thumbnails
+api/public/thumbnails/*.jpg
+
 # Environment files
 .env
 .env.*
