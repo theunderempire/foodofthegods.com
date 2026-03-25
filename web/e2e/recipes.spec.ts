@@ -7,28 +7,36 @@ test.describe("recipes", () => {
   });
 
   test("recipe list shows seed recipe", async ({ page }) => {
-    await expect(page.locator(".recipe-card-title", { hasText: "Test" })).toBeVisible();
+    await expect(page.locator(".recipe-card-title", { hasText: /^Test$/ })).toBeVisible();
   });
 
   test("view single recipe shows details", async ({ page }) => {
-    await page.locator(".recipe-card-link", { hasText: "Test" }).click();
+    await page
+      .locator(".recipe-card-link", {
+        has: page.locator(".recipe-card-title", { hasText: /^Test$/ }),
+      })
+      .click();
     await expect(page).toHaveURL(/\/recipes\/recipe\//);
     await expect(page.getByRole("heading", { name: "Test" })).toBeVisible();
   });
 
   test("restores search filter after navigating back from recipe", async ({ page }) => {
     await page.fill('input[placeholder="Search recipes..."]', "Test");
-    await expect(page.locator(".recipe-card-title", { hasText: "Test" })).toBeVisible();
+    await expect(page.locator(".recipe-card-title", { hasText: /^Test$/ })).toBeVisible();
     await expect(page.locator(".recipe-card-title", { hasText: "Banana Bread" })).not.toBeVisible();
 
-    await page.locator(".recipe-card-link", { hasText: "Test" }).click();
+    await page
+      .locator(".recipe-card-link", {
+        has: page.locator(".recipe-card-title", { hasText: /^Test$/ }),
+      })
+      .click();
     await expect(page).toHaveURL(/\/recipes\/recipe\//);
 
     await page.goBack();
     await expect(page).toHaveURL("/recipes");
 
     await expect(page.locator('input[placeholder="Search recipes..."]')).toHaveValue("Test");
-    await expect(page.locator(".recipe-card-title", { hasText: "Test" })).toBeVisible();
+    await expect(page.locator(".recipe-card-title", { hasText: /^Test$/ })).toBeVisible();
     await expect(page.locator(".recipe-card-title", { hasText: "Banana Bread" })).not.toBeVisible();
   });
 
@@ -66,6 +74,72 @@ test.describe("recipes", () => {
     await expect(img).toBeVisible();
     const naturalWidth = await img.evaluate((el: HTMLImageElement) => el.naturalWidth);
     expect(naturalWidth).toBeGreaterThan(0);
+  });
+
+  test("removes the correct ingredient when deleting the middle item", async ({ page }) => {
+    const recipeName = `E2E Ingredient Order Test ${Date.now()}`;
+    await page.click('[aria-label="Add recipe"]');
+    await page.click('button:has-text("Enter Manually")');
+    await page.fill("#name", recipeName);
+
+    const ingredientsSection = page.locator("section", { hasText: /^Ingredients/ });
+    const nameInputs = ingredientsSection.locator(".input-name");
+
+    await nameInputs.nth(0).fill("flour");
+    await page.click('button:has-text("+ Add Ingredient")');
+    await nameInputs.nth(1).fill("sugar");
+    await page.click('button:has-text("+ Add Ingredient")');
+    await nameInputs.nth(2).fill("salt");
+
+    // Remove the middle ingredient ("sugar")
+    await ingredientsSection.locator(".remove-btn").nth(1).click();
+
+    await expect(nameInputs).toHaveCount(2);
+    await expect(nameInputs.nth(0)).toHaveValue("flour");
+    await expect(nameInputs.nth(1)).toHaveValue("salt");
+
+    // Clean up: create and immediately delete the recipe
+    await page.click('button:has-text("Create Recipe")');
+    await expect(page).toHaveURL("/recipes");
+    const card = page.locator(".recipe-card", {
+      has: page.locator(".recipe-card-title", { hasText: recipeName }),
+    });
+    await card.hover();
+    await card.locator('button:has-text("Delete")').click();
+    await page.click('button:has-text("Confirm")');
+  });
+
+  test("removes the correct direction when deleting the middle item", async ({ page }) => {
+    const recipeName = `E2E Direction Order Test ${Date.now()}`;
+    await page.click('[aria-label="Add recipe"]');
+    await page.click('button:has-text("Enter Manually")');
+    await page.fill("#name", recipeName);
+
+    const directionsSection = page.locator("section", { hasText: /^Directions/ });
+    const textareas = directionsSection.locator("textarea");
+
+    await textareas.nth(0).fill("Preheat oven.");
+    await page.click('button:has-text("+ Add Step")');
+    await textareas.nth(1).fill("Mix ingredients.");
+    await page.click('button:has-text("+ Add Step")');
+    await textareas.nth(2).fill("Bake for 30 min.");
+
+    // Remove the middle direction ("Mix ingredients.")
+    await directionsSection.locator(".remove-btn").nth(1).click();
+
+    await expect(textareas).toHaveCount(2);
+    await expect(textareas.nth(0)).toHaveValue("Preheat oven.");
+    await expect(textareas.nth(1)).toHaveValue("Bake for 30 min.");
+
+    // Clean up
+    await page.click('button:has-text("Create Recipe")');
+    await expect(page).toHaveURL("/recipes");
+    const card = page.locator(".recipe-card", {
+      has: page.locator(".recipe-card-title", { hasText: recipeName }),
+    });
+    await card.hover();
+    await card.locator('button:has-text("Delete")').click();
+    await page.click('button:has-text("Confirm")');
   });
 
   test("create, edit, and delete a recipe", async ({ page }) => {
