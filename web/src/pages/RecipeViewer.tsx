@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { addIngredient, addIngredients, getIngredientList } from "../api/ingredientList";
-import { getRecipe } from "../api/recipes";
+import { deleteRecipe, getRecipe } from "../api/recipes";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useAuth } from "../contexts/AuthContext";
 import type { IngredientList } from "../types/ingredientList";
 import type { Ingredient, Recipe } from "../types/recipe";
@@ -20,6 +21,8 @@ export function RecipeViewer() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [addingIngredientId, setAddingIngredientId] = useState<string | number | null>(null);
   const [shoppingList, setShoppingList] = useState<IngredientList | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     if (!recipeId) return;
@@ -76,6 +79,16 @@ export function RecipeViewer() {
     }
   }
 
+  async function handleDelete() {
+    try {
+      await deleteRecipe(recipeId);
+      navigate("/recipes");
+    } catch {
+      setDeleteError("Failed to delete recipe.");
+      setConfirmDelete(false);
+    }
+  }
+
   function handleCopyShareLink() {
     const link = `${window.location.origin}${import.meta.env.BASE_URL}recipes/share/${recipeId}`;
     navigator.clipboard.writeText(link).then(() => {
@@ -107,9 +120,17 @@ export function RecipeViewer() {
             >
               Edit
             </button>
+            <button
+              className="btn btn-ghost btn-sm btn-danger-text"
+              onClick={() => setConfirmDelete(true)}
+            >
+              Delete
+            </button>
           </div>
         )}
       </div>
+
+      {deleteError && <div className="alert alert-error">{deleteError}</div>}
 
       <article className="recipe-article">
         <h1 className="recipe-title">{recipe.name}</h1>
@@ -217,6 +238,14 @@ export function RecipeViewer() {
           </section>
         )}
       </article>
+
+      {confirmDelete && recipe && (
+        <ConfirmDialog
+          message={`Delete "${recipe.name}"? This cannot be undone.`}
+          onConfirm={handleDelete}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
     </div>
   );
 }
