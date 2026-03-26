@@ -142,6 +142,28 @@ test.describe("recipes", () => {
     await page.click('button:has-text("Confirm")');
   });
 
+  test("delete a recipe from the recipe viewer", async ({ page }) => {
+    const recipeName = `E2E Viewer Delete Test ${Date.now()}`;
+    await page.click('[aria-label="Add recipe"]');
+    await page.click('button:has-text("Enter Manually")');
+    await page.fill("#name", recipeName);
+    await page.click('button:has-text("Create Recipe")');
+    await expect(page).toHaveURL("/recipes");
+
+    await page
+      .locator(".recipe-card-link", {
+        has: page.locator(".recipe-card-title", { hasText: recipeName }),
+      })
+      .click();
+    await expect(page).toHaveURL(/\/recipes\/recipe\//);
+
+    await page.click('button:has-text("Delete")');
+    await page.click('button:has-text("Confirm")');
+
+    await expect(page).toHaveURL("/recipes");
+    await expect(page.locator(".recipe-card-title", { hasText: recipeName })).not.toBeVisible();
+  });
+
   test("create, edit, and delete a recipe", async ({ page }) => {
     // Create
     await page.click('[aria-label="Add recipe"]');
