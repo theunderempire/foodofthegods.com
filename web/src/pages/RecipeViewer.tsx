@@ -195,7 +195,9 @@ export function RecipeViewer() {
                     className={`ingredient-item ${alreadyAdded ? "ingredient-in-list" : ""}`}
                   >
                     <span className="ingredient-amount">
-                      {ing.amount}
+                      {typeof ing.amount === "number"
+                        ? parseFloat(ing.amount.toFixed(2))
+                        : ing.amount}
                       {ing.unit ? ` ${ing.unit}` : ""}
                     </span>
                     <span className="ingredient-name">{ing.name}</span>
