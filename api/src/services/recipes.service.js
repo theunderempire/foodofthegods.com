@@ -166,6 +166,18 @@ var RecipesService = function () {
     }
   }
 
+  function parseIso8601Duration(str) {
+    if (typeof str !== "string") return str;
+    const match = str.match(/^PT(?:(\d+)H)?(?:(\d+)M)?$/i);
+    if (!match) return str;
+    const hours = parseInt(match[1] ?? "0");
+    const minutes = parseInt(match[2] ?? "0");
+    if (hours && minutes) return `${hours} hr ${minutes} min`;
+    if (hours) return `${hours} hr`;
+    if (minutes) return `${minutes} min`;
+    return str;
+  }
+
   async function callGemini(text, apiKey) {
     const geminiResponse = await fetch(geminiUrl, {
       method: "POST",
@@ -183,6 +195,8 @@ var RecipesService = function () {
   "ingredients": [{ "id": 1, "name": "...", "amount": 1.5, "unit": "..." }],
   "directions": [{ "id": 1, "text": "...", "duration": "" }]
 }
+
+prepDuration and cookDuration must be human-readable strings like "30 min" or "1 hr 30 min", not ISO 8601 format.
 
 Recipe text:
 ${text.slice(0, 50000)}`,
@@ -217,7 +231,13 @@ ${text.slice(0, 50000)}`,
     json = json.replace(/\](\s*)\{/g, "],$1{");
 
     const parsed = JSON.parse(json);
-    parsed.ingredients = (parsed.ingredients ?? []).map((i) => ({ ...i, id: randomUUID() }));
+    parsed.prepDuration = parseIso8601Duration(parsed.prepDuration);
+    parsed.cookDuration = parseIso8601Duration(parsed.cookDuration);
+    parsed.ingredients = (parsed.ingredients ?? []).map((i) => ({
+      ...i,
+      id: randomUUID(),
+      amount: typeof i.amount === "number" ? Math.round(i.amount * 100) / 100 : i.amount,
+    }));
     parsed.directions = (parsed.directions ?? []).map((d) => ({ ...d, id: randomUUID() }));
     return parsed;
   }
