@@ -30,80 +30,83 @@ export function App() {
   }, []);
 
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/register/thanks" element={<RegisterThanks />} />
-      <Route path="/set-password" element={<SetPassword />} />
-      <Route path="/recipes/share/:shareId" element={<RecipeViewer />} />
+    <>
+      <span data-version={__GIT_HASH__} className="sr-only" />
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/register/thanks" element={<RegisterThanks />} />
+        <Route path="/set-password" element={<SetPassword />} />
+        <Route path="/recipes/share/:shareId" element={<RecipeViewer />} />
 
-      {/* Protected routes */}
-      <Route
-        path="/recipes"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <RecipeList />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/recipes/recipe/:id"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <RecipeViewer />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/recipes/add"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <RecipeForm />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/recipes/edit/:id"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <RecipeForm />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/ingredients"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <IngredientList />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
+        {/* Protected routes */}
+        <Route
+          path="/recipes"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <RecipeList />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recipes/recipe/:id"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <RecipeViewer />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recipes/add"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <RecipeForm />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recipes/edit/:id"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <RecipeForm />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ingredients"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <IngredientList />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/settings"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <Settings />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Settings />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
 
-      {/* Fallback */}
-      <Route path="/" element={<Navigate to="/recipes" replace />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        {/* Fallback */}
+        <Route path="/" element={<Navigate to="/recipes" replace />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
   );
 }

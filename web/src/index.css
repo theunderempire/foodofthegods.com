@@ -1,3 +1,15 @@
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ─── Variables ─────────────────────────────────────────────────────────── */
 :root {
   --bg: #f2ebe0;
@@ -371,6 +383,11 @@ textarea.input {
 
 .auth-logo {
   margin-bottom: 1rem;
+}
+
+.mushroom-logo {
+  display: block;
+  margin: 0 auto;
 }
 
 .auth-title {
