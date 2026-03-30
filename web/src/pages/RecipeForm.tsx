@@ -172,10 +172,11 @@ export function RecipeForm() {
     try {
       if (isEdit) {
         await updateRecipe(recipe);
+        navigate(`/recipes/recipe/${id}`);
       } else {
-        await addRecipe(recipe);
+        const result = await addRecipe(recipe);
+        navigate(`/recipes/recipe/${result?.data?.id ?? ""}`);
       }
-      navigate("/recipes");
     } catch {
       setError("Failed to save recipe.");
     } finally {

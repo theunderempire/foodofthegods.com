@@ -34,7 +34,7 @@ var RecipesService = function () {
         if (thumbnailUrl) {
           await recipeCollection.update({ _id: result._id }, { $set: { imageUrl: thumbnailUrl } });
         }
-        requestService.printMsg(res, null, "recipe added");
+        res.json({ success: true, data: { msg: "recipe added", id: result._id } });
       } catch (err) {
         console.error(
           `[recipes] addRecipeForUser error for user="${req.decoded.username}": ${err}`,

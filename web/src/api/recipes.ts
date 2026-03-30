@@ -28,8 +28,10 @@ export async function getRecipe(id: string): Promise<Recipe | null> {
   }
 }
 
-export async function addRecipe(recipe: Recipe): Promise<ApiResponse<{ msg: string }> | null> {
-  const res = await client.post<ApiResponse<{ msg: string }>>("/recipes", recipe);
+export async function addRecipe(
+  recipe: Recipe,
+): Promise<ApiResponse<{ msg: string; id: string }> | null> {
+  const res = await client.post<ApiResponse<{ msg: string; id: string }>>("/recipes", recipe);
 
   if (res.data.success) {
     return res.data;

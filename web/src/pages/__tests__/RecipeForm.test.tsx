@@ -164,8 +164,11 @@ describe("RecipeForm", () => {
     expect(mockAddRecipe).not.toHaveBeenCalled();
   });
 
-  test("calls addRecipe and navigates on valid submit", async () => {
-    mockAddRecipe.mockResolvedValue({ success: true, data: { msg: "recipe added" } });
+  test("calls addRecipe and navigates to new recipe on valid submit", async () => {
+    mockAddRecipe.mockResolvedValue({
+      success: true,
+      data: { msg: "recipe added", id: "new-recipe-id" },
+    });
     renderForm();
     await navigateToForm();
 
@@ -173,7 +176,7 @@ describe("RecipeForm", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create Recipe" }));
 
     expect(mockAddRecipe).toHaveBeenCalledWith(expect.objectContaining({ name: "My New Recipe" }));
-    expect(mockNavigate).toHaveBeenCalledWith("/recipes");
+    expect(mockNavigate).toHaveBeenCalledWith("/recipes/recipe/new-recipe-id");
   });
 
   test("disables AI import buttons and shows notice when no Gemini key", () => {
@@ -193,7 +196,7 @@ describe("RecipeForm", () => {
     expect(screen.queryByText(/Add one in Settings/i)).not.toBeInTheDocument();
   });
 
-  test("calls updateRecipe in edit mode", async () => {
+  test("calls updateRecipe and navigates to recipe on save", async () => {
     mockParams = { id: "recipe-1" };
     mockGetRecipe.mockResolvedValue({
       _id: "recipe-1",
@@ -216,5 +219,6 @@ describe("RecipeForm", () => {
     expect(mockUpdateRecipe).toHaveBeenCalledWith(
       expect.objectContaining({ name: "New Name", _id: "recipe-1" }),
     );
+    expect(mockNavigate).toHaveBeenCalledWith("/recipes/recipe/recipe-1");
   });
 });
