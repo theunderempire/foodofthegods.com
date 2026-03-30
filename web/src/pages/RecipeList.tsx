@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useNavigationType } from "react-router-dom";
+import { ROUTES } from "../routes";
 import { deleteRecipe, getRecipes } from "../api/recipes";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useAuth } from "../contexts/AuthContext";
@@ -113,7 +114,7 @@ export function RecipeList() {
           ) : (
             <>
               <p>No recipes yet.</p>
-              <button className="btn btn-primary" onClick={() => navigate("/recipes/add")}>
+              <button className="btn btn-primary" onClick={() => navigate(ROUTES.recipes.new)}>
                 Add your first recipe
               </button>
             </>
@@ -123,7 +124,7 @@ export function RecipeList() {
         <div className="recipe-grid">
           {filtered.map((recipe) => (
             <div key={recipe._id} className="recipe-card">
-              <Link to={`/recipes/recipe/${recipe._id}`} className="recipe-card-link">
+              <Link to={ROUTES.recipes.view(recipe._id)} className="recipe-card-link">
                 {recipe.imageUrl && (
                   <div className="recipe-card-image">
                     <img src={recipe.imageUrl} alt={recipe.name} loading="lazy" />
@@ -145,7 +146,7 @@ export function RecipeList() {
               <div className="recipe-card-actions">
                 <button
                   className="btn btn-ghost btn-sm"
-                  onClick={() => navigate(`/recipes/edit/${recipe._id}`)}
+                  onClick={() => navigate(ROUTES.recipes.edit(recipe._id))}
                 >
                   Edit
                 </button>
@@ -169,7 +170,7 @@ export function RecipeList() {
         />
       )}
 
-      <button className="fab" onClick={() => navigate("/recipes/add")} aria-label="Add recipe">
+      <button className="fab" onClick={() => navigate(ROUTES.recipes.new)} aria-label="Add recipe">
         +
       </button>
     </div>

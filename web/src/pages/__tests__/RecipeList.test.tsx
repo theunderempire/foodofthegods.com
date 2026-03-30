@@ -106,7 +106,7 @@ describe("RecipeList", () => {
     renderList();
     await screen.findByText("Pasta");
     await userEvent.click(screen.getByRole("button", { name: "Add recipe" }));
-    expect(mockNavigate).toHaveBeenCalledWith("/recipes/add");
+    expect(mockNavigate).toHaveBeenCalledWith("/recipes/new");
   });
 });
 

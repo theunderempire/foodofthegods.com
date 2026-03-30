@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { ROUTES } from "../routes";
 import { addIngredient, addIngredients, getIngredientList } from "../api/ingredientList";
 import { deleteRecipe, getRecipe } from "../api/recipes";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -116,7 +117,7 @@ export function RecipeViewer() {
             </button>
             <button
               className="btn btn-ghost btn-sm"
-              onClick={() => navigate(`/recipes/edit/${recipeId}`)}
+              onClick={() => navigate(ROUTES.recipes.edit(recipeId))}
             >
               Edit
             </button>

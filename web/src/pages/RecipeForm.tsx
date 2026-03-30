@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { ROUTES } from "../routes";
 import {
   addRecipe,
   getRecipe,
@@ -172,10 +173,10 @@ export function RecipeForm() {
     try {
       if (isEdit) {
         await updateRecipe(recipe);
-        navigate(`/recipes/recipe/${id}`);
+        navigate(ROUTES.recipes.view(id!));
       } else {
         const result = await addRecipe(recipe);
-        navigate(`/recipes/recipe/${result?.data?.id ?? ""}`);
+        navigate(ROUTES.recipes.view(result?.data?.id ?? ""));
       }
     } catch {
       setError("Failed to save recipe.");

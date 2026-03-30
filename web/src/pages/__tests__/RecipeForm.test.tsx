@@ -176,7 +176,7 @@ describe("RecipeForm", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create Recipe" }));
 
     expect(mockAddRecipe).toHaveBeenCalledWith(expect.objectContaining({ name: "My New Recipe" }));
-    expect(mockNavigate).toHaveBeenCalledWith("/recipes/recipe/new-recipe-id");
+    expect(mockNavigate).toHaveBeenCalledWith("/recipes/new-recipe-id");
   });
 
   test("disables AI import buttons and shows notice when no Gemini key", () => {
@@ -219,6 +219,6 @@ describe("RecipeForm", () => {
     expect(mockUpdateRecipe).toHaveBeenCalledWith(
       expect.objectContaining({ name: "New Name", _id: "recipe-1" }),
     );
-    expect(mockNavigate).toHaveBeenCalledWith("/recipes/recipe/recipe-1");
+    expect(mockNavigate).toHaveBeenCalledWith("/recipes/recipe-1");
   });
 });

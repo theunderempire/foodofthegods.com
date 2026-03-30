@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { BASE_URL } from "./api/client";
+import { ROUTES } from "./routes";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { IngredientList } from "./pages/IngredientList";
@@ -38,7 +39,7 @@ export function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/register/thanks" element={<RegisterThanks />} />
         <Route path="/set-password" element={<SetPassword />} />
-        <Route path="/recipes/share/:shareId" element={<RecipeViewer />} />
+        <Route path={ROUTES.recipes.SHARE_PATTERN} element={<RecipeViewer />} />
 
         {/* Protected routes */}
         <Route
@@ -52,7 +53,7 @@ export function App() {
           }
         />
         <Route
-          path="/recipes/recipe/:id"
+          path={ROUTES.recipes.VIEW_PATTERN}
           element={
             <ProtectedRoute>
               <Layout>
@@ -62,7 +63,7 @@ export function App() {
           }
         />
         <Route
-          path="/recipes/add"
+          path={ROUTES.recipes.new}
           element={
             <ProtectedRoute>
               <Layout>
@@ -72,7 +73,7 @@ export function App() {
           }
         />
         <Route
-          path="/recipes/edit/:id"
+          path={ROUTES.recipes.EDIT_PATTERN}
           element={
             <ProtectedRoute>
               <Layout>
