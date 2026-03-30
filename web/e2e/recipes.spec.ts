@@ -16,7 +16,7 @@ test.describe("recipes", () => {
         has: page.locator(".recipe-card-title", { hasText: /^Test$/ }),
       })
       .click();
-    await expect(page).toHaveURL(/\/recipes\/recipe\//);
+    await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
     await expect(page.getByRole("heading", { name: "Test" })).toBeVisible();
   });
 
@@ -30,7 +30,7 @@ test.describe("recipes", () => {
         has: page.locator(".recipe-card-title", { hasText: /^Test$/ }),
       })
       .click();
-    await expect(page).toHaveURL(/\/recipes\/recipe\//);
+    await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
 
     await page.goBack();
     await expect(page).toHaveURL("/recipes");
@@ -47,7 +47,7 @@ test.describe("recipes", () => {
     await page.evaluate(() =>
       (document.querySelector(".recipe-card-link") as HTMLAnchorElement).click(),
     );
-    await expect(page).toHaveURL(/\/recipes\/recipe\//);
+    await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
 
     await page.goBack();
     await expect(page).toHaveURL("/recipes");
@@ -98,14 +98,10 @@ test.describe("recipes", () => {
     await expect(nameInputs.nth(0)).toHaveValue("flour");
     await expect(nameInputs.nth(1)).toHaveValue("salt");
 
-    // Clean up: create and immediately delete the recipe
+    // Clean up: create then delete from the recipe viewer
     await page.click('button:has-text("Create Recipe")');
-    await expect(page).toHaveURL("/recipes");
-    const card = page.locator(".recipe-card", {
-      has: page.locator(".recipe-card-title", { hasText: recipeName }),
-    });
-    await card.hover();
-    await card.locator('button:has-text("Delete")').click();
+    await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
+    await page.click('button:has-text("Delete")');
     await page.click('button:has-text("Confirm")');
   });
 
@@ -131,14 +127,10 @@ test.describe("recipes", () => {
     await expect(textareas.nth(0)).toHaveValue("Preheat oven.");
     await expect(textareas.nth(1)).toHaveValue("Bake for 30 min.");
 
-    // Clean up
+    // Clean up: create then delete from the recipe viewer
     await page.click('button:has-text("Create Recipe")');
-    await expect(page).toHaveURL("/recipes");
-    const card = page.locator(".recipe-card", {
-      has: page.locator(".recipe-card-title", { hasText: recipeName }),
-    });
-    await card.hover();
-    await card.locator('button:has-text("Delete")').click();
+    await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
+    await page.click('button:has-text("Delete")');
     await page.click('button:has-text("Confirm")');
   });
 
@@ -148,14 +140,7 @@ test.describe("recipes", () => {
     await page.click('button:has-text("Enter Manually")');
     await page.fill("#name", recipeName);
     await page.click('button:has-text("Create Recipe")');
-    await expect(page).toHaveURL("/recipes");
-
-    await page
-      .locator(".recipe-card-link", {
-        has: page.locator(".recipe-card-title", { hasText: recipeName }),
-      })
-      .click();
-    await expect(page).toHaveURL(/\/recipes\/recipe\//);
+    await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
 
     await page.click('button:has-text("Delete")');
     await page.click('button:has-text("Confirm")');
@@ -167,7 +152,7 @@ test.describe("recipes", () => {
   test("create, edit, and delete a recipe", async ({ page }) => {
     // Create
     await page.click('[aria-label="Add recipe"]');
-    await expect(page).toHaveURL("/recipes/add");
+    await expect(page).toHaveURL("/recipes/new");
     await page.click('button:has-text("Enter Manually")');
 
     await page.fill("#name", "E2E Test Recipe");
@@ -179,40 +164,25 @@ test.describe("recipes", () => {
     await page.locator("textarea").first().fill("Mix everything.");
 
     await page.click('button:has-text("Create Recipe")');
-    await expect(page).toHaveURL("/recipes");
-    await expect(page.locator(".recipe-card-title", { hasText: "E2E Test Recipe" })).toBeVisible();
+    await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
+    await expect(page.getByRole("heading", { name: "E2E Test Recipe" })).toBeVisible();
 
     // Edit
-    const card = page.locator(".recipe-card", {
-      has: page.locator(".recipe-card-title", { hasText: "E2E Test Recipe" }),
-    });
-    await card.hover();
-    await card.locator('button:has-text("Edit")').click();
-    await expect(page).toHaveURL(/\/recipes\/edit\//);
+    await page.click('button:has-text("Edit")');
+    await expect(page).toHaveURL(/\/recipes\/[^/]+\/edit$/);
 
     await page.fill("#name", "");
     await page.fill("#name", "E2E Test Recipe (edited)");
     await page.click('button:has-text("Save Changes")');
-    await expect(page).toHaveURL("/recipes");
-    await expect(
-      page.locator(".recipe-card-title", {
-        hasText: "E2E Test Recipe (edited)",
-      }),
-    ).toBeVisible();
+    await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
+    await expect(page.getByRole("heading", { name: "E2E Test Recipe (edited)" })).toBeVisible();
 
     // Delete
-    const editedCard = page.locator(".recipe-card", {
-      has: page.locator(".recipe-card-title", {
-        hasText: "E2E Test Recipe (edited)",
-      }),
-    });
-    await editedCard.hover();
-    await editedCard.locator('button:has-text("Delete")').click();
+    await page.click('button:has-text("Delete")');
     await page.click('button:has-text("Confirm")');
+    await expect(page).toHaveURL("/recipes");
     await expect(
-      page.locator(".recipe-card-title", {
-        hasText: "E2E Test Recipe (edited)",
-      }),
+      page.locator(".recipe-card-title", { hasText: "E2E Test Recipe (edited)" }),
     ).not.toBeVisible();
   });
 });
