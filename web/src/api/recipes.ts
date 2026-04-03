@@ -62,6 +62,17 @@ export async function importRecipeFromText(text: string): Promise<Recipe | null>
   return res.data.success ? res.data.data : null;
 }
 
+export async function uploadRecipeImage(file: File): Promise<string | null> {
+  const formData = new FormData();
+  formData.append("image", file);
+  const res = await client.post<ApiResponse<{ imageUrl: string }>>(
+    "/recipes/upload-image",
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return res.data.success ? res.data.data.imageUrl : null;
+}
+
 export async function deleteRecipe(id: string): Promise<ApiResponse<{ msg: string }> | null> {
   const res = await client.delete<ApiResponse<{ msg: string }>>(`/recipes/${id}`);
 

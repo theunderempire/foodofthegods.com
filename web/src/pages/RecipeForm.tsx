@@ -12,6 +12,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingsContext";
 import type { Direction, Ingredient, Recipe } from "../types/recipe";
 import { NotFound } from "./NotFound";
+import { ImagePickerDialog } from "../components/ImagePickerDialog";
 
 type Step = "select" | "url" | "text" | "form";
 
@@ -36,6 +37,7 @@ export function RecipeForm() {
   const [cookDuration, setCookDuration] = useState("");
   const [servings, setServings] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [showImagePicker, setShowImagePicker] = useState(false);
   const [ingredients, setIngredients] = useState<Ingredient[]>([blankIngredient()]);
   const [directions, setDirections] = useState<Direction[]>([blankDirection()]);
   const [loading, setLoading] = useState(isEdit);
@@ -360,15 +362,26 @@ export function RecipeForm() {
               </div>
             </div>
             <div className="form-group">
-              <label htmlFor="imageUrl">Image URL</label>
-              <input
-                id="imageUrl"
-                type="url"
-                className="input"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://example.com/image.jpg"
-              />
+              <label>Recipe Image</label>
+              <div className="image-field">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setShowImagePicker(true)}
+                >
+                  {imageUrl ? "Change Image" : "Choose Image"}
+                </button>
+                {imageUrl && <span className="field-hint">Image selected</span>}
+              </div>
+              {showImagePicker && (
+                <ImagePickerDialog
+                  onSelect={(url) => {
+                    setImageUrl(url);
+                    setShowImagePicker(false);
+                  }}
+                  onClose={() => setShowImagePicker(false)}
+                />
+              )}
             </div>
           </section>
 

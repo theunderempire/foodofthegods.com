@@ -1,7 +1,22 @@
 import express from "express";
+import multer from "multer";
 import RecipesService from "../services/recipes.service.js";
+import { saveUploadedImage } from "../services/thumbnail.service.js";
+
 const router = express.Router();
 const recipesService = new RecipesService();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+
+router.post("/upload-image", upload.single("image"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, data: "No image file provided" });
+  }
+  const imageUrl = await saveUploadedImage(req.file.buffer);
+  if (!imageUrl) {
+    return res.status(500).json({ success: false, data: "Failed to process image" });
+  }
+  res.json({ success: true, data: { imageUrl } });
+});
 
 router.post("/import-url", function (req, res) {
   recipesService.importRecipeFromUrl(req, res);

@@ -2,6 +2,7 @@ import sharp from "sharp";
 import path from "path";
 import { fileURLToPath } from "url";
 import { promises as fs } from "fs";
+import { randomUUID } from "crypto";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const THUMBNAILS_DIR = path.join(__dirname, "../../public/thumbnails");
@@ -42,5 +43,20 @@ export async function deleteThumbnail(recipeId) {
     await fs.unlink(path.join(THUMBNAILS_DIR, `${recipeId}.jpg`));
   } catch {
     // file may not exist, ignore
+  }
+}
+
+export async function saveUploadedImage(buffer) {
+  try {
+    const filename = `upload-${randomUUID()}.jpg`;
+    await sharp(buffer)
+      .resize(THUMBNAIL_WIDTH, null, { withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toFile(path.join(THUMBNAILS_DIR, filename));
+    const apiBase = process.env.VITE_API_BASE_URL ?? "";
+    return `${apiBase}/thumbnails/${filename}?v=${Date.now()}`;
+  } catch (err) {
+    console.warn(`[thumbnail] saveUploadedImage failed: ${err.message}`);
+    return null;
   }
 }

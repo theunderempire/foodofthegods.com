@@ -107,7 +107,7 @@ export function RecipeViewer() {
   return (
     <div className="page page-narrow">
       <div className="page-header">
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)}>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate(ROUTES.recipes.list)}>
           &#8592; Back
         </button>
         {isAuthenticated && id && (

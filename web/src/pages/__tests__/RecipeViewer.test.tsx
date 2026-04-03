@@ -162,4 +162,12 @@ describe("RecipeViewer", () => {
     await screen.findByRole("heading", { name: "Grandma's Lasagna" });
     expect(screen.getByRole("button", { name: "+ Shopping List" })).toBeInTheDocument();
   });
+
+  test("back button navigates to /recipes", async () => {
+    mockGetRecipe.mockResolvedValue(mockRecipe);
+    renderViewer();
+    await screen.findByRole("heading", { name: "Grandma's Lasagna" });
+    await userEvent.click(screen.getByRole("button", { name: /back/i }));
+    expect(mockNavigate).toHaveBeenCalledWith("/recipes");
+  });
 });

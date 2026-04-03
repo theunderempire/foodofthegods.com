@@ -4,7 +4,11 @@ import sharp from "sharp";
 import { promises as fs } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { generateThumbnail, deleteThumbnail } from "../../src/services/thumbnail.service.js";
+import {
+  generateThumbnail,
+  deleteThumbnail,
+  saveUploadedImage,
+} from "../../src/services/thumbnail.service.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const THUMBNAILS_DIR = path.join(__dirname, "../../public/thumbnails");
@@ -102,6 +106,40 @@ describe("thumbnail.service", () => {
 
     test("does not throw when file does not exist", async () => {
       await assert.doesNotReject(() => deleteThumbnail("r-thumb-nonexistent"));
+    });
+  });
+
+  describe("saveUploadedImage", () => {
+    test("returns a URL with upload- prefix and writes file to disk with non-zero size", async () => {
+      const result = await saveUploadedImage(tinyJpeg);
+      assert.ok(result, "should return a URL");
+      assert.match(result, /\/thumbnails\/upload-[0-9a-f-]+\.jpg\?v=\d+$/);
+      const filename = result.split("/thumbnails/")[1].split("?")[0];
+      const filePath = path.join(THUMBNAILS_DIR, filename);
+      try {
+        const stat = await fs.stat(filePath);
+        assert.ok(stat.size > 0, "thumbnail file should have content");
+      } finally {
+        await fs.unlink(filePath).catch(() => {});
+      }
+    });
+
+    test("returns null for an invalid buffer", async () => {
+      const result = await saveUploadedImage(Buffer.from("not-an-image"));
+      assert.equal(result, null);
+    });
+
+    test("generates a unique filename on each call", async () => {
+      const [url1, url2] = await Promise.all([
+        saveUploadedImage(tinyJpeg),
+        saveUploadedImage(tinyJpeg),
+      ]);
+      assert.ok(url1 && url2, "both calls should return a URL");
+      assert.notEqual(url1, url2, "URLs should be unique");
+      for (const url of [url1, url2]) {
+        const filename = url.split("/thumbnails/")[1].split("?")[0];
+        await fs.unlink(path.join(THUMBNAILS_DIR, filename)).catch(() => {});
+      }
     });
   });
 });

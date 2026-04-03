@@ -1,7 +1,23 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { RecipeForm } from "../RecipeForm";
+
+const mockImagePickerOnSelect = vi.fn();
+const mockImagePickerOnClose = vi.fn();
+vi.mock("../../components/ImagePickerDialog", () => ({
+  ImagePickerDialog: ({
+    onSelect,
+    onClose,
+  }: {
+    onSelect: (url: string) => void;
+    onClose: () => void;
+  }) => {
+    mockImagePickerOnSelect.mockImplementation(onSelect);
+    mockImagePickerOnClose.mockImplementation(onClose);
+    return <div data-testid="image-picker-dialog" />;
+  },
+}));
 
 const mockAddRecipe = vi.fn();
 const mockUpdateRecipe = vi.fn();
@@ -45,6 +61,8 @@ describe("RecipeForm", () => {
     mockImportRecipeFromUrl.mockReset();
     mockImportRecipeFromText.mockReset();
     mockNavigate.mockReset();
+    mockImagePickerOnSelect.mockReset();
+    mockImagePickerOnClose.mockReset();
     mockParams = {};
     mockUseSettings.mockReturnValue({ hasGeminiKey: true, refreshSettings: vi.fn() });
   });
@@ -220,5 +238,60 @@ describe("RecipeForm", () => {
       expect.objectContaining({ name: "New Name", _id: "recipe-1" }),
     );
     expect(mockNavigate).toHaveBeenCalledWith("/recipes/recipe-1");
+  });
+
+  test("shows 'Choose Image' button when no image is set", async () => {
+    renderForm();
+    await navigateToForm();
+    expect(screen.getByRole("button", { name: "Choose Image" })).toBeInTheDocument();
+    expect(screen.queryByText("Image selected")).not.toBeInTheDocument();
+  });
+
+  test("shows 'Change Image' button and 'Image selected' when imageUrl is already set in edit mode", async () => {
+    mockParams = { id: "recipe-1" };
+    mockGetRecipe.mockResolvedValue({
+      _id: "recipe-1",
+      name: "Recipe With Image",
+      prepDuration: "",
+      cookDuration: "",
+      servings: "",
+      imageUrl: "http://example.com/existing.jpg",
+      ingredients: [{ id: 1, name: "salt", amount: 1, unit: "" }],
+      directions: [{ id: 1, text: "Mix.", duration: "" }],
+      userId: "testuser-hash",
+    });
+    renderForm();
+    await screen.findByDisplayValue("Recipe With Image");
+    expect(screen.getByRole("button", { name: "Change Image" })).toBeInTheDocument();
+    expect(screen.getByText("Image selected")).toBeInTheDocument();
+  });
+
+  test("opens ImagePickerDialog when Choose Image is clicked", async () => {
+    renderForm();
+    await navigateToForm();
+    await userEvent.click(screen.getByRole("button", { name: "Choose Image" }));
+    expect(screen.getByTestId("image-picker-dialog")).toBeInTheDocument();
+  });
+
+  test("closes ImagePickerDialog when onClose is called", async () => {
+    renderForm();
+    await navigateToForm();
+    await userEvent.click(screen.getByRole("button", { name: "Choose Image" }));
+    expect(screen.getByTestId("image-picker-dialog")).toBeInTheDocument();
+    // mockImagePickerOnClose is wired to the real onClose prop via mockImplementation
+    await act(async () => {
+      mockImagePickerOnClose();
+    });
+    expect(screen.queryByTestId("image-picker-dialog")).not.toBeInTheDocument();
+  });
+
+  test("updates imageUrl and shows 'Image selected' when onSelect is called", async () => {
+    renderForm();
+    await navigateToForm();
+    await userEvent.click(screen.getByRole("button", { name: "Choose Image" }));
+    // mockImagePickerOnSelect is wired to the real onSelect prop via mockImplementation
+    mockImagePickerOnSelect("http://example.com/new-image.jpg");
+    await screen.findByText("Image selected");
+    expect(screen.getByRole("button", { name: "Change Image" })).toBeInTheDocument();
   });
 });

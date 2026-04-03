@@ -185,4 +185,45 @@ test.describe("recipes", () => {
       page.locator(".recipe-card-title", { hasText: "E2E Test Recipe (edited)" }),
     ).not.toBeVisible();
   });
+
+  test("upload image via file input sets image on recipe", async ({ page }) => {
+    const recipeName = `E2E Upload Image Test ${Date.now()}`;
+    await page.click('[aria-label="Add recipe"]');
+    await page.click('button:has-text("Enter Manually")');
+    await page.fill("#name", recipeName);
+
+    // Open image picker modal
+    await page.click('button:has-text("Choose Image")');
+    await expect(page.locator(".dialog-box")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Image URL" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Upload Image" })).toBeVisible();
+
+    // Switch to upload tab and upload an in-memory JPEG
+    await page.click('button:has-text("Upload Image")');
+    const minimalJpeg = Buffer.from(
+      "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U" +
+        "HRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgN" +
+        "DRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy" +
+        "MjL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAA" +
+        "AAAAAAAAAAAAAP/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oA" +
+        "DAMBAAIRAxEAPwCwABmX/9k=",
+      "base64",
+    );
+    await page.locator("#imageUpload").setInputFiles({
+      name: "test.jpg",
+      mimeType: "image/jpeg",
+      buffer: minimalJpeg,
+    });
+
+    // Modal should close and form should show "Image selected"
+    await expect(page.locator(".dialog-box")).not.toBeVisible();
+    await expect(page.locator(".field-hint", { hasText: "Image selected" })).toBeVisible();
+
+    // Create and clean up
+    await page.click('button:has-text("Create Recipe")');
+    await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
+    await page.click('button:has-text("Delete")');
+    await page.click('button:has-text("Confirm")');
+    await expect(page).toHaveURL("/recipes");
+  });
 });
