@@ -51,9 +51,7 @@ docker compose --profile seed up db-seed
 ### 3. Start the frontend
 
 ```bash
-cd web
-cp .env.example .env.development   # set VITE_API_BASE_URL=http://localhost:3000
-npm run dev
+cd web && npm run dev
 ```
 
 ---
@@ -67,12 +65,9 @@ npm run dev
 | `npm run preview`    | Preview production build locally |
 | `npm test`           | Run unit tests (Vitest)          |
 | `npm run test:watch` | Unit tests in watch mode         |
+| `npm run test:e2e`   | Run e2e tests (Playwright)       |
 
-**Environment variables** — copy `web/.env.example` to `web/.env.development`:
-
-```
-VITE_API_BASE_URL=http://localhost:3000
-```
+`VITE_API_BASE_URL` is read from the root `.env` file (no web-specific env file needed).
 
 Production builds output to `web/dist/` with base path `/foodofthegods/`.
 
@@ -107,7 +102,7 @@ cp .env.example .env
 | `JWT_SECRET`              | Secret for signing JWTs                                           |
 | `GEMINI_API_KEY`          | Google Gemini API key (used for recipe import)                    |
 | `APP_URL`                 | Frontend base URL, used in registration emails (no trailing slash)|
-| `API_URL`                 | API base URL, used in registration emails (no trailing slash)     |
+| `VITE_API_BASE_URL`       | API base URL, used in registration emails and thumbnail generation (no trailing slash) |
 | `SMTP_HOST`               | SMTP server hostname (e.g. `smtp.gmail.com`)                      |
 | `SMTP_PORT`               | SMTP port (`587` for TLS, `465` for SSL)                          |
 | `SMTP_USER`               | SMTP username / email address (also receives registration emails) |
@@ -164,7 +159,7 @@ Run on the server from the `web/` directory:
 ./autobuild
 ```
 
-Installs dependencies, builds the app, and deploys to `/var/www/html/theunderempire.com/public_html/foodofthegods/`.
+Installs dependencies, builds the app, and deploys to `$HOME/docker/caddy/site/foodofthegods`.
 
 ### First deploy (database seed)
 
