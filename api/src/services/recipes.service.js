@@ -4,8 +4,11 @@ import { generateThumbnail, deleteThumbnail } from "./thumbnail.service.js";
 
 var requestService = new RequestService();
 
-const geminiModel = process.env.GEMINI_MODEL || "gemini-2.0-flash";
-const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
+const defaultGeminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+
+function buildGeminiUrl(model) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+}
 
 // A service for making recipe operations
 var RecipesService = function () {
@@ -178,7 +181,7 @@ var RecipesService = function () {
     return str;
   }
 
-  async function callGemini(text, apiKey, attempt = 1) {
+  async function callGemini(text, apiKey, geminiUrl, attempt = 1) {
     const geminiResponse = await fetch(geminiUrl, {
       method: "POST",
       body: JSON.stringify({
@@ -225,7 +228,7 @@ ${text.slice(0, 50000)}`,
           `[recipes] callGemini: retrying in ${delay / 1000}s (attempt ${attempt}/3): ${reason}`,
         );
         await new Promise((r) => setTimeout(r, delay));
-        return callGemini(text, apiKey, attempt + 1);
+        return callGemini(text, apiKey, geminiUrl, attempt + 1);
       }
       throw new Error(`Gemini API error: ${reason}`);
     }
@@ -271,6 +274,7 @@ ${text.slice(0, 50000)}`,
     if (!apiKey) {
       return res.json({ success: false, data: "No Gemini API key set. Add one in Settings." });
     }
+    const geminiUrl = buildGeminiUrl(userDoc?.geminiModel || defaultGeminiModel);
 
     console.log(`[recipes] importRecipeFromUrl: fetching "${url}"`);
     try {
@@ -326,7 +330,7 @@ ${text.slice(0, 50000)}`,
           .trim();
       }
 
-      const recipe = await callGemini(text, apiKey);
+      const recipe = await callGemini(text, apiKey, geminiUrl);
       if (imageUrl) recipe.imageUrl = imageUrl;
       console.log(
         `[recipes] importRecipeFromUrl: successfully parsed recipe "${recipe.name}" from "${url}"`,
@@ -349,10 +353,11 @@ ${text.slice(0, 50000)}`,
     if (!apiKey) {
       return res.json({ success: false, data: "No Gemini API key set. Add one in Settings." });
     }
+    const geminiUrl = buildGeminiUrl(userDoc?.geminiModel || defaultGeminiModel);
 
     console.log(`[recipes] importRecipeFromText: parsing pasted recipe`);
     try {
-      const recipe = await callGemini(text, apiKey);
+      const recipe = await callGemini(text, apiKey, geminiUrl);
       console.log(`[recipes] importRecipeFromText: successfully parsed recipe "${recipe.name}"`);
       res.json({ success: true, data: recipe });
     } catch (err) {

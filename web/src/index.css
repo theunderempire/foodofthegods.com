@@ -310,6 +310,7 @@ textarea.input {
   color: var(--text-faint);
   text-transform: uppercase;
   letter-spacing: var(--track-wider);
+  margin-top: 0.5rem;
 }
 
 .link-subtle {

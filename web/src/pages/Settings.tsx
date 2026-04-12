@@ -1,20 +1,36 @@
-import { useState } from "react";
-import { saveSettings } from "../api/settings";
+import { useEffect, useState } from "react";
+import { getGeminiModels, saveSettings } from "../api/settings";
 import { showSuccessToast } from "../components/ToastContainer";
-import { useSettings } from "../contexts/SettingsContext";
+import { DEFAULT_GEMINI_MODEL, useSettings } from "../contexts/SettingsContext";
+
+// Known free-tier model IDs — used to annotate labels from the API
+const FREE_TIER_MODELS = new Set(["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"]);
 
 export function Settings() {
-  const { hasGeminiKey, refreshSettings } = useSettings();
+  const { hasGeminiKey, geminiModel, refreshSettings } = useSettings();
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [availableModels, setAvailableModels] = useState<{ value: string; label: string }[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+
+  useEffect(() => {
+    if (!hasGeminiKey) {
+      setAvailableModels([]);
+      return;
+    }
+    setLoadingModels(true);
+    getGeminiModels()
+      .then((models) => setAvailableModels(models))
+      .finally(() => setLoadingModels(false));
+  }, [hasGeminiKey]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!apiKey.trim()) return;
     setSaving(true);
     try {
-      await saveSettings(apiKey.trim());
+      await saveSettings({ geminiApiKey: apiKey.trim() });
       await refreshSettings();
       setApiKey("");
       showSuccessToast("API key saved.");
@@ -26,12 +42,23 @@ export function Settings() {
   async function handleRemove() {
     setRemoving(true);
     try {
-      await saveSettings(null);
+      await saveSettings({ geminiApiKey: null });
       await refreshSettings();
       showSuccessToast("API key removed.");
     } finally {
       setRemoving(false);
     }
+  }
+
+  async function handleModelChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const model = e.target.value;
+    await saveSettings({ geminiModel: model });
+    await refreshSettings();
+    showSuccessToast("Model saved.");
+  }
+
+  function modelLabel(value: string, label: string) {
+    return FREE_TIER_MODELS.has(value) ? `${label} (free tier)` : label;
   }
 
   return (
@@ -64,6 +91,24 @@ export function Settings() {
               placeholder={hasGeminiKey ? "••••••••" : "Enter your Gemini API key"}
             />
           </div>
+          {hasGeminiKey && availableModels.length > 0 && (
+            <div className="form-group">
+              <label htmlFor="geminiModel">Model</label>
+              <select
+                id="geminiModel"
+                className="input"
+                value={geminiModel || DEFAULT_GEMINI_MODEL}
+                onChange={handleModelChange}
+                disabled={loadingModels}
+              >
+                {availableModels.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {modelLabel(m.value, m.label)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="form-footer">
             {hasGeminiKey && (
               <button

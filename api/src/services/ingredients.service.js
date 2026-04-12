@@ -16,8 +16,7 @@ const IngredientService = function () {
 
   const ungroupedName = "ungrouped";
 
-  const geminiUrl =
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+  const defaultGeminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
   // Updates the list for the user with the passed id with the request body
   async function addIngredient(req, response) {
@@ -156,6 +155,8 @@ const IngredientService = function () {
           res.json({ success: false, data: "No Gemini API key configured" });
           return;
         }
+
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${user?.geminiModel || defaultGeminiModel}:generateContent`;
 
         const docs = await collection.findOne({ userId }, {});
         if (docs?.ingredientList?.groups?.length) {
