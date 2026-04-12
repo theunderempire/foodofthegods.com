@@ -170,7 +170,10 @@ export function IngredientList() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Shopping List</h1>
+        <h1 className="page-title">
+          Shopping List
+          {totalItems > 0 && <span className="page-title-count">{totalItems}</span>}
+        </h1>
         <div className="list-toolbar">
           <button
             className="btn btn-ghost btn-sm"

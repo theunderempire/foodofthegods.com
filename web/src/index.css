@@ -461,6 +461,14 @@ textarea.input {
   line-height: 1.1;
 }
 
+.page-title-count {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-faint);
+  margin-left: 0.6rem;
+  vertical-align: middle;
+}
+
 .page-loading {
   color: var(--text-faint);
   padding: 5rem 3rem;
