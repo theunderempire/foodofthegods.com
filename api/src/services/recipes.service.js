@@ -4,7 +4,7 @@ import { generateThumbnail, deleteThumbnail } from "./thumbnail.service.js";
 
 var requestService = new RequestService();
 
-const defaultGeminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const defaultGeminiModel = "gemini-2.5-flash";
 
 function buildGeminiUrl(model) {
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;

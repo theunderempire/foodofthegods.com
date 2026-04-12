@@ -16,7 +16,7 @@ const IngredientService = function () {
 
   const ungroupedName = "ungrouped";
 
-  const defaultGeminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const defaultGeminiModel = "gemini-2.5-flash";
 
   // Updates the list for the user with the passed id with the request body
   async function addIngredient(req, response) {
