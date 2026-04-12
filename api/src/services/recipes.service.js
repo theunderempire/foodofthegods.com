@@ -4,8 +4,8 @@ import { generateThumbnail, deleteThumbnail } from "./thumbnail.service.js";
 
 var requestService = new RequestService();
 
-const geminiUrl =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+const geminiModel = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
 
 // A service for making recipe operations
 var RecipesService = function () {
@@ -178,7 +178,7 @@ var RecipesService = function () {
     return str;
   }
 
-  async function callGemini(text, apiKey) {
+  async function callGemini(text, apiKey, attempt = 1) {
     const geminiResponse = await fetch(geminiUrl, {
       method: "POST",
       body: JSON.stringify({
@@ -216,6 +216,17 @@ ${text.slice(0, 50000)}`,
         responseBody.error?.message ||
         responseBody.promptFeedback?.blockReason ||
         "no candidates returned";
+      const isTransient =
+        responseBody.error?.code === 503 ||
+        (typeof reason === "string" && reason.toLowerCase().includes("high demand"));
+      if (isTransient && attempt < 3) {
+        const delay = attempt * 3000;
+        console.log(
+          `[recipes] callGemini: retrying in ${delay / 1000}s (attempt ${attempt}/3): ${reason}`,
+        );
+        await new Promise((r) => setTimeout(r, delay));
+        return callGemini(text, apiKey, attempt + 1);
+      }
       throw new Error(`Gemini API error: ${reason}`);
     }
     const rawText = responseBody.candidates[0].content.parts[0].text;
