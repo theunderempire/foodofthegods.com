@@ -1,29 +1,18 @@
-import { useEffect, useState } from "react";
-import { getGeminiModels, saveSettings } from "../api/settings";
+import { useState } from "react";
+import { saveSettings } from "../api/settings";
 import { showSuccessToast } from "../components/ToastContainer";
 import { DEFAULT_GEMINI_MODEL, useSettings } from "../contexts/SettingsContext";
 
-// Known free-tier model IDs — used to annotate labels from the API
-const FREE_TIER_MODELS = new Set(["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"]);
+const GEMINI_MODELS = [
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (free tier)" },
+  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite" },
+];
 
 export function Settings() {
   const { hasGeminiKey, geminiModel, refreshSettings } = useSettings();
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const [availableModels, setAvailableModels] = useState<{ value: string; label: string }[]>([]);
-  const [loadingModels, setLoadingModels] = useState(false);
-
-  useEffect(() => {
-    if (!hasGeminiKey) {
-      setAvailableModels([]);
-      return;
-    }
-    setLoadingModels(true);
-    getGeminiModels()
-      .then((models) => setAvailableModels(models))
-      .finally(() => setLoadingModels(false));
-  }, [hasGeminiKey]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -51,14 +40,9 @@ export function Settings() {
   }
 
   async function handleModelChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const model = e.target.value;
-    await saveSettings({ geminiModel: model });
+    await saveSettings({ geminiModel: e.target.value });
     await refreshSettings();
     showSuccessToast("Model saved.");
-  }
-
-  function modelLabel(value: string, label: string) {
-    return FREE_TIER_MODELS.has(value) ? `${label} (free tier)` : label;
   }
 
   return (
@@ -91,7 +75,7 @@ export function Settings() {
               placeholder={hasGeminiKey ? "••••••••" : "Enter your Gemini API key"}
             />
           </div>
-          {hasGeminiKey && availableModels.length > 0 && (
+          {hasGeminiKey && (
             <div className="form-group">
               <label htmlFor="geminiModel">Model</label>
               <select
@@ -99,11 +83,10 @@ export function Settings() {
                 className="input"
                 value={geminiModel || DEFAULT_GEMINI_MODEL}
                 onChange={handleModelChange}
-                disabled={loadingModels}
               >
-                {availableModels.map((m) => (
+                {GEMINI_MODELS.map((m) => (
                   <option key={m.value} value={m.value}>
-                    {modelLabel(m.value, m.label)}
+                    {m.label}
                   </option>
                 ))}
               </select>

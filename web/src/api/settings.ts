@@ -16,12 +16,3 @@ export async function saveSettings(payload: {
 }): Promise<void> {
   await client.put("/users/settings", payload);
 }
-
-export async function getGeminiModels(): Promise<{ value: string; label: string }[]> {
-  const res = await client.get<{
-    success: boolean;
-    data: { value: string; label: string }[] | string;
-  }>("/users/gemini-models");
-  if (!res.data.success || !Array.isArray(res.data.data)) return [];
-  return res.data.data;
-}

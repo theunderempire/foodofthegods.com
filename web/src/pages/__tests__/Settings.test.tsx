@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({
   geminiModel: "gemini-2.5-flash",
   refreshSettings: vi.fn(),
   saveSettings: vi.fn(),
-  getGeminiModels: vi.fn(),
   showSuccessToast: vi.fn(),
 }));
 
@@ -22,7 +21,6 @@ vi.mock("../../contexts/SettingsContext", () => ({
 
 vi.mock("../../api/settings", () => ({
   saveSettings: mocks.saveSettings,
-  getGeminiModels: mocks.getGeminiModels,
 }));
 
 vi.mock("../../components/ToastContainer", () => ({
@@ -35,7 +33,6 @@ describe("Settings", () => {
     mocks.geminiModel = "gemini-2.5-flash";
     mocks.refreshSettings.mockResolvedValue(undefined);
     mocks.saveSettings.mockResolvedValue(undefined);
-    mocks.getGeminiModels.mockResolvedValue([]);
     mocks.showSuccessToast.mockReset();
   });
 
@@ -56,49 +53,27 @@ describe("Settings", () => {
     expect(screen.queryByLabelText("Model")).not.toBeInTheDocument();
   });
 
-  test("does not show model dropdown when API key is saved but no models load", async () => {
+  test("shows model dropdown when API key is saved", () => {
     mocks.hasGeminiKey = true;
-    mocks.getGeminiModels.mockResolvedValue([]);
     render(<Settings />);
-    await waitFor(() => expect(mocks.getGeminiModels).toHaveBeenCalled());
-    expect(screen.queryByLabelText("Model")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Model")).toBeInTheDocument();
   });
 
-  test("shows model dropdown when API key is saved and models load", async () => {
+  test("dropdown contains both available models", () => {
     mocks.hasGeminiKey = true;
-    mocks.getGeminiModels.mockResolvedValue([
-      { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-      { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-    ]);
     render(<Settings />);
-    expect(await screen.findByLabelText("Model")).toBeInTheDocument();
-  });
-
-  test("annotates free-tier models in the dropdown", async () => {
-    mocks.hasGeminiKey = true;
-    mocks.getGeminiModels.mockResolvedValue([
-      { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-      { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-    ]);
-    render(<Settings />);
-    await screen.findByLabelText("Model");
     expect(
       screen.getByRole("option", { name: "Gemini 2.5 Flash (free tier)" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Gemini 2.5 Pro" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Gemini 2.5 Flash-Lite" })).toBeInTheDocument();
   });
 
   test("saves model and shows toast when selection changes", async () => {
     mocks.hasGeminiKey = true;
     mocks.geminiModel = "gemini-2.5-flash";
-    mocks.getGeminiModels.mockResolvedValue([
-      { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
-      { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-    ]);
     render(<Settings />);
-    const select = await screen.findByLabelText("Model");
-    await userEvent.selectOptions(select, "gemini-2.5-pro");
-    expect(mocks.saveSettings).toHaveBeenCalledWith({ geminiModel: "gemini-2.5-pro" });
+    await userEvent.selectOptions(screen.getByLabelText("Model"), "gemini-2.5-flash-lite");
+    expect(mocks.saveSettings).toHaveBeenCalledWith({ geminiModel: "gemini-2.5-flash-lite" });
     await waitFor(() => expect(mocks.showSuccessToast).toHaveBeenCalledWith("Model saved."));
   });
 
@@ -118,10 +93,9 @@ describe("Settings", () => {
     await waitFor(() => expect(input).toHaveValue(""));
   });
 
-  test("shows remove button and update label when API key is already saved", async () => {
+  test("shows remove button and update label when API key is already saved", () => {
     mocks.hasGeminiKey = true;
     render(<Settings />);
-    await waitFor(() => expect(mocks.getGeminiModels).toHaveBeenCalled());
     expect(screen.getByRole("button", { name: "Remove key" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Update key" })).toBeInTheDocument();
   });
