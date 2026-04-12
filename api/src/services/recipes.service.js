@@ -211,6 +211,13 @@ ${text.slice(0, 50000)}`,
       },
     });
     const responseBody = await geminiResponse.json();
+    if (!responseBody.candidates?.length) {
+      const reason =
+        responseBody.error?.message ||
+        responseBody.promptFeedback?.blockReason ||
+        "no candidates returned";
+      throw new Error(`Gemini API error: ${reason}`);
+    }
     const rawText = responseBody.candidates[0].content.parts[0].text;
 
     // Strip markdown fencing (case-insensitive)
