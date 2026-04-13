@@ -28,6 +28,11 @@ const IngredientService = function () {
       try {
         const docs = await collection.findOne({ userId }, {});
 
+        if (docs?.ingredientList?.grouping) {
+          response.json({ success: false, data: "List is being grouped, try again in a moment." });
+          return;
+        }
+
         let ingredientList;
         if (docs?.ingredientList) {
           ingredientList = docs.ingredientList;
@@ -79,6 +84,11 @@ const IngredientService = function () {
     if (requestService.checkUser(req, userId)) {
       try {
         const docs = await collection.findOne({ userId }, {});
+
+        if (docs?.ingredientList?.grouping) {
+          response.json({ success: false, data: "List is being grouped, try again in a moment." });
+          return;
+        }
 
         let ingredientList;
         const toItems = (ing) => ({ ingredient: { ...ing, id: randomUUID() }, completed: false });
@@ -146,6 +156,7 @@ const IngredientService = function () {
     const collection = getIngredientListCollection(req);
 
     if (requestService.checkUser(req, userId)) {
+      let docs = null;
       try {
         const userCollection = req.db.get("users");
         const user = await userCollection.findOne({ username: req.decoded.username });
@@ -158,10 +169,17 @@ const IngredientService = function () {
 
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${user?.geminiModel || defaultGeminiModel}:generateContent`;
 
-        const docs = await collection.findOne({ userId }, {});
+        docs = await collection.findOne({ userId }, {});
         if (docs?.ingredientList?.groups?.length) {
           console.log(`[ingredients] groupIngredientList: calling Gemini for user="${userId}"`);
           const groups = docs.ingredientList.groups;
+
+          await collection.update({ userId }, { $set: { "ingredientList.grouping": true } });
+          broadcast(userId, {
+            ...docs,
+            ingredientList: { ...docs.ingredientList, grouping: true },
+          });
+
           const response = await fetch(geminiUrl, {
             method: "POST",
             body: JSON.stringify({
@@ -240,22 +258,33 @@ const IngredientService = function () {
             const strippedResponse = groupedListJSON.replace("```json", "").replace("```", "");
             const groupedItems = JSON.parse(strippedResponse);
 
-            const newDocs = { ...docs };
-            newDocs.ingredientList.groups = groupedItems;
-
+            const updatedIngredientList = {
+              ...docs.ingredientList,
+              groups: groupedItems,
+              grouping: false,
+            };
             await collection.update(
               { userId },
-              { $set: { ingredientList: newDocs.ingredientList } },
+              { $set: { ingredientList: updatedIngredientList } },
             );
-            broadcast(userId, newDocs);
-            res.json({ success: true, data: newDocs });
+            const resultDocs = { ...docs, ingredientList: updatedIngredientList };
+            broadcast(userId, resultDocs);
+            res.json({ success: true, data: resultDocs });
           } else {
             const errBody = await response.text().catch(() => "(unreadable)");
             console.warn(
               `[ingredients] groupIngredientList: Gemini responded with status ${response.status} for user="${userId}": ${errBody}`,
             );
+            await collection.update({ userId }, { $set: { "ingredientList.grouping": false } });
+            broadcast(userId, {
+              ...docs,
+              ingredientList: { ...docs.ingredientList, grouping: false },
+            });
             if (response.status === 429) {
-              res.json({ success: true, data: "Rate limited" });
+              res.json({
+                success: false,
+                data: "Gemini rate limit reached. Try again in a moment.",
+              });
             } else {
               res.json({
                 success: false,
@@ -273,6 +302,15 @@ const IngredientService = function () {
         console.error(
           `[ingredients] groupIngredientList error user="${userId}": ${err.message || err}`,
         );
+        if (docs) {
+          await collection
+            .update({ userId }, { $set: { "ingredientList.grouping": false } })
+            .catch(() => {});
+          broadcast(userId, {
+            ...docs,
+            ingredientList: { ...docs.ingredientList, grouping: false },
+          });
+        }
         res.json({ success: false, data: err.message || err });
       }
     } else {
@@ -287,6 +325,12 @@ const IngredientService = function () {
     if (requestService.checkUser(req, userId)) {
       try {
         const docs = await collection.findOne({ userId }, {});
+
+        if (docs?.ingredientList?.grouping) {
+          response.json({ success: false, data: "List is being grouped, try again in a moment." });
+          return;
+        }
+
         docs.ingredientList = {
           groups: [],
           lastModified: new Date().toString(),
@@ -313,6 +357,12 @@ const IngredientService = function () {
     if (requestService.checkUser(req, userId)) {
       try {
         const docs = await collection.findOne({ userId }, {});
+
+        if (docs?.ingredientList?.grouping) {
+          res.json({ success: false, data: "List is being grouped, try again in a moment." });
+          return;
+        }
+
         const itemGroupIndex = docs.ingredientList.groups.findIndex(
           (group) => group.name === groupName,
         );
@@ -363,6 +413,12 @@ const IngredientService = function () {
     if (requestService.checkUser(req, userId)) {
       try {
         const docs = await collection.findOne({ userId }, {});
+
+        if (docs?.ingredientList?.grouping) {
+          response.json({ success: false, data: "List is being grouped, try again in a moment." });
+          return;
+        }
+
         const removeGroups = [];
 
         docs.ingredientList.groups.forEach((group) => {
@@ -406,6 +462,12 @@ const IngredientService = function () {
 
       try {
         const docs = await collection.findOne({ userId }, {});
+
+        if (docs?.ingredientList?.grouping) {
+          response.json({ success: false, data: "List is being grouped, try again in a moment." });
+          return;
+        }
+
         const itemGroup = docs.ingredientList.groups.find((group) => group.name === groupName);
 
         if (itemGroup) {

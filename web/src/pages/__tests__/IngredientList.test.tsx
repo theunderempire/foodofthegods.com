@@ -7,6 +7,7 @@ const mockGetIngredientList = vi.fn();
 const mockAddIngredients = vi.fn();
 const mockRemoveIngredient = vi.fn();
 const mockUpdateIngredient = vi.fn();
+const mockGroupIngredients = vi.fn();
 
 vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({ username: "testuser-hash" }),
@@ -24,7 +25,8 @@ vi.mock("../../api/ingredientList", () => ({
   updateIngredient: (...args: unknown[]) => mockUpdateIngredient(...args),
   clearAllIngredients: vi.fn(),
   clearMarkedIngredients: vi.fn(),
-  groupIngredients: vi.fn(),
+  groupIngredients: (...args: unknown[]) => mockGroupIngredients(...args),
+  subscribeToList: vi.fn().mockReturnValue(() => {}),
 }));
 
 const mockList = {
@@ -46,12 +48,27 @@ const mockList = {
   lastModified: "",
 };
 
+const mockGroupingList = {
+  ...mockList,
+  groups: [
+    {
+      name: "Uncategorized",
+      items: [
+        { completed: true, ingredient: { id: 1, name: "butter", amount: 2, unit: "tbsp" } },
+        { completed: false, ingredient: { id: 2, name: "eggs", amount: 3, unit: "" } },
+      ],
+    },
+  ],
+  grouping: true,
+};
+
 describe("IngredientList", () => {
   beforeEach(() => {
     mockGetIngredientList.mockReset();
     mockAddIngredients.mockReset();
     mockRemoveIngredient.mockReset();
     mockUpdateIngredient.mockReset();
+    mockGroupIngredients.mockReset();
     mockUseSettings.mockReturnValue({ hasGeminiKey: true, refreshSettings: vi.fn() });
   });
 
@@ -189,5 +206,42 @@ describe("IngredientList", () => {
     renderList();
     await screen.findByText("butter");
     expect(screen.getByRole("button", { name: /Auto-group/i })).not.toBeDisabled();
+  });
+
+  test("shows Grouping spinner and hides list items when list.grouping is true", async () => {
+    mockGetIngredientList.mockResolvedValue(mockGroupingList);
+    renderList();
+    // Wait for the toolbar button to reflect the grouping state, then verify the spinner div
+    await screen.findByRole("button", { name: "Grouping..." });
+    expect(screen.getByText("Grouping...", { selector: "div" })).toBeInTheDocument();
+    expect(screen.queryByText("butter")).not.toBeInTheDocument();
+    expect(screen.queryByText("eggs")).not.toBeInTheDocument();
+  });
+
+  test("disables toolbar buttons when list.grouping is true", async () => {
+    mockGetIngredientList.mockResolvedValue(mockGroupingList);
+    renderList();
+    await screen.findByRole("button", { name: "Grouping..." });
+    expect(screen.getByRole("button", { name: "Grouping..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Remove checked/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Clear all/i })).toBeDisabled();
+  });
+
+  test("disables the add ingredient FAB when list.grouping is true", async () => {
+    mockGetIngredientList.mockResolvedValue(mockGroupingList);
+    renderList();
+    await screen.findByRole("button", { name: "Grouping..." });
+    expect(screen.getByRole("button", { name: "Add ingredient" })).toBeDisabled();
+  });
+
+  test("does not clear the list when groupIngredients returns null", async () => {
+    mockGetIngredientList.mockResolvedValue(mockList);
+    mockGroupIngredients.mockResolvedValue(null);
+    renderList();
+    await screen.findByText("butter");
+
+    await userEvent.click(screen.getByRole("button", { name: /Auto-group/i }));
+
+    expect(screen.getByText("butter")).toBeInTheDocument();
   });
 });

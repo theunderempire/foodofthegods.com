@@ -112,6 +112,24 @@ describe("IngredientService", () => {
       assert.match(String(groups[0].items[0].ingredient.id), UUID_REGEX);
     });
 
+    test("returns failure when list is being grouped", async () => {
+      const res = makeRes();
+      const req = makeIngredientReq({
+        body: { ingredient: SALT },
+        collections: {
+          ingredientlist: makeCollection({
+            findOne: (_q, _o) =>
+              Promise.resolve({ ingredientList: { groups: [], grouping: true } }),
+          }),
+        },
+      });
+
+      await service.addIngredient(req, res);
+
+      assert.equal(res._body.success, false);
+      assert.match(res._body.data, /being grouped/);
+    });
+
     test("returns 401 for unauthorized user", async () => {
       const res = makeRes();
       const req = makeIngredientReq({ params: { userId: "user-2" } });
@@ -213,6 +231,24 @@ describe("IngredientService", () => {
       }
     });
 
+    test("returns failure when list is being grouped", async () => {
+      const res = makeRes();
+      const req = makeIngredientReq({
+        body: { ingredients: [SALT, SUGAR] },
+        collections: {
+          ingredientlist: makeCollection({
+            findOne: (_q, _o) =>
+              Promise.resolve({ ingredientList: { groups: [], grouping: true } }),
+          }),
+        },
+      });
+
+      await service.addManyIngredients(req, res);
+
+      assert.equal(res._body.success, false);
+      assert.match(res._body.data, /being grouped/);
+    });
+
     test("returns 401 for unauthorized user", async () => {
       const res = makeRes();
       const req = makeIngredientReq({ params: { userId: "user-2" } });
@@ -287,6 +323,24 @@ describe("IngredientService", () => {
       assert.match(res._body.msg, /could not find item/);
     });
 
+    test("returns failure when list is being grouped", async () => {
+      const res = makeRes();
+      const req = makeIngredientReq({
+        params: { userId: "user-1", groupName: "ungrouped", itemId: SALT_ID },
+        collections: {
+          ingredientlist: makeCollection({
+            findOne: (_q, _o) =>
+              Promise.resolve({ ingredientList: { groups: [], grouping: true } }),
+          }),
+        },
+      });
+
+      await service.removeIngredient(req, res);
+
+      assert.equal(res._body.success, false);
+      assert.match(res._body.data, /being grouped/);
+    });
+
     test("returns 401 for unauthorized user", async () => {
       const res = makeRes();
       const req = makeIngredientReq({ params: { userId: "user-2" } });
@@ -318,6 +372,23 @@ describe("IngredientService", () => {
       await service.removeAllIngredients(req, res);
 
       assert.equal(res._body.data.ingredientList.groups.length, 0);
+    });
+
+    test("returns failure when list is being grouped", async () => {
+      const res = makeRes();
+      const req = makeIngredientReq({
+        collections: {
+          ingredientlist: makeCollection({
+            findOne: (_q, _o) =>
+              Promise.resolve({ ingredientList: { groups: [], grouping: true } }),
+          }),
+        },
+      });
+
+      await service.removeAllIngredients(req, res);
+
+      assert.equal(res._body.success, false);
+      assert.match(res._body.data, /being grouped/);
     });
 
     test("returns 401 for unauthorized user", async () => {
@@ -375,6 +446,23 @@ describe("IngredientService", () => {
       await service.removeMarkedIngredients(req, res);
 
       assert.equal(res._body.data.ingredientList.groups.length, 0);
+    });
+
+    test("returns failure when list is being grouped", async () => {
+      const res = makeRes();
+      const req = makeIngredientReq({
+        collections: {
+          ingredientlist: makeCollection({
+            findOne: (_q, _o) =>
+              Promise.resolve({ ingredientList: { groups: [], grouping: true } }),
+          }),
+        },
+      });
+
+      await service.removeMarkedIngredients(req, res);
+
+      assert.equal(res._body.success, false);
+      assert.match(res._body.data, /being grouped/);
     });
 
     test("returns 401 for unauthorized user", async () => {
@@ -455,7 +543,7 @@ describe("IngredientService", () => {
       }
     });
 
-    test("returns success with rate-limited message on Gemini 429", async () => {
+    test("returns failure with rate-limited message on Gemini 429", async () => {
       const originalFetch = globalThis.fetch;
       globalThis.fetch = async () => ({
         ok: false,
@@ -467,8 +555,8 @@ describe("IngredientService", () => {
         const res = makeRes();
         await service.groupIngredientList(makeGroupReq(), res);
 
-        assert.equal(res._body.success, true);
-        assert.equal(res._body.data, "Rate limited");
+        assert.equal(res._body.success, false);
+        assert.match(res._body.data, /rate limit/i);
       } finally {
         globalThis.fetch = originalFetch;
       }
@@ -538,6 +626,82 @@ describe("IngredientService", () => {
       assert.equal(res._body.success, false);
     });
 
+    test("sets grouping lock before calling Gemini", async () => {
+      const updateCalls = [];
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: JSON.stringify(GROUPED_RESPONSE) }] } }],
+        }),
+      });
+
+      try {
+        const res = makeRes();
+        const req = makeGroupReq({
+          ingredientlistOverrides: {
+            update: (_q, u) => {
+              updateCalls.push(u);
+              return Promise.resolve();
+            },
+          },
+        });
+        await service.groupIngredientList(req, res);
+
+        assert.equal(updateCalls[0].$set["ingredientList.grouping"], true);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("clears grouping lock in the response after successful grouping", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        ok: true,
+        json: async () => ({
+          candidates: [{ content: { parts: [{ text: JSON.stringify(GROUPED_RESPONSE) }] } }],
+        }),
+      });
+
+      try {
+        const res = makeRes();
+        await service.groupIngredientList(makeGroupReq(), res);
+
+        assert.equal(res._body.data.ingredientList.grouping, false);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("clears grouping lock when Gemini returns an error", async () => {
+      const updateCalls = [];
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        ok: false,
+        status: 500,
+        text: async () => "Internal Server Error",
+      });
+
+      try {
+        const res = makeRes();
+        const req = makeGroupReq({
+          ingredientlistOverrides: {
+            update: (_q, u) => {
+              updateCalls.push(u);
+              return Promise.resolve();
+            },
+          },
+        });
+        await service.groupIngredientList(req, res);
+
+        const lastUpdate = updateCalls[updateCalls.length - 1];
+        assert.equal(lastUpdate.$set["ingredientList.grouping"], false);
+        assert.equal(res._body.success, false);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
     test("returns 401 for unauthorized user", async () => {
       const res = makeRes();
       const req = makeIngredientReq({ params: { userId: "user-2" } });
@@ -591,6 +755,25 @@ describe("IngredientService", () => {
       await service.updateIngredient(req, res);
 
       assert.match(res._body.msg, /could not find item/);
+    });
+
+    test("returns failure when list is being grouped", async () => {
+      const updatedSalt = { ingredient: { ...SALT, amount: 3 }, completed: false };
+      const res = makeRes();
+      const req = makeIngredientReq({
+        body: { payload: { groupName: "ungrouped", ingredientListItem: updatedSalt } },
+        collections: {
+          ingredientlist: makeCollection({
+            findOne: (_q, _o) =>
+              Promise.resolve({ ingredientList: { groups: [], grouping: true } }),
+          }),
+        },
+      });
+
+      await service.updateIngredient(req, res);
+
+      assert.equal(res._body.success, false);
+      assert.match(res._body.data, /being grouped/);
     });
 
     test("returns 401 for unauthorized user", async () => {

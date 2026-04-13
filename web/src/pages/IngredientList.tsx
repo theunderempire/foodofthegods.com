@@ -153,7 +153,7 @@ export function IngredientList() {
     setGrouping(true);
     try {
       const updated = await groupIngredients(username);
-      setList(updated);
+      if (updated) setList(updated);
     } catch {
       setError("Failed to auto-group ingredients.");
     } finally {
@@ -178,20 +178,20 @@ export function IngredientList() {
           <button
             className="btn btn-ghost btn-sm"
             onClick={handleGroup}
-            disabled={grouping || totalItems === 0 || !hasGeminiKey}
+            disabled={grouping || !!list?.grouping || totalItems === 0 || !hasGeminiKey}
             title={
               !hasGeminiKey
                 ? "Add a Gemini API key in Settings to use Auto-group"
                 : "Auto-group by store section using AI"
             }
           >
-            {grouping ? "Grouping..." : <>&#x2728;Auto-group</>}
+            {grouping || list?.grouping ? "Grouping..." : <>&#x2728;Auto-group</>}
           </button>
           {markedItems > 0 && (
             <button
               className="btn btn-ghost btn-sm"
               onClick={() => setConfirmClear("marked")}
-              disabled={clearing}
+              disabled={clearing || !!list?.grouping}
             >
               Remove checked ({markedItems})
             </button>
@@ -200,7 +200,7 @@ export function IngredientList() {
             <button
               className="btn btn-ghost btn-sm btn-danger-text"
               onClick={() => setConfirmClear("all")}
-              disabled={clearing}
+              disabled={clearing || !!list?.grouping}
             >
               Clear all
             </button>
@@ -210,7 +210,9 @@ export function IngredientList() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      {totalItems === 0 ? (
+      {list?.grouping ? (
+        <div className="page-loading">Grouping...</div>
+      ) : totalItems === 0 ? (
         <div className="empty-state">
           <p>Your shopping list is empty.</p>
           <p className="empty-hint">Add ingredients from a recipe to get started.</p>
@@ -264,7 +266,12 @@ export function IngredientList() {
         </div>
       )}
 
-      <button className="fab" onClick={() => setAddModalOpen(true)} aria-label="Add ingredient">
+      <button
+        className="fab"
+        onClick={() => setAddModalOpen(true)}
+        aria-label="Add ingredient"
+        disabled={!!list?.grouping}
+      >
         +
       </button>
 

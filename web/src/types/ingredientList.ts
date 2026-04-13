@@ -1,4 +1,4 @@
-import type { Ingredient } from './recipe';
+import type { Ingredient } from "./recipe";
 
 export interface IngredientListItem {
   ingredient: Ingredient;
@@ -13,6 +13,7 @@ export interface IngredientListGroup {
 export interface IngredientList {
   groups: IngredientListGroup[];
   lastModified: string;
+  grouping?: boolean;
 }
 
 export interface IngredientListContainer {
