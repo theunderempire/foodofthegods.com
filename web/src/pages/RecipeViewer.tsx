@@ -91,7 +91,7 @@ export function RecipeViewer() {
   }
 
   function handleCopyShareLink() {
-    const link = `${window.location.origin}${import.meta.env.BASE_URL}recipes/share/${recipeId}`;
+    const link = `${window.location.origin}${ROUTES.recipes.share(recipeId)}`;
     navigator.clipboard.writeText(link).then(() => {
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);

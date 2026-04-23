@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { matchPath, MemoryRouter } from "react-router-dom";
+import { ROUTES } from "../../routes";
 import { RecipeViewer } from "../RecipeViewer";
 
 const mockGetRecipe = vi.fn();
@@ -102,6 +103,25 @@ describe("RecipeViewer", () => {
     expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+  });
+
+  test("Share button copies correct share link to clipboard", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    mockGetRecipe.mockResolvedValue(mockRecipe);
+    renderViewer();
+    await screen.findByRole("heading", { name: "Grandma's Lasagna" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Share" }));
+
+    const generatedUrl = writeText.mock.calls[0][0];
+    const pathname = new URL(generatedUrl).pathname;
+    const match = matchPath(ROUTES.recipes.SHARE_PATTERN, pathname);
+
+    expect(match).not.toBeNull();
+    expect(match?.params.shareId).toBe("recipe-1");
+    expect(await screen.findByRole("button", { name: "Link copied!" })).toBeInTheDocument();
   });
 
   test("clicking Delete shows a confirmation dialog", async () => {
