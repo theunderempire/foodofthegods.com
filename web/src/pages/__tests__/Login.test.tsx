@@ -19,6 +19,7 @@ describe("Login", () => {
   beforeEach(() => {
     mockLogin.mockReset();
     mockNavigate.mockReset();
+    sessionStorage.clear();
   });
 
   function renderLogin() {
@@ -45,7 +46,21 @@ describe("Login", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sign In" }));
 
     expect(mockLogin).toHaveBeenCalledWith("testuser", "testpassword");
-    expect(mockNavigate).toHaveBeenCalledWith("/recipes");
+    expect(mockNavigate).toHaveBeenCalledWith("/recipes", { replace: true });
+  });
+
+  test("resumes the stored deeplink after a successful login", async () => {
+    sessionStorage.setItem("fotg_return_to", "/recipes/123?tab=notes");
+    mockLogin.mockResolvedValue(undefined);
+    renderLogin();
+
+    await userEvent.type(screen.getByLabelText("Username"), "testuser");
+    await userEvent.type(screen.getByLabelText("Password"), "testpassword");
+    await userEvent.click(screen.getByRole("button", { name: "Sign In" }));
+
+    expect(mockNavigate).toHaveBeenCalledWith("/recipes/123?tab=notes", { replace: true });
+    // the stored path is consumed (cleared) so it isn't reused later
+    expect(sessionStorage.getItem("fotg_return_to")).toBeNull();
   });
 
   test("shows error message when login fails", async () => {

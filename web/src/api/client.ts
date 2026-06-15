@@ -1,5 +1,6 @@
 import axios from "axios";
 import Cookies from "js-cookie";
+import { setReturnTo, toRouterPath } from "../returnTo";
 
 const COOKIE_NAME = "FOTG_AUTH_TOKEN";
 const BASE_URL =
@@ -33,6 +34,9 @@ client.interceptors.response.use(
     if (error.response?.status === 403) {
       Cookies.remove(COOKIE_NAME);
       localStorage.removeItem("username");
+      setReturnTo(
+        toRouterPath(window.location.pathname, window.location.search, window.location.hash),
+      );
       window.location.href = import.meta.env.BASE_URL + "login";
       return Promise.reject(error);
     }

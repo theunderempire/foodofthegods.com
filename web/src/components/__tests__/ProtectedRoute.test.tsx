@@ -66,4 +66,33 @@ describe("ProtectedRoute", () => {
     expect(screen.getByText("Login page")).toBeInTheDocument();
     expect(screen.queryByText("Protected content")).not.toBeInTheDocument();
   });
+
+  test("stores the intended path so it can be resumed after login", () => {
+    sessionStorage.clear();
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      username: null,
+      token: null,
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/protected?tab=notes"]}>
+        <Routes>
+          <Route
+            path="/protected"
+            element={
+              <ProtectedRoute>
+                <div>Protected content</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/login" element={<div>Login page</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(sessionStorage.getItem("fotg_return_to")).toBe("/protected?tab=notes");
+  });
 });

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { consumeReturnTo } from "../returnTo";
 import MushroomLogo from "../components/MushroomLogo";
 
 export function Login() {
@@ -19,7 +20,7 @@ export function Login() {
     setLoading(true);
     try {
       await login(username, password);
-      navigate("/recipes");
+      navigate(consumeReturnTo(), { replace: true });
     } catch {
       setError("Invalid username or password.");
     } finally {
