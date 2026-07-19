@@ -81,14 +81,68 @@ export async function handleLogin(req, res, next) {
   }
 }
 
+// Hashes an API key the same way it is stored, so raw keys never touch the DB
+function hashApiKey(rawKey) {
+  return crypto.createHash("sha256").update(rawKey).digest("hex");
+}
+
+// Generates (or rotates) a long-lived API key for the authenticated user.
+// Only the SHA-256 hash is stored; the raw key is returned once and cannot be
+// recovered later.
+export async function handleGenerateApiKey(req, res, next) {
+  try {
+    const rawKey = crypto.randomBytes(32).toString("hex");
+    await getCollection(req.db).update(
+      { username: req.decoded.username },
+      { $set: { apiKeyHash: hashApiKey(rawKey) } },
+    );
+    res.json({ success: true, data: { apiKey: rawKey } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Revokes the authenticated user's API key.
+export async function handleRevokeApiKey(req, res, next) {
+  try {
+    await getCollection(req.db).update(
+      { username: req.decoded.username },
+      { $unset: { apiKeyHash: "" } },
+    );
+    res.json({ success: true, data: { message: "revoked" } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 router.get("/:username", handleGetUser);
 router.post("/", handleLogin);
+router.post("/apikey", tokenCheck, handleGenerateApiKey);
+router.delete("/apikey", tokenCheck, handleRevokeApiKey);
 
 function getCollection(db) {
   return db.get("users");
 }
 
-function tokenCheck(req, res, next) {
+async function tokenCheck(req, res, next) {
+  // An API key authenticates as the user it belongs to. Used by external
+  // clients (e.g. the phone shopping-list voice automation) that can't hold a
+  // short-lived JWT.
+  var apiKey = req.headers["x-api-key"];
+  if (apiKey) {
+    try {
+      var user = await getCollection(req.db).findOne({ apiKeyHash: hashApiKey(apiKey) });
+      if (!user) {
+        return res.status(403).send({ success: false, message: "Invalid API key." });
+      }
+      req.decoded = { username: user.username };
+      return next();
+    } catch (err) {
+      console.error(`[auth] API key check failed: ${err}`);
+      return res.status(500).send({ success: false, message: "Failed to authenticate API key." });
+    }
+  }
+
   var token = req.body.token || req.query.token || req.headers["x-access-token"];
 
   if (token) {

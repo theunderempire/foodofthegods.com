@@ -42,11 +42,20 @@ export function makeCollection(overrides = {}) {
  * @param {object} options.params  - req.params
  * @param {object} options.collections - map of collection name → mock collection
  */
-export function makeReq({ username = "testuser", body = {}, params = {}, collections = {} } = {}) {
+export function makeReq({
+  username = "testuser",
+  body = {},
+  params = {},
+  headers = {},
+  query = {},
+  collections = {},
+} = {}) {
   return {
     decoded: { username },
     body,
     params,
+    headers,
+    query,
     db: { get: (name) => collections[name] ?? makeCollection() },
   };
 }
