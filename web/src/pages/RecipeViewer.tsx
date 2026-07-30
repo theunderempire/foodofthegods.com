@@ -7,6 +7,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useAuth } from "../contexts/AuthContext";
 import type { IngredientList } from "../types/ingredientList";
 import type { Ingredient, Recipe } from "../types/recipe";
+import { scaleAmount } from "../scaleAmount";
 import { NotFound } from "./NotFound";
 
 export function RecipeViewer() {
@@ -24,6 +25,7 @@ export function RecipeViewer() {
   const [shoppingList, setShoppingList] = useState<IngredientList | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [multiplier, setMultiplier] = useState(1);
 
   useEffect(() => {
     if (!recipeId) return;
@@ -50,9 +52,13 @@ export function RecipeViewer() {
     return listIngredientNames.has(name.toLowerCase());
   }
 
+  function scaleIngredient(ingredient: Ingredient): Ingredient {
+    return { ...ingredient, amount: scaleAmount(ingredient.amount, multiplier) as number };
+  }
+
   async function handleAddToShoppingList() {
     if (!recipe || !username) return;
-    const toAdd = recipe.ingredients.filter((ing) => !isInList(ing.name));
+    const toAdd = recipe.ingredients.filter((ing) => !isInList(ing.name)).map(scaleIngredient);
     if (toAdd.length === 0) return;
     setAddingToList(true);
     try {
@@ -71,7 +77,7 @@ export function RecipeViewer() {
     if (!username || isInList(ingredient.name)) return;
     setAddingIngredientId(ingredient.id);
     try {
-      const updated = await addIngredient(username, ingredient);
+      const updated = await addIngredient(username, scaleIngredient(ingredient));
       setShoppingList(updated);
     } catch {
       setError("Failed to add ingredient to shopping list.");
@@ -158,7 +164,30 @@ export function RecipeViewer() {
           {recipe.servings && (
             <div className="recipe-meta-chip">
               <span className="chip-label">Servings</span>
-              <span className="chip-value">{recipe.servings}</span>
+              <span className="chip-value">{scaleAmount(recipe.servings, multiplier)}</span>
+            </div>
+          )}
+          {recipe.ingredients.length > 0 && (
+            <div className="recipe-meta-chip">
+              <span className="chip-label">Multiplier</span>
+              <div className="scale-control">
+                <button
+                  className="scale-btn"
+                  onClick={() => setMultiplier((m) => Math.max(0.5, m - 0.5))}
+                  disabled={multiplier <= 0.5}
+                  aria-label="Decrease recipe multiplier"
+                >
+                  &#8722;
+                </button>
+                <span className="chip-value scale-value">{multiplier}&#215;</span>
+                <button
+                  className="scale-btn"
+                  onClick={() => setMultiplier((m) => m + 0.5)}
+                  aria-label="Increase recipe multiplier"
+                >
+                  +
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -196,9 +225,7 @@ export function RecipeViewer() {
                     className={`ingredient-item ${alreadyAdded ? "ingredient-in-list" : ""}`}
                   >
                     <span className="ingredient-amount">
-                      {typeof ing.amount === "number"
-                        ? parseFloat(ing.amount.toFixed(2))
-                        : ing.amount}
+                      {scaleAmount(ing.amount, multiplier)}
                       {ing.unit ? ` ${ing.unit}` : ""}
                     </span>
                     <span className="ingredient-name">{ing.name}</span>

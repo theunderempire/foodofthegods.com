@@ -476,20 +476,26 @@ describe("IngredientService", () => {
   });
 
   describe("groupIngredientList", () => {
+    // Gemini now returns section names + item ids; the service rebuilds full items itself.
     const GROUPED_RESPONSE = [
-      { name: "Dairy", items: [{ ingredient: SALT, completed: false }] },
-      { name: "Produce", items: [{ ingredient: SUGAR, completed: false }] },
+      { name: "Spices", itemIds: [SALT_ID] },
+      { name: "Baking", itemIds: [SUGAR_ID] },
     ];
+    const SALT_ITEM = { ingredient: SALT, completed: false };
+    const SUGAR_ITEM = { ingredient: SUGAR, completed: true };
 
-    function makeGroupReq({ ingredientlistOverrides = {}, geminiApiKey = "test-key" } = {}) {
+    function makeGroupReq({
+      ingredientlistOverrides = {},
+      geminiApiKey = "test-key",
+      list = makeDocsWithList([SALT_ITEM, SUGAR_ITEM]),
+    } = {}) {
       return makeIngredientReq({
         collections: {
           users: makeCollection({
             findOne: (_q, _o) => Promise.resolve({ geminiApiKey }),
           }),
           ingredientlist: makeCollection({
-            findOne: (_q, _o) =>
-              Promise.resolve(makeDocsWithList([{ ingredient: SALT, completed: false }])),
+            findOne: (_q, _o) => Promise.resolve(JSON.parse(JSON.stringify(list))),
             update: (_q, _u) => Promise.resolve(),
             ...ingredientlistOverrides,
           }),
@@ -497,21 +503,145 @@ describe("IngredientService", () => {
       });
     }
 
-    test("groups ingredients and saves result on Gemini success", async () => {
-      const originalFetch = globalThis.fetch;
-      globalThis.fetch = async () => ({
+    function mockGemini(text) {
+      return async () => ({
         ok: true,
         json: async () => ({
-          candidates: [{ content: { parts: [{ text: JSON.stringify(GROUPED_RESPONSE) }] } }],
+          candidates: [{ content: { parts: [{ text }] } }],
         }),
       });
+    }
+
+    test("groups ingredients and saves result on Gemini success", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = mockGemini(JSON.stringify(GROUPED_RESPONSE));
 
       try {
         const res = makeRes();
         await service.groupIngredientList(makeGroupReq(), res);
 
         assert.equal(res._body.success, true);
-        assert.deepEqual(res._body.data.ingredientList.groups, GROUPED_RESPONSE);
+        assert.deepEqual(res._body.data.ingredientList.groups, [
+          { name: "Spices", items: [SALT_ITEM] },
+          { name: "Baking", items: [SUGAR_ITEM] },
+        ]);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("sends only item ids and names to Gemini, never full item objects", async () => {
+      const originalFetch = globalThis.fetch;
+      let capturedBody;
+      globalThis.fetch = async (_url, opts) => {
+        capturedBody = JSON.parse(opts.body);
+        return mockGemini(JSON.stringify(GROUPED_RESPONSE))();
+      };
+
+      try {
+        const res = makeRes();
+        await service.groupIngredientList(makeGroupReq(), res);
+
+        const promptText = capturedBody.contents[0].parts[0].text;
+        assert.match(promptText, new RegExp(SALT_ID));
+        assert.match(promptText, /salt/);
+        assert.doesNotMatch(promptText, /"amount"/);
+        assert.doesNotMatch(promptText, /"completed"/);
+        assert.equal(capturedBody.generationConfig.responseMimeType, "application/json");
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("preserves full item objects when regrouping a partially grouped list", async () => {
+      const partiallyGrouped = {
+        ingredientList: {
+          groups: [
+            { name: "Spices", items: [SALT_ITEM] },
+            { name: "ungrouped", items: [SUGAR_ITEM] },
+          ],
+        },
+      };
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = mockGemini(
+        JSON.stringify([
+          { name: "Spices", itemIds: [SALT_ID] },
+          { name: "Baking", itemIds: [SUGAR_ID] },
+        ]),
+      );
+
+      try {
+        const res = makeRes();
+        await service.groupIngredientList(makeGroupReq({ list: partiallyGrouped }), res);
+
+        assert.equal(res._body.success, true);
+        assert.deepEqual(res._body.data.ingredientList.groups, [
+          { name: "Spices", items: [SALT_ITEM] },
+          { name: "Baking", items: [SUGAR_ITEM] },
+        ]);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("keeps items the model dropped by placing them in ungrouped", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = mockGemini(JSON.stringify([{ name: "Spices", itemIds: [SALT_ID] }]));
+
+      try {
+        const res = makeRes();
+        await service.groupIngredientList(makeGroupReq(), res);
+
+        assert.equal(res._body.success, true);
+        assert.deepEqual(res._body.data.ingredientList.groups, [
+          { name: "Spices", items: [SALT_ITEM] },
+          { name: "ungrouped", items: [SUGAR_ITEM] },
+        ]);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("ignores hallucinated ids and keeps duplicated ids in one group only", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = mockGemini(
+        JSON.stringify([
+          { name: "Spices", itemIds: [SALT_ID, "not-a-real-id"] },
+          { name: "Baking", itemIds: [SALT_ID, SUGAR_ID] },
+        ]),
+      );
+
+      try {
+        const res = makeRes();
+        await service.groupIngredientList(makeGroupReq(), res);
+
+        assert.equal(res._body.success, true);
+        assert.deepEqual(res._body.data.ingredientList.groups, [
+          { name: "Spices", items: [SALT_ITEM] },
+          { name: "Baking", items: [SUGAR_ITEM] },
+        ]);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("merges duplicate section names from the model into one group", async () => {
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = mockGemini(
+        JSON.stringify([
+          { name: "Pantry", itemIds: [SALT_ID] },
+          { name: "Pantry", itemIds: [SUGAR_ID] },
+        ]),
+      );
+
+      try {
+        const res = makeRes();
+        await service.groupIngredientList(makeGroupReq(), res);
+
+        assert.equal(res._body.success, true);
+        assert.deepEqual(res._body.data.ingredientList.groups, [
+          { name: "Pantry", items: [SALT_ITEM, SUGAR_ITEM] },
+        ]);
       } finally {
         globalThis.fetch = originalFetch;
       }
@@ -519,25 +649,71 @@ describe("IngredientService", () => {
 
     test("strips markdown fencing from Gemini response before parsing", async () => {
       const originalFetch = globalThis.fetch;
-      globalThis.fetch = async () => ({
-        ok: true,
-        json: async () => ({
-          candidates: [
-            {
-              content: {
-                parts: [{ text: "```json\n" + JSON.stringify(GROUPED_RESPONSE) + "\n```" }],
-              },
-            },
-          ],
-        }),
-      });
+      globalThis.fetch = mockGemini("```json\n" + JSON.stringify(GROUPED_RESPONSE) + "\n```");
 
       try {
         const res = makeRes();
         await service.groupIngredientList(makeGroupReq(), res);
 
         assert.equal(res._body.success, true);
-        assert.deepEqual(res._body.data.ingredientList.groups, GROUPED_RESPONSE);
+        assert.deepEqual(res._body.data.ingredientList.groups, [
+          { name: "Spices", items: [SALT_ITEM] },
+          { name: "Baking", items: [SUGAR_ITEM] },
+        ]);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("fails gracefully and clears lock when Gemini returns no candidates", async () => {
+      const updateCalls = [];
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        ok: true,
+        json: async () => ({ candidates: [], promptFeedback: { blockReason: "SAFETY" } }),
+      });
+
+      try {
+        const res = makeRes();
+        const req = makeGroupReq({
+          ingredientlistOverrides: {
+            update: (_q, u) => {
+              updateCalls.push(u);
+              return Promise.resolve();
+            },
+          },
+        });
+        await service.groupIngredientList(req, res);
+
+        assert.equal(res._body.success, false);
+        assert.match(String(res._body.data), /SAFETY/);
+        const lastUpdate = updateCalls[updateCalls.length - 1];
+        assert.equal(lastUpdate.$set["ingredientList.grouping"], false);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    test("fails gracefully and clears lock when Gemini returns a non-array response", async () => {
+      const updateCalls = [];
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = mockGemini('{"name": "Dairy", "itemIds": []}');
+
+      try {
+        const res = makeRes();
+        const req = makeGroupReq({
+          ingredientlistOverrides: {
+            update: (_q, u) => {
+              updateCalls.push(u);
+              return Promise.resolve();
+            },
+          },
+        });
+        await service.groupIngredientList(req, res);
+
+        assert.equal(res._body.success, false);
+        const lastUpdate = updateCalls[updateCalls.length - 1];
+        assert.equal(lastUpdate.$set["ingredientList.grouping"], false);
       } finally {
         globalThis.fetch = originalFetch;
       }

@@ -670,6 +670,37 @@ textarea.input {
   color: var(--text);
 }
 
+.scale-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.scale-btn {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+.scale-btn:hover:not(:disabled) {
+  border-color: var(--text-faint);
+}
+.scale-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.scale-value {
+  min-width: 2rem;
+  text-align: center;
+}
+
 .recipe-section {
   display: flex;
   flex-direction: column;
