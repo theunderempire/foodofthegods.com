@@ -257,7 +257,7 @@ ${text.slice(0, 50000)}`,
     parsed.ingredients = (parsed.ingredients ?? []).map((i) => ({
       ...i,
       id: randomUUID(),
-      amount: typeof i.amount === "number" ? Math.round(i.amount * 100) / 100 : i.amount,
+      amount: typeof i.amount === "number" ? Math.round(i.amount * 100) / 100 : (i.amount ?? ""),
     }));
     parsed.directions = (parsed.directions ?? []).map((d) => ({ ...d, id: randomUUID() }));
     return parsed;
