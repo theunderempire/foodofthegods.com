@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   addIngredients,
   clearAllIngredients,
@@ -51,6 +51,9 @@ export function IngredientList() {
   const [addAmount, setAddAmount] = useState("1");
   const [addUnit, setAddUnit] = useState("");
   const [adding, setAdding] = useState(false);
+  const copyResetTimeout = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => () => clearTimeout(copyResetTimeout.current), []);
 
   useEffect(() => {
     if (!username) return;
@@ -176,12 +179,16 @@ export function IngredientList() {
     }
   }
 
-  function handleCopyList() {
+  async function handleCopyList() {
     if (!list) return;
-    navigator.clipboard.writeText(formatListAsText(list)).then(() => {
+    try {
+      await navigator.clipboard.writeText(formatListAsText(list));
       setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
-    });
+      clearTimeout(copyResetTimeout.current);
+      copyResetTimeout.current = setTimeout(() => setCopySuccess(false), 2000);
+    } catch {
+      setError("Couldn't copy the list to the clipboard.");
+    }
   }
 
   const totalItems = list?.groups.reduce((sum, g) => sum + g.items.length, 0) ?? 0;

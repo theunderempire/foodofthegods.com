@@ -53,7 +53,7 @@ export function RecipeViewer() {
   }
 
   function scaleIngredient(ingredient: Ingredient): Ingredient {
-    return { ...ingredient, amount: scaleAmount(ingredient.amount, multiplier) as number };
+    return { ...ingredient, amount: scaleAmount(ingredient.amount, multiplier) };
   }
 
   async function handleAddToShoppingList() {

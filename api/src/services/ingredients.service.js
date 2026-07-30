@@ -151,6 +151,21 @@ const IngredientService = function () {
     return requestService.getCollection(req, "ingredientlist");
   }
 
+  // Maps ingredient id -> all list items carrying that id. Ids are unique for
+  // server-assigned UUIDs, but legacy data may contain duplicates; keeping every
+  // item per id guarantees none can be lost during regrouping.
+  function mapItemsById(groups) {
+    const itemsById = new Map();
+    groups.forEach((group) => {
+      group.items.forEach((item) => {
+        const id = String(item.ingredient.id);
+        if (!itemsById.has(id)) itemsById.set(id, []);
+        itemsById.get(id).push(item);
+      });
+    });
+    return itemsById;
+  }
+
   // Parses the Gemini grouping response ([{ name, itemIds }]) and rebuilds full groups
   // from the original items, so the model can only move items — never alter or drop them.
   function buildGroupsFromResponse(rawText, itemsById) {
@@ -178,18 +193,18 @@ const IngredientService = function () {
       const name = group.name.trim() || ungroupedName;
       for (const rawId of group.itemIds) {
         const id = String(rawId);
-        const item = itemsById.get(id);
-        if (!item || placed.has(id)) continue;
+        const items = itemsById.get(id);
+        if (!items || placed.has(id)) continue;
         placed.add(id);
         if (!groupsByName.has(name)) groupsByName.set(name, { name, items: [] });
-        groupsByName.get(name).items.push(item);
+        groupsByName.get(name).items.push(...items);
       }
     }
 
     // Items the model dropped or hallucinated ids for stay on the list as ungrouped.
     const missing = [...itemsById.entries()]
       .filter(([id]) => !placed.has(id))
-      .map(([, item]) => item);
+      .flatMap(([, items]) => items);
     if (missing.length) {
       if (!groupsByName.has(ungroupedName)) {
         groupsByName.set(ungroupedName, { name: ungroupedName, items: [] });
@@ -225,13 +240,6 @@ const IngredientService = function () {
         if (docs?.ingredientList?.groups?.length) {
           console.log(`[ingredients] groupIngredientList: calling Gemini for user="${userId}"`);
           const groups = docs.ingredientList.groups;
-
-          const itemsById = new Map();
-          groups.forEach((group) => {
-            group.items.forEach((item) => {
-              itemsById.set(String(item.ingredient.id), item);
-            });
-          });
 
           await collection.update({ userId }, { $set: { "ingredientList.grouping": true } });
           broadcast(userId, {
@@ -304,18 +312,31 @@ Example response:
               throw new Error(`Gemini returned no usable content: ${reason}`);
             }
 
+            // Re-read the list: a write that slipped in before the grouping lock
+            // landed must not be clobbered by a rebuild from the earlier snapshot.
+            // Items added since the prompt was built simply end up as ungrouped.
+            const freshDocs = (await collection.findOne({ userId }, {})) || docs;
+            const itemsById = mapItemsById(freshDocs.ingredientList?.groups || []);
+
             const groupedItems = buildGroupsFromResponse(groupedListJSON, itemsById);
 
             const updatedIngredientList = {
-              ...docs.ingredientList,
+              ...freshDocs.ingredientList,
               groups: groupedItems,
+              lastModified: new Date().toString(),
               grouping: false,
             };
             await collection.update(
               { userId },
-              { $set: { ingredientList: updatedIngredientList } },
+              {
+                $set: {
+                  "ingredientList.groups": updatedIngredientList.groups,
+                  "ingredientList.lastModified": updatedIngredientList.lastModified,
+                  "ingredientList.grouping": false,
+                },
+              },
             );
-            const resultDocs = { ...docs, ingredientList: updatedIngredientList };
+            const resultDocs = { ...freshDocs, ingredientList: updatedIngredientList };
             broadcast(userId, resultDocs);
             res.json({ success: true, data: resultDocs });
           } else {

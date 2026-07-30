@@ -162,6 +162,20 @@ describe("IngredientList", () => {
     expect(await screen.findByRole("button", { name: "Copied!" })).toBeInTheDocument();
   });
 
+  test("copy list button shows an error when the clipboard write fails", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    mockGetIngredientList.mockResolvedValue(mockList);
+    renderList();
+    await screen.findByText("butter");
+
+    await userEvent.click(screen.getByRole("button", { name: "Copy list" }));
+
+    expect(await screen.findByText("Couldn't copy the list to the clipboard.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copied!" })).not.toBeInTheDocument();
+  });
+
   test("copy list button is hidden when the list is empty", async () => {
     mockGetIngredientList.mockResolvedValue(null);
     renderList();
