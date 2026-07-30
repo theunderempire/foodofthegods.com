@@ -1279,6 +1279,19 @@ textarea.input {
     padding-top: 0.2rem;
     padding-bottom: 0.2rem;
   }
+  /* The three uppercase wide-tracked links total 361px at desktop spacing,
+     forcing a horizontal scrollbar on phones narrower than that. */
+  .nav-link {
+    padding: 0.4rem 0.6rem;
+    letter-spacing: var(--track-wide);
+  }
+  .nav-link.active::after {
+    left: 0.6rem;
+    right: 0.6rem;
+  }
+  .item-amount {
+    min-width: 44px;
+  }
   .main-content {
     padding: 2rem 1.25rem;
   }
