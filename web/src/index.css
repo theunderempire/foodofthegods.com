@@ -1288,6 +1288,32 @@ textarea.input {
   .recipe-title {
     font-size: 2rem;
   }
+  .recipe-meta-bar {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .recipe-meta-chip {
+    padding: 0.85rem 1rem;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .recipe-meta-chip:nth-child(odd) {
+    border-right: 1px solid var(--border);
+  }
+  /* The last row's chips must not double up with the bar's bottom border. */
+  .recipe-meta-chip:last-child,
+  .recipe-meta-chip:nth-last-child(2):nth-child(odd) {
+    border-bottom: none;
+  }
+  /* An odd chip left alone on the last row takes the full width. */
+  .recipe-meta-chip:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    border-right: none;
+  }
+  .scale-btn {
+    width: 2rem;
+    height: 2rem;
+  }
   .page-title {
     font-size: 1.8rem;
   }
