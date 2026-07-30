@@ -1,7 +1,8 @@
 export interface Ingredient {
   id: number | string;
   name: string;
-  amount: number;
+  // Numeric for anything scalable; legacy/free-form values like "a pinch" are strings.
+  amount: number | string;
   unit?: string;
 }
 

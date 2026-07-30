@@ -7,6 +7,7 @@ import { RecipeViewer } from "../RecipeViewer";
 const mockGetRecipe = vi.fn();
 const mockDeleteRecipe = vi.fn();
 const mockGetIngredientList = vi.fn();
+const mockAddIngredients = vi.fn();
 const mockNavigate = vi.fn();
 
 vi.mock("../../contexts/AuthContext", () => ({
@@ -24,7 +25,7 @@ vi.mock("../../api/recipes", () => ({
 vi.mock("../../api/ingredientList", () => ({
   getIngredientList: (...args: unknown[]) => mockGetIngredientList(...args),
   addIngredient: vi.fn(),
-  addIngredients: vi.fn(),
+  addIngredients: (...args: unknown[]) => mockAddIngredients(...args),
 }));
 
 vi.mock("react-router-dom", async () => {
@@ -57,6 +58,7 @@ describe("RecipeViewer", () => {
   beforeEach(() => {
     mockGetRecipe.mockReset();
     mockDeleteRecipe.mockReset();
+    mockAddIngredients.mockReset();
     mockNavigate.mockReset();
     mockGetIngredientList.mockResolvedValue(null);
   });
@@ -181,6 +183,61 @@ describe("RecipeViewer", () => {
     renderViewer();
     await screen.findByRole("heading", { name: "Grandma's Lasagna" });
     expect(screen.getByRole("button", { name: "+ Shopping List" })).toBeInTheDocument();
+  });
+
+  test("multiplier scales ingredient amounts and servings", async () => {
+    mockGetRecipe.mockResolvedValue(mockRecipe);
+    renderViewer();
+    await screen.findByRole("heading", { name: "Grandma's Lasagna" });
+
+    expect(screen.getByText("1×")).toBeInTheDocument();
+    expect(screen.getByText("2 cups")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Increase recipe multiplier" }));
+    await userEvent.click(screen.getByRole("button", { name: "Increase recipe multiplier" }));
+
+    expect(screen.getByText("2×")).toBeInTheDocument();
+    expect(screen.getByText("4 cups")).toBeInTheDocument();
+    expect(screen.getByText("2 lb")).toBeInTheDocument();
+    expect(screen.getByText("16")).toBeInTheDocument(); // servings 8 × 2
+  });
+
+  test("multiplier cannot go below 0.5", async () => {
+    mockGetRecipe.mockResolvedValue(mockRecipe);
+    renderViewer();
+    await screen.findByRole("heading", { name: "Grandma's Lasagna" });
+
+    const decrease = screen.getByRole("button", { name: "Decrease recipe multiplier" });
+    await userEvent.click(decrease);
+    expect(screen.getByText("0.5×")).toBeInTheDocument();
+    expect(decrease).toBeDisabled();
+  });
+
+  test("leaves non-numeric amounts unchanged when multiplied", async () => {
+    mockGetRecipe.mockResolvedValue({
+      ...mockRecipe,
+      ingredients: [{ id: 1, name: "salt", amount: "a pinch", unit: "" }],
+    });
+    renderViewer();
+    await screen.findByRole("heading", { name: "Grandma's Lasagna" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Increase recipe multiplier" }));
+    expect(screen.getByText("a pinch")).toBeInTheDocument();
+  });
+
+  test("adds scaled amounts to the shopping list", async () => {
+    mockGetRecipe.mockResolvedValue(mockRecipe);
+    mockAddIngredients.mockResolvedValue({ groups: [], lastModified: "" });
+    renderViewer();
+    await screen.findByRole("heading", { name: "Grandma's Lasagna" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Increase recipe multiplier" }));
+    await userEvent.click(screen.getByRole("button", { name: "+ Shopping List" }));
+
+    expect(mockAddIngredients).toHaveBeenCalledWith("testuser-hash", [
+      { id: 1, name: "pasta", amount: 3, unit: "cups" },
+      { id: 2, name: "cheese", amount: 1.5, unit: "lb" },
+    ]);
   });
 
   test("back button navigates to /recipes", async () => {

@@ -151,6 +151,73 @@ const IngredientService = function () {
     return requestService.getCollection(req, "ingredientlist");
   }
 
+  // Maps ingredient id -> all list items carrying that id. Ids are unique for
+  // server-assigned UUIDs, but legacy data may contain duplicates; keeping every
+  // item per id guarantees none can be lost during regrouping.
+  function mapItemsById(groups) {
+    const itemsById = new Map();
+    groups.forEach((group) => {
+      group.items.forEach((item) => {
+        const id = String(item.ingredient.id);
+        if (!itemsById.has(id)) itemsById.set(id, []);
+        itemsById.get(id).push(item);
+      });
+    });
+    return itemsById;
+  }
+
+  // Parses the Gemini grouping response ([{ name, itemIds }]) and rebuilds full groups
+  // from the original items, so the model can only move items — never alter or drop them.
+  function buildGroupsFromResponse(rawText, itemsById) {
+    let parsed;
+    try {
+      parsed = JSON.parse(rawText.trim());
+    } catch {
+      // Fall back to stripping markdown fencing / surrounding prose.
+      let json = rawText
+        .replace(/```json\s*/gi, "")
+        .replace(/```\s*/g, "")
+        .trim();
+      const arrayMatch = json.match(/\[[\s\S]*\]/);
+      if (arrayMatch) json = arrayMatch[0];
+      parsed = JSON.parse(json);
+    }
+    if (!Array.isArray(parsed)) {
+      throw new Error("Gemini grouping response was not a JSON array");
+    }
+
+    const placed = new Set();
+    const groupsByName = new Map();
+    for (const group of parsed) {
+      if (!group || typeof group.name !== "string" || !Array.isArray(group.itemIds)) continue;
+      const name = group.name.trim() || ungroupedName;
+      for (const rawId of group.itemIds) {
+        const id = String(rawId);
+        const items = itemsById.get(id);
+        if (!items || placed.has(id)) continue;
+        placed.add(id);
+        if (!groupsByName.has(name)) groupsByName.set(name, { name, items: [] });
+        groupsByName.get(name).items.push(...items);
+      }
+    }
+
+    // Items the model dropped or hallucinated ids for stay on the list as ungrouped.
+    const missing = [...itemsById.entries()]
+      .filter(([id]) => !placed.has(id))
+      .flatMap(([, items]) => items);
+    if (missing.length) {
+      if (!groupsByName.has(ungroupedName)) {
+        groupsByName.set(ungroupedName, { name: ungroupedName, items: [] });
+      }
+      groupsByName.get(ungroupedName).items.push(...missing);
+    }
+
+    if (!groupsByName.size) {
+      throw new Error("Gemini grouping response contained no valid groups");
+    }
+    return [...groupsByName.values()];
+  }
+
   async function groupIngredientList(req, res) {
     const userId = req.params.userId;
     const collection = getIngredientListCollection(req);
@@ -180,6 +247,15 @@ const IngredientService = function () {
             ingredientList: { ...docs.ingredientList, grouping: true },
           });
 
+          // Only send id + name per item; the full objects never leave the server.
+          const promptGroups = groups.map((group) => ({
+            name: group.name,
+            items: group.items.map((item) => ({
+              id: String(item.ingredient.id),
+              name: item.ingredient.name,
+            })),
+          }));
+
           const response = await fetch(geminiUrl, {
             method: "POST",
             body: JSON.stringify({
@@ -187,63 +263,37 @@ const IngredientService = function () {
                 {
                   parts: [
                     {
-                      text: `Group these grocery ingredients by their typical grocery store section. Return ONLY a JSON array of category objects. No explanation, no markdown, no whitespace, no special characters, just the JSON object. Include the entire ingredient JSON object in the response.
+                      text: `Organize this grocery shopping list into grocery store sections (e.g. "Dairy", "Produce", "Meat", "Bakery", "Pantry", "Frozen").
 
-                Ingredients: ${JSON.stringify(groups)}
+The list may already be partially grouped. Keep items that are already in a sensible store section where they are (reuse the existing section name), and place items from the "${ungroupedName}" section into the appropriate section.
 
-                Example format:
-    [
-                  {
-                    "name": "Dairy",
-                    "items": [
-                      {
-                        "ingredient": {
-                          "name": "Milk",
-                          "unit": "",
-                          "amount": 1,
-                          "id": 1757275289835
-                        },
-                        "completed": false
-                      },
-                      {
-                        "ingredient": {
-                          "name": "test3",
-                          "unit": "",
-                          "amount": 1,
-                          "id": 1768070973898
-                        },
-                        "completed": true
-                      }
-                    ]
-                  },
-                  {
-                    "name": "Produce",
-                    "items": [
-                      {
-                        "ingredient": {
-                          "name": "apples",
-                          "unit": "lb",
-                          "amount": 1,
-                          "id": 1857275289835
-                        },
-                        "completed": true
-                      },
-                      {
-                        "ingredient": {
-                          "name": "Zucchini",
-                          "unit": "oz",
-                          "amount": 1,
-                          "id": 1768070953898
-                        },
-                        "completed": false
-                      }
-                    ]
-                  }
-                ]`,
+Return a JSON array of section objects. Each section has "name" and "itemIds" (the ids of the items that belong in that section). Every item id from the input must appear in exactly one section. Use only ids that appear in the input.
+
+Shopping list: ${JSON.stringify(promptGroups)}
+
+Example response:
+[
+  { "name": "Dairy", "itemIds": ["id-1", "id-4"] },
+  { "name": "Produce", "itemIds": ["id-2", "id-3"] }
+]`,
                     },
                   ],
                 },
               ],
+              generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                  type: "ARRAY",
+                  items: {
+                    type: "OBJECT",
+                    properties: {
+                      name: { type: "STRING" },
+                      itemIds: { type: "ARRAY", items: { type: "STRING" } },
+                    },
+                    required: ["name", "itemIds"],
+                  },
+                },
+              },
             }),
             headers: {
               "x-goog-api-key": geminiAPIKey,
@@ -253,21 +303,40 @@ const IngredientService = function () {
 
           if (response.ok) {
             const responseBody = await response.json();
-            const groupedListJSON = responseBody.candidates[0].content.parts[0].text;
+            const groupedListJSON = responseBody.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!groupedListJSON) {
+              const reason =
+                responseBody.promptFeedback?.blockReason ||
+                responseBody.candidates?.[0]?.finishReason ||
+                "no content returned";
+              throw new Error(`Gemini returned no usable content: ${reason}`);
+            }
 
-            const strippedResponse = groupedListJSON.replace("```json", "").replace("```", "");
-            const groupedItems = JSON.parse(strippedResponse);
+            // Re-read the list: a write that slipped in before the grouping lock
+            // landed must not be clobbered by a rebuild from the earlier snapshot.
+            // Items added since the prompt was built simply end up as ungrouped.
+            const freshDocs = (await collection.findOne({ userId }, {})) || docs;
+            const itemsById = mapItemsById(freshDocs.ingredientList?.groups || []);
+
+            const groupedItems = buildGroupsFromResponse(groupedListJSON, itemsById);
 
             const updatedIngredientList = {
-              ...docs.ingredientList,
+              ...freshDocs.ingredientList,
               groups: groupedItems,
+              lastModified: new Date().toString(),
               grouping: false,
             };
             await collection.update(
               { userId },
-              { $set: { ingredientList: updatedIngredientList } },
+              {
+                $set: {
+                  "ingredientList.groups": updatedIngredientList.groups,
+                  "ingredientList.lastModified": updatedIngredientList.lastModified,
+                  "ingredientList.grouping": false,
+                },
+              },
             );
-            const resultDocs = { ...docs, ingredientList: updatedIngredientList };
+            const resultDocs = { ...freshDocs, ingredientList: updatedIngredientList };
             broadcast(userId, resultDocs);
             res.json({ success: true, data: resultDocs });
           } else {

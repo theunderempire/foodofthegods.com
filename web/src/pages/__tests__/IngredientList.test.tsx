@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { IngredientList } from "../IngredientList";
+import { formatListAsText, IngredientList } from "../IngredientList";
 
 const mockGetIngredientList = vi.fn();
 const mockAddIngredients = vi.fn();
@@ -28,6 +28,55 @@ vi.mock("../../api/ingredientList", () => ({
   groupIngredients: (...args: unknown[]) => mockGroupIngredients(...args),
   subscribeToList: vi.fn().mockReturnValue(() => {}),
 }));
+
+describe("formatListAsText", () => {
+  test("formats groups with headers and one line per item", () => {
+    const text = formatListAsText({
+      lastModified: "",
+      groups: [
+        {
+          name: "Dairy",
+          items: [
+            { completed: false, ingredient: { id: 1, name: "milk", amount: 1, unit: "gal" } },
+            { completed: false, ingredient: { id: 2, name: "eggs", amount: 12 } },
+          ],
+        },
+        { name: "Empty", items: [] },
+        {
+          name: "Produce",
+          items: [
+            { completed: false, ingredient: { id: 3, name: "apples", amount: 3, unit: "lb" } },
+          ],
+        },
+      ],
+    });
+
+    expect(text).toBe("Dairy\n- 1 gal milk\n- 12 eggs\n\nProduce\n- 3 lb apples");
+  });
+
+  test("excludes crossed-off items and skips groups left empty by them", () => {
+    const text = formatListAsText({
+      lastModified: "",
+      groups: [
+        {
+          name: "Dairy",
+          items: [
+            { completed: false, ingredient: { id: 1, name: "milk", amount: 1, unit: "gal" } },
+            { completed: true, ingredient: { id: 2, name: "eggs", amount: 12 } },
+          ],
+        },
+        {
+          name: "Produce",
+          items: [
+            { completed: true, ingredient: { id: 3, name: "apples", amount: 3, unit: "lb" } },
+          ],
+        },
+      ],
+    });
+
+    expect(text).toBe("Dairy\n- 1 gal milk");
+  });
+});
 
 const mockList = {
   groups: [
@@ -97,6 +146,41 @@ describe("IngredientList", () => {
     renderList();
     expect(await screen.findByText("butter")).toBeInTheDocument();
     expect(screen.getByText("eggs")).toBeInTheDocument();
+  });
+
+  test("copy list button copies all items as text", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    mockGetIngredientList.mockResolvedValue(mockList);
+    renderList();
+    await screen.findByText("butter");
+
+    await userEvent.click(screen.getByRole("button", { name: "Copy list" }));
+
+    expect(writeText).toHaveBeenCalledWith("Uncategorized\n- 2 tbsp butter\n- 3 eggs");
+    expect(await screen.findByRole("button", { name: "Copied!" })).toBeInTheDocument();
+  });
+
+  test("copy list button shows an error when the clipboard write fails", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    mockGetIngredientList.mockResolvedValue(mockList);
+    renderList();
+    await screen.findByText("butter");
+
+    await userEvent.click(screen.getByRole("button", { name: "Copy list" }));
+
+    expect(await screen.findByText("Couldn't copy the list to the clipboard.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copied!" })).not.toBeInTheDocument();
+  });
+
+  test("copy list button is hidden when the list is empty", async () => {
+    mockGetIngredientList.mockResolvedValue(null);
+    renderList();
+    await screen.findByText("Your shopping list is empty.");
+    expect(screen.queryByRole("button", { name: "Copy list" })).not.toBeInTheDocument();
   });
 
   test("opens add modal when FAB is clicked", async () => {

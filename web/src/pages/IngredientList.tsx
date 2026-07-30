@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   addIngredients,
   clearAllIngredients,
@@ -18,6 +18,20 @@ import type {
   IngredientListItem,
 } from "../types/ingredientList";
 
+export function formatListAsText(list: IngredientListType): string {
+  return list.groups
+    .map((group) => ({ ...group, items: group.items.filter((item) => !item.completed) }))
+    .filter((group) => group.items.length > 0)
+    .map((group) => {
+      const lines = group.items.map((item) => {
+        const unit = item.ingredient.unit ? ` ${item.ingredient.unit}` : "";
+        return `- ${item.ingredient.amount}${unit} ${item.ingredient.name}`;
+      });
+      return `${group.name}\n${lines.join("\n")}`;
+    })
+    .join("\n\n");
+}
+
 export function IngredientList() {
   const { username, token } = useAuth();
   const { hasGeminiKey } = useSettings();
@@ -25,6 +39,7 @@ export function IngredientList() {
   const [loading, setLoading] = useState(true);
   const [grouping, setGrouping] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
   const [error, setError] = useState("");
   const [confirmClear, setConfirmClear] = useState<"all" | "marked" | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -36,6 +51,9 @@ export function IngredientList() {
   const [addAmount, setAddAmount] = useState("1");
   const [addUnit, setAddUnit] = useState("");
   const [adding, setAdding] = useState(false);
+  const copyResetTimeout = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => () => clearTimeout(copyResetTimeout.current), []);
 
   useEffect(() => {
     if (!username) return;
@@ -161,6 +179,18 @@ export function IngredientList() {
     }
   }
 
+  async function handleCopyList() {
+    if (!list) return;
+    try {
+      await navigator.clipboard.writeText(formatListAsText(list));
+      setCopySuccess(true);
+      clearTimeout(copyResetTimeout.current);
+      copyResetTimeout.current = setTimeout(() => setCopySuccess(false), 2000);
+    } catch {
+      setError("Couldn't copy the list to the clipboard.");
+    }
+  }
+
   const totalItems = list?.groups.reduce((sum, g) => sum + g.items.length, 0) ?? 0;
   const markedItems =
     list?.groups.reduce((sum, g) => sum + g.items.filter((i) => i.completed).length, 0) ?? 0;
@@ -187,6 +217,16 @@ export function IngredientList() {
           >
             {grouping || list?.grouping ? "Grouping..." : <>&#x2728;Auto-group</>}
           </button>
+          {totalItems > 0 && (
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={handleCopyList}
+              disabled={!!list?.grouping}
+              title="Copy the whole list as text for sharing"
+            >
+              {copySuccess ? "Copied!" : "Copy list"}
+            </button>
+          )}
           {markedItems > 0 && (
             <button
               className="btn btn-ghost btn-sm"
