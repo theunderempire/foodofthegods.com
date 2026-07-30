@@ -1,6 +1,13 @@
 // Scales a recipe amount for display. Stored amounts represent a 1x recipe;
 // values that aren't plain numbers (e.g. "a pinch", "1/2") are left unchanged.
-export function scaleAmount(amount: number | string, multiplier: number): number | string {
+// Imported recipes may have no amount at all (e.g. "salt to taste").
+export function scaleAmount(
+  amount: number | string | null | undefined,
+  multiplier: number,
+): number | string {
+  if (amount == null) {
+    return "";
+  }
   if (typeof amount === "number") {
     return round(amount * multiplier);
   }

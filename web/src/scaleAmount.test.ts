@@ -23,4 +23,9 @@ describe("scaleAmount", () => {
     expect(scaleAmount("1/2", 2)).toBe("1/2");
     expect(scaleAmount("", 2)).toBe("");
   });
+
+  test("returns empty string for missing amounts (imported recipes)", () => {
+    expect(scaleAmount(null, 2)).toBe("");
+    expect(scaleAmount(undefined, 2)).toBe("");
+  });
 });

@@ -1,8 +1,9 @@
 export interface Ingredient {
   id: number | string;
   name: string;
-  // Numeric for anything scalable; legacy/free-form values like "a pinch" are strings.
-  amount: number | string;
+  // Numeric for anything scalable; legacy/free-form values like "a pinch" are
+  // strings. Recipes imported before null-handling was added may have null.
+  amount: number | string | null;
   unit?: string;
 }
 

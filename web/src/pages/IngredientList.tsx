@@ -24,8 +24,8 @@ export function formatListAsText(list: IngredientListType): string {
     .filter((group) => group.items.length > 0)
     .map((group) => {
       const lines = group.items.map((item) => {
-        const unit = item.ingredient.unit ? ` ${item.ingredient.unit}` : "";
-        return `- ${item.ingredient.amount}${unit} ${item.ingredient.name}`;
+        const parts = [item.ingredient.amount, item.ingredient.unit, item.ingredient.name];
+        return `- ${parts.filter((p) => p != null && p !== "").join(" ")}`;
       });
       return `${group.name}\n${lines.join("\n")}`;
     })
@@ -114,7 +114,7 @@ export function IngredientList() {
   function openEditModal(groupName: string, item: IngredientListItem) {
     setEditTarget({ groupName, item });
     setAddName(item.ingredient.name);
-    setAddAmount(String(item.ingredient.amount));
+    setAddAmount(String(item.ingredient.amount ?? ""));
     setAddUnit(item.ingredient.unit ?? "");
   }
 
