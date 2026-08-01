@@ -1,5 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
+import nodemailer from "nodemailer";
 import { MailService } from "../../src/services/mail.service.js";
 import { makeRes, makeReq, makeCollection } from "../helpers/mocks.js";
 
@@ -10,6 +11,40 @@ function makeSendMail(impl = async () => ({ response: "250 OK" })) {
 function makeTransporter(sendMail = makeSendMail()) {
   return () => ({ sendMail });
 }
+
+// Every other test here injects a stub transporter, which would not notice a
+// breaking change in nodemailer itself. This drives the real library (via its
+// jsonTransport, so nothing is sent) to pin the API surface we depend on:
+// address parsing, and from/to/subject/text/html message building.
+describe("MailService with a real nodemailer transport", () => {
+  test("builds a deliverable admin message", async () => {
+    process.env.SMTP_USER = "admin@example.com";
+    const transport = nodemailer.createTransport({ jsonTransport: true });
+    let info = null;
+    const service = new MailService(() => ({
+      sendMail: async (message) => {
+        info = await transport.sendMail(message);
+        return info;
+      },
+    }));
+    const res = makeRes();
+    const req = makeReq({
+      body: { username: "user-hash", email: "user@example.com" },
+      collections: {
+        users: makeCollection({ findOne: () => Promise.resolve(null) }),
+        pendingUsers: makeCollection({ findOne: () => Promise.resolve(null) }),
+      },
+    });
+
+    await service.register(req, res);
+
+    assert.equal(res._body.success, true);
+    const message = JSON.parse(info.message);
+    assert.equal(message.to[0].address, "admin@example.com");
+    assert.match(message.subject, /New Registration Request/);
+    assert.ok(message.html.includes("Approve Registration"));
+  });
+});
 
 describe("MailService", () => {
   describe("register", () => {
