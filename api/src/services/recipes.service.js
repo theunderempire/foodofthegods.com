@@ -2,14 +2,14 @@ import { randomUUID } from "crypto";
 import RequestService from "./request.service.js";
 import { generateThumbnail, deleteThumbnail } from "./thumbnail.service.js";
 import { safeFetch } from "./safeFetch.js";
+import {
+  getGeminiConfig,
+  requestGemini,
+  extractCandidateText,
+  parseJsonLoosely,
+} from "./gemini.service.js";
 
 var requestService = new RequestService();
-
-const defaultGeminiModel = "gemini-2.5-flash";
-
-function buildGeminiUrl(model) {
-  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-}
 
 // monk forwards the options object to the driver verbatim, and the driver reads
 // only `projection` (or the deprecated `fields`). A bare `{name: 1}` is silently
@@ -192,15 +192,8 @@ var RecipesService = function () {
     return str;
   }
 
-  async function callGemini(text, apiKey, geminiUrl, attempt = 1) {
-    const geminiResponse = await fetch(geminiUrl, {
-      method: "POST",
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `Extract the recipe from the following text and return ONLY a JSON object with no markdown fencing, no explanation, just the JSON. Use this exact shape:
+  function buildImportPrompt(text) {
+    return `Extract the recipe from the following text and return ONLY a JSON object with no markdown fencing, no explanation, just the JSON. Use this exact shape:
 {
   "name": "...",
   "prepDuration": "...",
@@ -213,23 +206,22 @@ var RecipesService = function () {
 prepDuration and cookDuration must be human-readable strings like "30 min" or "1 hr 30 min", not ISO 8601 format.
 
 Recipe text:
-${text.slice(0, 50000)}`,
-              },
-            ],
-          },
-        ],
-      }),
-      headers: {
-        "x-goog-api-key": apiKey,
-        "Content-Type": "application/json",
-      },
+${text.slice(0, 50000)}`;
+  }
+
+  async function callGemini(text, apiKey, geminiUrl, attempt = 1) {
+    const geminiResponse = await requestGemini({
+      url: geminiUrl,
+      apiKey,
+      prompt: buildImportPrompt(text),
     });
     const responseBody = await geminiResponse.json();
-    if (!responseBody.candidates?.length) {
-      const reason =
-        responseBody.error?.message ||
-        responseBody.promptFeedback?.blockReason ||
-        "no candidates returned";
+    const candidate = extractCandidateText(responseBody);
+
+    if (!candidate.text) {
+      const reason = candidate.reason;
+      // Gemini sheds load under pressure; a couple of backed-off retries turn a
+      // transient 503 into a successful import rather than a user-visible failure.
       const isTransient =
         responseBody.error?.code === 503 ||
         (typeof reason === "string" && reason.toLowerCase().includes("high demand"));
@@ -243,26 +235,8 @@ ${text.slice(0, 50000)}`,
       }
       throw new Error(`Gemini API error: ${reason}`);
     }
-    const rawText = responseBody.candidates[0].content.parts[0].text;
 
-    // Strip markdown fencing (case-insensitive)
-    let json = rawText
-      .replace(/```json\s*/gi, "")
-      .replace(/```\s*/g, "")
-      .trim();
-
-    // Extract the outermost JSON object, ignoring any surrounding prose
-    const jsonMatch = json.match(/\{[\s\S]*\}/);
-    if (jsonMatch) json = jsonMatch[0];
-
-    // Fix common LLM JSON issues:
-    // 1. Trailing commas before } or ]
-    json = json.replace(/,(\s*[}\]])/g, "$1");
-    // 2. Missing commas between adjacent objects or between } and [
-    json = json.replace(/\}(\s*)\{/g, "},$1{");
-    json = json.replace(/\](\s*)\{/g, "],$1{");
-
-    const parsed = JSON.parse(json);
+    const parsed = parseJsonLoosely(candidate.text, "object");
     parsed.prepDuration = parseIso8601Duration(parsed.prepDuration);
     parsed.cookDuration = parseIso8601Duration(parsed.cookDuration);
     parsed.ingredients = (parsed.ingredients ?? []).map((i) => ({
@@ -280,12 +254,10 @@ ${text.slice(0, 50000)}`,
       return res.json({ success: false, data: "url is required" });
     }
 
-    const userDoc = await getUserCollection(req).findOne({ username: req.decoded.username });
-    const apiKey = userDoc?.geminiApiKey;
+    const { apiKey, url: geminiUrl } = await getGeminiConfig(req);
     if (!apiKey) {
       return res.json({ success: false, data: "No Gemini API key set. Add one in Settings." });
     }
-    const geminiUrl = buildGeminiUrl(userDoc?.geminiModel || defaultGeminiModel);
 
     console.log(`[recipes] importRecipeFromUrl: fetching "${url}"`);
     try {
@@ -359,12 +331,10 @@ ${text.slice(0, 50000)}`,
       return res.json({ success: false, data: "text is required" });
     }
 
-    const userDoc = await getUserCollection(req).findOne({ username: req.decoded.username });
-    const apiKey = userDoc?.geminiApiKey;
+    const { apiKey, url: geminiUrl } = await getGeminiConfig(req);
     if (!apiKey) {
       return res.json({ success: false, data: "No Gemini API key set. Add one in Settings." });
     }
-    const geminiUrl = buildGeminiUrl(userDoc?.geminiModel || defaultGeminiModel);
 
     console.log(`[recipes] importRecipeFromText: parsing pasted recipe`);
     try {

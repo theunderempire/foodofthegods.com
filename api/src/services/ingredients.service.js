@@ -1,6 +1,12 @@
 import { randomUUID } from "crypto";
 import RequestService from "./request.service.js";
 import { broadcast } from "./sse.js";
+import {
+  getGeminiConfig,
+  requestGemini,
+  extractCandidateText,
+  parseJsonLoosely,
+} from "./gemini.service.js";
 
 const requestService = new RequestService();
 
@@ -15,8 +21,6 @@ const IngredientService = function () {
   this.updateIngredient = updateIngredient;
 
   const ungroupedName = "ungrouped";
-
-  const defaultGeminiModel = "gemini-2.5-flash";
 
   // Every list mutation shares one envelope: authorize the caller, load their
   // list, refuse while an auto-group is in flight, then persist, broadcast to the
@@ -149,19 +153,7 @@ const IngredientService = function () {
   // Parses the Gemini grouping response ([{ name, itemIds }]) and rebuilds full groups
   // from the original items, so the model can only move items — never alter or drop them.
   function buildGroupsFromResponse(rawText, itemsById) {
-    let parsed;
-    try {
-      parsed = JSON.parse(rawText.trim());
-    } catch {
-      // Fall back to stripping markdown fencing / surrounding prose.
-      let json = rawText
-        .replace(/```json\s*/gi, "")
-        .replace(/```\s*/g, "")
-        .trim();
-      const arrayMatch = json.match(/\[[\s\S]*\]/);
-      if (arrayMatch) json = arrayMatch[0];
-      parsed = JSON.parse(json);
-    }
+    const parsed = parseJsonLoosely(rawText, "array");
     if (!Array.isArray(parsed)) {
       throw new Error("Gemini grouping response was not a JSON array");
     }
@@ -205,16 +197,12 @@ const IngredientService = function () {
     if (requestService.checkUser(req, userId)) {
       let docs = null;
       try {
-        const userCollection = req.db.get("users");
-        const user = await userCollection.findOne({ username: req.decoded.username });
-        const geminiAPIKey = user?.geminiApiKey;
+        const { apiKey: geminiAPIKey, url: geminiUrl } = await getGeminiConfig(req);
 
         if (!geminiAPIKey) {
           res.json({ success: false, data: "No Gemini API key configured" });
           return;
         }
-
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${user?.geminiModel || defaultGeminiModel}:generateContent`;
 
         docs = await collection.findOne({ userId }, {});
         if (docs?.ingredientList?.groups?.length) {
@@ -236,14 +224,10 @@ const IngredientService = function () {
             })),
           }));
 
-          const response = await fetch(geminiUrl, {
-            method: "POST",
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [
-                    {
-                      text: `Organize this grocery shopping list into grocery store sections (e.g. "Dairy", "Produce", "Meat", "Bakery", "Pantry", "Frozen").
+          const response = await requestGemini({
+            url: geminiUrl,
+            apiKey: geminiAPIKey,
+            prompt: `Organize this grocery shopping list into grocery store sections (e.g. "Dairy", "Produce", "Meat", "Bakery", "Pantry", "Frozen").
 
 The list may already be partially grouped. Keep items that are already in a sensible store section where they are (reuse the existing section name), and place items from the "${ungroupedName}" section into the appropriate section.
 
@@ -256,40 +240,26 @@ Example response:
   { "name": "Dairy", "itemIds": ["id-1", "id-4"] },
   { "name": "Produce", "itemIds": ["id-2", "id-3"] }
 ]`,
-                    },
-                  ],
-                },
-              ],
-              generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                  type: "ARRAY",
-                  items: {
-                    type: "OBJECT",
-                    properties: {
-                      name: { type: "STRING" },
-                      itemIds: { type: "ARRAY", items: { type: "STRING" } },
-                    },
-                    required: ["name", "itemIds"],
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    name: { type: "STRING" },
+                    itemIds: { type: "ARRAY", items: { type: "STRING" } },
                   },
+                  required: ["name", "itemIds"],
                 },
               },
-            }),
-            headers: {
-              "x-goog-api-key": geminiAPIKey,
-              "Content-Type": "application/json",
             },
           });
 
           if (response.ok) {
-            const responseBody = await response.json();
-            const groupedListJSON = responseBody.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!groupedListJSON) {
-              const reason =
-                responseBody.promptFeedback?.blockReason ||
-                responseBody.candidates?.[0]?.finishReason ||
-                "no content returned";
-              throw new Error(`Gemini returned no usable content: ${reason}`);
+            const candidate = extractCandidateText(await response.json());
+            if (!candidate.text) {
+              throw new Error(`Gemini returned no usable content: ${candidate.reason}`);
             }
 
             // Re-read the list: a write that slipped in before the grouping lock
@@ -298,7 +268,7 @@ Example response:
             const freshDocs = (await collection.findOne({ userId }, {})) || docs;
             const itemsById = mapItemsById(freshDocs.ingredientList?.groups || []);
 
-            const groupedItems = buildGroupsFromResponse(groupedListJSON, itemsById);
+            const groupedItems = buildGroupsFromResponse(candidate.text, itemsById);
 
             const updatedIngredientList = {
               ...freshDocs.ingredientList,
