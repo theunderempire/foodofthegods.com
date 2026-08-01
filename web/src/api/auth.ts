@@ -1,15 +1,10 @@
-import { client } from "./client";
+import { client, unwrap } from "./client";
 
 async function sha256(value: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(buf))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-}
-
-interface TokenPasswordResponse {
-  success: boolean;
-  data: { message: string; token: string };
 }
 
 export function getUserIdFromToken(token: string): string {
@@ -19,11 +14,13 @@ export function getUserIdFromToken(token: string): string {
 }
 
 export async function login(rawUsername: string, rawPassword: string): Promise<string> {
-  const tokenRes = await client.post<TokenPasswordResponse>("/token", {
-    username: await sha256(rawUsername),
-    password: rawPassword,
-  });
-  return tokenRes.data.data.token;
+  const { token } = await unwrap<{ message: string; token: string }>(
+    client.post("/token", {
+      username: await sha256(rawUsername),
+      password: rawPassword,
+    }),
+  );
+  return token;
 }
 
 export async function register(rawUsername: string, email: string): Promise<void> {

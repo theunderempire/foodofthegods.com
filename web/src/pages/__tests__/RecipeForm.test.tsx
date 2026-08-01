@@ -183,10 +183,7 @@ describe("RecipeForm", () => {
   });
 
   test("calls addRecipe and navigates to new recipe on valid submit", async () => {
-    mockAddRecipe.mockResolvedValue({
-      success: true,
-      data: { msg: "recipe added", id: "new-recipe-id" },
-    });
+    mockAddRecipe.mockResolvedValue({ msg: "recipe added", id: "new-recipe-id" });
     renderForm();
     await navigateToForm();
 

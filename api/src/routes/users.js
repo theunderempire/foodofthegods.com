@@ -1,13 +1,19 @@
 import express from "express";
 const router = express.Router();
 
+// Reports only whether a key is set, never the key. The Settings page shows a
+// masked placeholder and has no use for the value, so there is no reason to send
+// a credential back over the wire on every settings load.
 export async function handleGetSettings(req, res) {
   const userCollection = req.db.get("users");
   try {
     const user = await userCollection.findOne({ username: req.decoded.username });
-    res.json({ geminiApiKey: user?.geminiApiKey ?? null, geminiModel: user?.geminiModel ?? null });
+    res.json({
+      hasGeminiKey: Boolean(user?.geminiApiKey),
+      geminiModel: user?.geminiModel ?? null,
+    });
   } catch {
-    res.json({ geminiApiKey: null, geminiModel: null });
+    res.json({ hasGeminiKey: false, geminiModel: null });
   }
 }
 

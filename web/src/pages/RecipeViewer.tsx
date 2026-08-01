@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ROUTES } from "../routes";
+import { ROUTES, shareUrl } from "../routes";
 import { addIngredient, addIngredients, getIngredientList } from "../api/ingredientList";
 import { deleteRecipe, getRecipe } from "../api/recipes";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -97,7 +97,7 @@ export function RecipeViewer() {
   }
 
   function handleCopyShareLink() {
-    const link = `${window.location.origin}${ROUTES.recipes.share(recipeId)}`;
+    const link = shareUrl(recipeId);
     navigator.clipboard.writeText(link).then(() => {
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);

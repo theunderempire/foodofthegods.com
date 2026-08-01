@@ -96,6 +96,27 @@ h3 {
   color: var(--text);
 }
 
+/* The uppercase micro-label heading shared by section, group and dialog
+   titles. Each user overrides only what it needs, further down the file. */
+.recipe-section h2,
+.form-section-title,
+.group-name,
+.dialog-title {
+  font-size: 0.68rem;
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: var(--track-wider);
+  color: var(--text-faint);
+  font-weight: 600;
+}
+/* Every micro-label except the dialog title is underlined by a rule. */
+.recipe-section h2,
+.form-section-title,
+.group-name {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
 /* ─── Layout ─────────────────────────────────────────────────────────────── */
 .app-shell {
   display: flex;
@@ -263,6 +284,33 @@ h3 {
 }
 .btn-full {
   width: 100%;
+  justify-content: center;
+}
+
+/* ─── Icon buttons ─────────────────────────────────────────────────────────── */
+/* Base for the small glyph buttons. The existing class names share the base
+   through the grouped selectors, so the markup needs no extra class. */
+.icon-btn,
+.add-ingredient-btn,
+.remove-btn,
+.edit-btn {
+  color: var(--text-faint);
+  font-size: 1rem;
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--transition),
+    background var(--transition);
+  flex-shrink: 0;
+}
+/* Square modifier: a 2.25rem box with the glyph centred. */
+.icon-btn-square,
+.remove-btn,
+.edit-btn {
+  padding: 0.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
   justify-content: center;
 }
 
@@ -708,13 +756,6 @@ textarea.input {
 }
 .recipe-section h2 {
   font-size: 0.72rem;
-  font-family: var(--font-sans);
-  text-transform: uppercase;
-  letter-spacing: var(--track-wider);
-  color: var(--text-faint);
-  font-weight: 600;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border);
 }
 .section-header {
   display: flex;
@@ -745,9 +786,13 @@ textarea.input {
 .ingredient-item:last-child {
   border-bottom: none;
 }
-.ingredient-amount {
+/* The accent-coloured amount column, shared with the shopping list. */
+.ingredient-amount,
+.item-amount {
   color: var(--accent);
   font-weight: 500;
+}
+.ingredient-amount {
   min-width: 80px;
   font-size: 0.85rem;
 }
@@ -759,15 +804,8 @@ textarea.input {
   opacity: 0.4;
 }
 .add-ingredient-btn {
-  color: var(--text-faint);
-  font-size: 1rem;
   line-height: 1;
   padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-sm);
-  transition:
-    color var(--transition),
-    background var(--transition);
-  flex-shrink: 0;
   opacity: 0;
 }
 .ingredient-item:hover .add-ingredient-btn {
@@ -842,16 +880,7 @@ textarea.input {
   gap: 1.25rem;
 }
 
-.form-section-title {
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: var(--text-faint);
-  text-transform: uppercase;
-  letter-spacing: var(--track-wider);
-  font-family: var(--font-sans);
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border);
-}
+/* .form-section-title is styled entirely by the micro-label group above. */
 
 .items-list {
   display: flex;
@@ -923,21 +952,7 @@ textarea.input {
   gap: 0.4rem;
 }
 
-.remove-btn {
-  color: var(--text-faint);
-  font-size: 1rem;
-  padding: 0.5rem;
-  border-radius: var(--radius-sm);
-  transition:
-    color var(--transition),
-    background var(--transition);
-  flex-shrink: 0;
-  width: 2.25rem;
-  height: 2.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* .remove-btn takes its box from the .icon-btn square modifier above. */
 .remove-btn:hover:not(:disabled) {
   color: var(--danger);
   background: var(--danger-soft);
@@ -948,19 +963,7 @@ textarea.input {
 }
 
 .edit-btn {
-  color: var(--text-faint);
   font-size: 1.25rem;
-  padding: 0.5rem;
-  border-radius: var(--radius-sm);
-  transition:
-    color var(--transition),
-    background var(--transition);
-  flex-shrink: 0;
-  width: 2.25rem;
-  height: 2.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 .edit-btn:hover {
   color: var(--accent);
@@ -996,12 +999,8 @@ textarea.input {
 .group-name {
   font-size: 0.65rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: var(--track-wider);
   color: var(--accent);
-  font-family: var(--font-sans);
   padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border);
   margin-bottom: 0;
 }
 
@@ -1044,8 +1043,6 @@ textarea.input {
 }
 
 .item-amount {
-  color: var(--accent);
-  font-weight: 500;
   font-size: 0.82rem;
   min-width: 55px;
 }
@@ -1096,7 +1093,7 @@ textarea.input {
   align-items: flex-start;
   gap: 0.25rem;
   padding: 1.25rem 1.5rem;
-  background: var(--surface);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   cursor: pointer;
@@ -1108,7 +1105,7 @@ textarea.input {
 
 .import-option:hover:not(:disabled) {
   border-color: var(--accent);
-  background: var(--surface-hover);
+  background: var(--bg-elevated);
 }
 
 .import-option:disabled {
@@ -1168,12 +1165,7 @@ textarea.input {
 }
 
 .dialog-title {
-  font-size: 0.68rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: var(--track-wider);
-  color: var(--text-faint);
-  font-family: var(--font-sans);
   margin-bottom: 1.5rem;
 }
 

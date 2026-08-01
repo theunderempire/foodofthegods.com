@@ -7,7 +7,7 @@ Recipe manager and shopping list app. Monorepo containing the React frontend, Ex
 ```
 foodofthegods.com/
 ├── web/                  # React + TypeScript + Vite frontend
-├── api/                  # Express.js backend (Node 22)
+├── api/                  # Express.js backend (Node 24)
 ├── db/                   # MongoDB seed data and backup script
 ├── docker-compose.yml    # Development
 └── docker-compose.prod.yml
@@ -17,8 +17,11 @@ foodofthegods.com/
 
 ## Prerequisites
 
-- Node 22 ([nvm](https://github.com/nvm-sh/nvm) recommended)
+- Node 24 — the version in `api/.nvmrc` and `web/.nvmrc`, and what CI runs
+  ([nvm](https://github.com/nvm-sh/nvm) recommended)
 - Docker + Docker Compose
+- npm. Do not use pnpm or yarn: the root `postinstall` shells out to
+  `npm install`, and only `package-lock.json` files are committed.
 
 ---
 
@@ -48,24 +51,57 @@ To seed the database on first run:
 docker compose --profile seed up db-seed
 ```
 
+> **After any change to `api/package.json`, rebuild with `-V`:**
+>
+> ```bash
+> docker compose up -d --build -V fotg-api
+> ```
+>
+> `docker-compose.yml` declares an anonymous volume for `/usr/src/app/node_modules`
+> to keep the bind mount from shadowing the installed dependencies. That volume
+> survives `--build`, so a plain rebuild keeps serving the old `node_modules` and
+> the container crashes with `ERR_MODULE_NOT_FOUND` for the new package. `-V`
+> renews it. (The `api` deploy script already passes `-V`, which is why production
+> is unaffected.)
+
 ### 3. Start the frontend
 
 ```bash
-cd web && npm run dev
+cd web && npm start
 ```
+
+> The API refuses to start unless `JWT_SECRET` is at least 32 characters. If it
+> exits immediately, read the error — it tells you how to generate one.
 
 ---
 
 ## Web (`web/`)
 
-| Command              | Description                      |
-| -------------------- | -------------------------------- |
-| `npm run dev`        | Start Vite dev server            |
-| `npm run build`      | Type-check + production build    |
-| `npm run preview`    | Preview production build locally |
-| `npm test`           | Run unit tests (Vitest)          |
-| `npm run test:watch` | Unit tests in watch mode         |
-| `npm run test:e2e`   | Run e2e tests (Playwright)       |
+| Command               | Description                      |
+| --------------------- | -------------------------------- |
+| `npm start`           | Start Vite dev server            |
+| `npm run build`       | Type-check + production build    |
+| `npm run typecheck`   | `tsc --noEmit` only              |
+| `npm run preview`     | Preview production build locally |
+| `npm test`            | Run unit tests (Vitest)          |
+| `npm run test:watch`  | Unit tests in watch mode         |
+| `npm run test:e2e`    | Run e2e tests (Playwright)       |
+| `npm run test:e2e:ui` | Playwright in UI mode            |
+
+`npm run test:e2e` needs the API and database running (`docker compose up`). It runs
+two Playwright projects:
+
+| Project          | Serves                                 | Covers                                                      |
+| ---------------- | -------------------------------------- | ----------------------------------------------------------- |
+| `chromium-dev`   | `vite` dev server, base `/`            | The full suite — login, recipes, shopping list, deeplinks   |
+| `chromium-build` | `vite preview`, base `/foodofthegods/` | Base path, asset URLs, SPA fallback, and copied share links |
+
+`chromium-build` exists because `base` differs between dev and production. A share
+link built from `window.location.origin` alone passed every dev-mode test and 404'd
+in production, because nothing had ever run against the production build. Keep
+navigations and URL assertions in the specs **relative** (`goto("login")`, not
+`goto("/login")`) — a leading slash resolves against the origin and drops the base
+path, so absolute paths silently bypass what this project is here to catch.
 
 `VITE_API_BASE_URL` is read from the root `.env` file (no web-specific env file needed).
 
@@ -75,13 +111,22 @@ Production builds output to `web/dist/` with base path `/foodofthegods/`.
 
 ## API (`api/`)
 
-| Command             | Description                         |
-| ------------------- | ----------------------------------- |
-| `npm run start-dev` | Start with nodemon (live reload)    |
-| `npm start`         | Start for production                |
-| `npm test`          | Run tests (Node native test runner) |
-| `npm run lint`      | ESLint                              |
-| `npm run format`    | Prettier                            |
+| Command                       | Description                                  |
+| ----------------------------- | -------------------------------------------- |
+| `npm run start-dev`           | Start with nodemon (live reload)             |
+| `npm start`                   | Start for production                         |
+| `npm test`                    | Run tests (Node native test runner)          |
+| `npm run lint`                | ESLint                                       |
+| `npm run format`              | Prettier                                     |
+| `npm run swagger`             | Regenerate `swagger_output.json` from JSDoc  |
+| `npm run backfill-thumbnails` | One-off: generate thumbnails for old recipes |
+
+Tests need no database or network — collections are mocked and outbound calls are
+stubbed. Two endpoints are useful when running locally:
+
+- `GET /health` — reports API and database status
+- `GET /docs` — Swagger UI, served from the committed `swagger_output.json`
+  (regenerate with `npm run swagger` after changing routes)
 
 ---
 
@@ -93,21 +138,48 @@ All environment variables live in a single `.env` file at the repo root. Copy `.
 cp .env.example .env
 ```
 
-| Variable                  | Description                                                       |
-| ------------------------- | ----------------------------------------------------------------- |
-| `DB_USERNAME`             | MongoDB root username                                             |
-| `DB_PASSWORD`             | MongoDB root password                                             |
-| `DB_NAME`                 | MongoDB database name                                             |
-| `DB_HOST_NAME`            | MongoDB host (`fotg-db` in Docker, `localhost` otherwise)         |
-| `JWT_SECRET`              | Secret for signing JWTs                                           |
-| `GEMINI_API_KEY`          | Google Gemini API key (used for recipe import)                    |
-| `APP_URL`                 | Frontend base URL, used in registration emails (no trailing slash)|
-| `VITE_API_BASE_URL`       | API base URL, used in registration emails and thumbnail generation (no trailing slash) |
-| `SMTP_HOST`               | SMTP server hostname (e.g. `smtp.gmail.com`)                      |
-| `SMTP_PORT`               | SMTP port (`587` for TLS, `465` for SSL)                          |
-| `SMTP_USER`               | SMTP username / email address (also receives registration emails) |
-| `SMTP_PASS`               | SMTP password or app password                                     |
-| `SMTP_REJECT_UNAUTHORIZED`| Set to `false` to allow self-signed certs (default `true`)        |
+| Variable                   | Description                                                                                                                                                                                  |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DB_USERNAME`              | MongoDB root username                                                                                                                                                                        |
+| `DB_PASSWORD`              | MongoDB root password                                                                                                                                                                        |
+| `DB_NAME`                  | MongoDB database name                                                                                                                                                                        |
+| `DB_HOST_NAME`             | MongoDB host (`fotg-db` in Docker, `localhost` otherwise)                                                                                                                                    |
+| `JWT_SECRET`               | Secret for signing JWTs. **Minimum 32 characters — the API refuses to start below that.** Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`           |
+| `TRUST_PROXY_HOPS`         | Number of reverse proxies in front of the API. **Must be `1` in production** (behind Caddy) or rate limits key on the proxy's IP and every user shares one bucket. `0` for local dev         |
+| `APP_URL`                  | Frontend base URL, used in registration emails (no trailing slash)                                                                                                                           |
+| `VITE_API_BASE_URL`        | API base URL, used in registration emails and thumbnail generation (no trailing slash)                                                                                                       |
+| `SMTP_HOST`                | SMTP server hostname (e.g. `smtp.gmail.com`)                                                                                                                                                 |
+| `SMTP_PORT`                | SMTP port (`587` for TLS, `465` for SSL)                                                                                                                                                     |
+| `SMTP_USER`                | SMTP username / email address (also receives registration emails)                                                                                                                            |
+| `SMTP_PASS`                | SMTP password or app password                                                                                                                                                                |
+| `SMTP_REJECT_UNAUTHORIZED` | Set to `false` to allow self-signed certs (default `true`)                                                                                                                                   |
+| `AUTH_RATE_LIMIT`          | Optional. Requests per 15 min to `/token` and `/mail`. Defaults to 30 in production, 2000 otherwise — the e2e suite logs in on nearly every test and would exhaust a production-tight budget |
+| `PUBLIC_RECIPE_RATE_LIMIT` | Optional. Requests per 15 min to `/recipe/:id`. Defaults to 300 in production, 5000 otherwise                                                                                                |
+
+There is no server-wide Gemini API key. Each user supplies their own on the
+Settings page, stored on their user record; AI import and list grouping are
+disabled until they do. `GET /users/settings` reports only whether a key is set,
+never the key itself.
+
+---
+
+## Tests and CI
+
+| Where          | Runs                                                  |
+| -------------- | ----------------------------------------------------- |
+| pre-commit     | Prettier on staged files, then web and API unit tests |
+| pre-push       | API lint, web typecheck, then Playwright e2e          |
+| GitHub Actions | Both of the above, plus web build and `npm audit`     |
+
+Git hooks are Husky-managed and client-side, so they can be skipped with
+`--no-verify`; `.github/workflows/ci.yml` is the gate that actually blocks a merge.
+It runs two jobs:
+
+- **api** — lint, Prettier check, tests, and `npm audit --omit=dev --audit-level=high`
+- **web** — typecheck, Prettier check, tests, and production build
+
+Note that pre-push runs e2e, which needs `docker compose up` first. Pushing with
+the stack down will fail there.
 
 ---
 
@@ -142,24 +214,26 @@ Pending registrations are stored in the `pendingUsers` collection. Approval toke
 
 ## Production Deployment
 
-### API
+Run from the repo root on the server. This is the normal path — it deploys the API
+and the frontend in one step:
 
 ```bash
-cd api
 npm run deploy
 ```
 
-Rebuilds and restarts the API container using the production Docker Compose override.
+Equivalent to `npm run --prefix api deploy && (cd web && ./autobuild)`, so either
+half can be run on its own when only one side changed:
 
-### Frontend
+| Command                      | Effect                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------- |
+| `npm run deploy` (root)      | API + frontend                                                              |
+| `npm run deploy` (in `api/`) | Rebuilds and restarts the API container via the production Compose override |
+| `./autobuild` (in `web/`)    | Installs, builds, and copies to `$HOME/docker/caddy/site/foodofthegods`     |
+| `npm run build:all` (root)   | Rebuilds **every** container with the production override                   |
 
-Run on the server from the `web/` directory:
-
-```bash
-./autobuild
-```
-
-Installs dependencies, builds the app, and deploys to `$HOME/docker/caddy/site/foodofthegods`.
+Before the first deploy after upgrading, check `.env` on the server: `JWT_SECRET`
+must be at least 32 characters or the API will not boot, and `TRUST_PROXY_HOPS`
+must be `1` behind Caddy.
 
 ### First deploy (database seed)
 

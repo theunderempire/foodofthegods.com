@@ -2,6 +2,7 @@ import { describe, test, before } from "node:test";
 import assert from "node:assert/strict";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import {
   computeLegacyHash,
   handleGetUser,
@@ -14,8 +15,13 @@ import { makeRes, makeReq, makeCollection } from "../helpers/mocks.js";
 
 const sha256 = (v) => crypto.createHash("sha256").update(v).digest("hex");
 
+// src/secret.js rejects secrets shorter than MIN_JWT_SECRET_LENGTH (32) at
+// startup, so the test secret is sized accordingly even though tokenCheck
+// itself does not re-check the length.
+const TEST_JWT_SECRET = "test-secret-that-is-long-enough-32";
+
 before(() => {
-  process.env.JWT_SECRET = "test-secret";
+  process.env.JWT_SECRET = TEST_JWT_SECRET;
 });
 
 describe("computeLegacyHash", () => {
@@ -318,5 +324,152 @@ describe("tokenCheck with API key", () => {
     assert.equal(nextCalled, false, "should not call next() on an invalid key");
     assert.equal(res._status, 403);
     assert.equal(res._body.success, false);
+  });
+});
+
+describe("tokenCheck with JWT", () => {
+  const signWith = (payload, options = {}, secret = TEST_JWT_SECRET) =>
+    jwt.sign(payload, secret, { algorithm: "HS256", expiresIn: "1h", ...options });
+
+  // tokenCheck's JWT branch finishes inside jwt.verify's callback. That callback
+  // is invoked synchronously today, but awaiting one extra macrotask makes these
+  // tests independent of that implementation detail.
+  async function runTokenCheck(req) {
+    const res = makeRes();
+    let nextCalled = false;
+    await tokenCheck(req, res, () => {
+      nextCalled = true;
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    return { res, nextCalled };
+  }
+
+  // makeReq seeds req.decoded, which would mask a tokenCheck that never sets it.
+  function makeAnonReq(options) {
+    const req = makeReq(options);
+    req.decoded = null;
+    return req;
+  }
+
+  test("accepts a valid token from req.body.token and populates req.decoded", async () => {
+    const req = makeAnonReq({ body: { token: signWith({ username: "jwt-user" }) } });
+
+    const { res, nextCalled } = await runTokenCheck(req);
+
+    assert.ok(nextCalled, "should call next() on a valid token");
+    assert.equal(req.decoded.username, "jwt-user");
+    assert.equal(res._body, null, "should not write a response when authentication succeeds");
+  });
+
+  test("accepts a valid token from req.query.token", async () => {
+    const req = makeAnonReq({ query: { token: signWith({ username: "query-user" }) } });
+
+    const { nextCalled } = await runTokenCheck(req);
+
+    assert.ok(nextCalled, "should call next() on a valid token");
+    assert.equal(req.decoded.username, "query-user");
+  });
+
+  test("accepts a valid token from the x-access-token header", async () => {
+    const req = makeAnonReq({
+      headers: { "x-access-token": signWith({ username: "header-user" }) },
+    });
+
+    const { nextCalled } = await runTokenCheck(req);
+
+    assert.ok(nextCalled, "should call next() on a valid token");
+    assert.equal(req.decoded.username, "header-user");
+  });
+
+  test("rejects an expired token", async () => {
+    const req = makeAnonReq({
+      headers: { "x-access-token": signWith({ username: "expired-user" }, { expiresIn: "-1s" }) },
+    });
+
+    const { res, nextCalled } = await runTokenCheck(req);
+
+    assert.equal(nextCalled, false, "should not call next() on an expired token");
+    assert.equal(res._body.success, false);
+    assert.match(res._body.message, /Failed to authenticate token/);
+    assert.equal(req.decoded, null, "should not populate req.decoded");
+  });
+
+  test("rejects a malformed token", async () => {
+    const req = makeAnonReq({ headers: { "x-access-token": "not-a-jwt-at-all" } });
+
+    const { res, nextCalled } = await runTokenCheck(req);
+
+    assert.equal(nextCalled, false, "should not call next() on a malformed token");
+    assert.equal(res._body.success, false);
+  });
+
+  test("rejects a token signed with the wrong secret", async () => {
+    const forged = signWith({ username: "attacker" }, {}, "an-attacker-controlled-secret-32-chars");
+    const req = makeAnonReq({ headers: { "x-access-token": forged } });
+
+    const { res, nextCalled } = await runTokenCheck(req);
+
+    assert.equal(nextCalled, false, "a signature from another secret must not authenticate");
+    assert.equal(res._body.success, false);
+    assert.equal(req.decoded, null);
+  });
+
+  test("returns 403 when no token is provided anywhere", async () => {
+    const req = makeAnonReq({});
+
+    const { res, nextCalled } = await runTokenCheck(req);
+
+    assert.equal(nextCalled, false, "should not call next() without a token");
+    assert.equal(res._status, 403);
+    assert.equal(res._body.success, false);
+    assert.match(res._body.message, /No token provided/);
+  });
+
+  test("distinguishes a missing token (403) from an invalid token (200 with success:false)", async () => {
+    // This asymmetry is load-bearing, not an oversight: the web client treats a
+    // 403 as "you are not logged in" and redirects to the login page, while an
+    // invalid-token response comes back as HTTP 200 with {success:false} and is
+    // handled in-band. Changing either status code would change the client's
+    // redirect behaviour, so both are pinned here.
+    const missing = await runTokenCheck(makeAnonReq({}));
+    assert.equal(
+      missing.res._status,
+      403,
+      "missing token MUST be 403 — the client redirects on it",
+    );
+    assert.equal(missing.res._body.success, false);
+
+    const invalid = await runTokenCheck(
+      makeAnonReq({ headers: { "x-access-token": "garbage.token.value" } }),
+    );
+    assert.equal(
+      invalid.res._status,
+      200,
+      "invalid token MUST NOT be 403 — it stays 200 so the client does not redirect",
+    );
+    assert.equal(invalid.res._body.success, false);
+
+    assert.notEqual(
+      missing.res._status,
+      invalid.res._status,
+      "the two failure modes must remain distinguishable by status code",
+    );
+  });
+
+  test("prefers the API key branch over a JWT when both are present", async () => {
+    const req = makeAnonReq({
+      headers: {
+        "x-api-key": "c".repeat(64),
+        "x-access-token": signWith({ username: "jwt-user" }),
+      },
+      collections: {
+        users: makeCollection({ findOne: () => Promise.resolve({ username: "apikey-user" }) }),
+      },
+    });
+
+    const { nextCalled } = await runTokenCheck(req);
+
+    assert.ok(nextCalled);
+    assert.equal(req.decoded.username, "apikey-user");
   });
 });

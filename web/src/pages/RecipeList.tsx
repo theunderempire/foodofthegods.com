@@ -49,10 +49,23 @@ export function RecipeList() {
     writeSaved("recipe-list-filter", filter);
   }, [filter]);
 
+  // Only the final position matters for restoring scroll on back-navigation, so
+  // coalesce to one write per frame instead of a JSON.stringify plus a synchronous
+  // sessionStorage write on every scroll event.
   useEffect(() => {
-    const onScroll = () => writeSaved("recipe-list-scroll", String(window.scrollY));
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        writeSaved("recipe-list-scroll", String(window.scrollY));
+      });
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, []);
 
   useEffect(() => {
