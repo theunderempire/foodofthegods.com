@@ -9,6 +9,7 @@ const WINDOW_MS = 15 * 60 * 1000;
 const DEFAULTS = {
   auth: { production: 30, development: 2000 },
   publicRecipe: { production: 300, development: 5000 },
+  refresh: { production: 120, development: 5000 },
 };
 
 export function resolveLimit({ override, isProduction, production, development }) {
@@ -30,15 +31,32 @@ export function createLimiters(env = process.env) {
     isProduction,
     ...DEFAULTS.publicRecipe,
   });
+  const refreshLimit = resolveLimit({
+    override: env.REFRESH_RATE_LIMIT,
+    isProduction,
+    ...DEFAULTS.refresh,
+  });
 
   return {
-    limits: { authLimit, publicRecipeLimit },
+    limits: { authLimit, publicRecipeLimit, refreshLimit },
 
     // /token and /mail are unauthenticated and the ones worth hammering:
     // credentials, an admin-mail flood, and the set-password token oracle.
     authLimiter: rateLimit({
       windowMs: WINDOW_MS,
       limit: authLimit,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { success: false, data: { message: "Too many attempts. Try again later." } },
+    }),
+
+    // /token/refresh is authenticated and hit by every active session a few
+    // times an hour, so it cannot share authLimiter's credential-guessing
+    // budget — that would lock out every user behind one IP. It still gets its
+    // own cap against token-grinding.
+    refreshLimiter: rateLimit({
+      windowMs: WINDOW_MS,
+      limit: refreshLimit,
       standardHeaders: true,
       legacyHeaders: false,
       message: { success: false, data: { message: "Too many attempts. Try again later." } },

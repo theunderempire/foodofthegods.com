@@ -52,7 +52,6 @@ client.interceptors.response.use(
   (error) => {
     if (error.response?.status === 403) {
       Cookies.remove(COOKIE_NAME);
-      localStorage.removeItem("username");
       setReturnTo(
         toRouterPath(window.location.pathname, window.location.search, window.location.hash),
       );

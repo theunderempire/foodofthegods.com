@@ -172,14 +172,12 @@ describe("error interceptor", () => {
   test("a 403 clears the session, stores the return path and redirects to login", async () => {
     const errors = captureApiErrors();
     const location = stubLocation("/recipes/123", "?tab=notes");
-    localStorage.setItem("username", "alice");
     const err = httpError(403, { success: false, data: { message: "Token expired" } });
     failWith(err);
 
     await expect(client.get("/recipes/123")).rejects.toBe(err);
 
     expect(cookies.remove).toHaveBeenCalledWith(COOKIE_NAME);
-    expect(localStorage.getItem("username")).toBeNull();
     // toRouterPath strips the router basename; under test BASE_URL is "/" so the
     // window path and the router path coincide.
     expect(sessionStorage.getItem("fotg_return_to")).toBe("/recipes/123?tab=notes");

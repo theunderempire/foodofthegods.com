@@ -46,6 +46,16 @@ describe("createLimiters", () => {
 
     assert.equal(limits.authLimit, 30);
     assert.equal(limits.publicRecipeLimit, 300);
+    assert.equal(limits.refreshLimit, 120);
+  });
+
+  test("gives refresh more room than login, since every active session refreshes", () => {
+    const { limits } = createLimiters({ NODE_ENV: "production" });
+
+    assert.ok(
+      limits.refreshLimit > limits.authLimit,
+      "sharing login's budget would rate-limit-logout everyone behind one IP",
+    );
   });
 
   test("is permissive in development so the test suite can run repeatedly", () => {
@@ -53,6 +63,7 @@ describe("createLimiters", () => {
 
     assert.ok(limits.authLimit >= 1000, `auth limit ${limits.authLimit} is too low for e2e`);
     assert.ok(limits.publicRecipeLimit >= 1000);
+    assert.ok(limits.refreshLimit >= 1000, "e2e activity triggers refreshes on every test");
   });
 
   test("treats an unset NODE_ENV as non-production", () => {
@@ -64,16 +75,21 @@ describe("createLimiters", () => {
       NODE_ENV: "production",
       AUTH_RATE_LIMIT: "7",
       PUBLIC_RECIPE_RATE_LIMIT: "99",
+      REFRESH_RATE_LIMIT: "44",
     });
 
     assert.equal(limits.authLimit, 7);
     assert.equal(limits.publicRecipeLimit, 99);
+    assert.equal(limits.refreshLimit, 44);
   });
 
   test("returns usable middleware", () => {
-    const { authLimiter, publicRecipeLimiter } = createLimiters({ NODE_ENV: "production" });
+    const { authLimiter, publicRecipeLimiter, refreshLimiter } = createLimiters({
+      NODE_ENV: "production",
+    });
 
     assert.equal(typeof authLimiter, "function");
     assert.equal(typeof publicRecipeLimiter, "function");
+    assert.equal(typeof refreshLimiter, "function");
   });
 });

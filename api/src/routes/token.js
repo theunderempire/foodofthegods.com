@@ -6,6 +6,20 @@ import secret from "../secret.js";
 import { isNonEmptyString } from "../validate.js";
 const router = express.Router();
 
+// The access token TTL doubles as the inactivity timeout: an active client
+// refreshes well before expiry, an idle one lapses. SESSION_MAX_MS is the
+// absolute ceiling — refresh carries the original sessionStart forward, so a
+// stolen token can slide at most this far before re-authentication.
+export const TOKEN_TTL = "1h";
+export const SESSION_MAX_MS = 12 * 60 * 60 * 1000;
+
+function signToken(username, sessionStart) {
+  return jwt.sign({ username, sessionStart }, secret.superSecret, {
+    expiresIn: TOKEN_TTL,
+    algorithm: "HS256",
+  });
+}
+
 // Replicates the legacy client-side hash so existing accounts can be migrated
 export function computeLegacyHash(timestamp, rawPassword) {
   const md5 = (v) => crypto.createHash("md5").update(v).digest("hex");
@@ -81,18 +95,32 @@ export async function handleLogin(req, res, next) {
       });
     }
 
-    var token = jwt.sign({ username: user.username }, secret.superSecret, {
-      expiresIn: "1d",
-      algorithm: "HS256",
-    });
-
     res.json({
       success: true,
-      data: { message: "authenticated", token },
+      data: { message: "authenticated", token: signToken(user.username, Date.now()) },
     });
   } catch (err) {
     next(err);
   }
+}
+
+// Exchanges a currently valid token (tokenCheck runs first) for a fresh one.
+// sessionStart is carried forward, never reset, so refreshing cannot extend a
+// session past SESSION_MAX_MS. Tokens minted before sessionStart existed fall
+// back to their issue time; API-key callers have neither claim and start now.
+export function handleRefresh(req, res) {
+  const { username, sessionStart, iat } = req.decoded;
+  const start = sessionStart ?? (iat ? iat * 1000 : Date.now());
+  if (Date.now() - start > SESSION_MAX_MS) {
+    return res.status(403).json({
+      success: false,
+      data: { message: "Session expired. Please log in again." },
+    });
+  }
+  res.json({
+    success: true,
+    data: { message: "refreshed", token: signToken(username, start) },
+  });
 }
 
 // Hashes an API key the same way it is stored, so raw keys never touch the DB
@@ -129,8 +157,9 @@ export async function handleRevokeApiKey(req, res, next) {
   }
 }
 
-router.get("/:username", tokenCheck, handleGetUser);
 router.post("/", handleLogin);
+router.post("/refresh", tokenCheck, handleRefresh);
+router.get("/:username", tokenCheck, handleGetUser);
 router.post("/apikey", tokenCheck, handleGenerateApiKey);
 router.delete("/apikey", tokenCheck, handleRevokeApiKey);
 

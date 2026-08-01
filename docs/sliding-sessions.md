@@ -1,15 +1,17 @@
-# Sliding sessions: cause and proposed fix
+# Sliding sessions: cause and fix
 
-Status: **proposed, not implemented.** Written to be picked up cold.
+Status: **implemented.** The defects below are historical; the "Proposed fix"
+section describes the current design, and the decisions at the end record the
+values chosen.
 
-The session mechanism keeps the user's plaintext password in memory for the whole
-session in order to silently re-authenticate them. That mechanism does not survive
-a page reload, so the sliding session it exists to provide does not actually work.
-The fix removes the cached credential rather than repairing it.
+The session mechanism kept the user's plaintext password in memory for the whole
+session in order to silently re-authenticate them. That mechanism did not survive
+a page reload, so the sliding session it existed to provide did not actually work.
+The fix removed the cached credential rather than repairing it.
 
 ---
 
-## Current behaviour
+## Behaviour before the fix
 
 `web/src/contexts/AuthContext.tsx`, with the API side in `api/src/routes/token.js`.
 
@@ -49,8 +51,10 @@ there was**, and the silent re-login can never fire.
 So the feature works only for a tab that has been open, untouched by a refresh,
 since the moment of login. Any reload silently downgrades it to a fixed timeout.
 
-Covered by `"a restored session cannot silently re-login, since credentials are not
-persisted"` in `web/src/contexts/__tests__/AuthContext.test.tsx` (added in PR #9).
+Was pinned by `"a restored session cannot silently re-login, since credentials are
+not persisted"` in `web/src/contexts/__tests__/AuthContext.test.tsx` (added in
+PR #9); now rewritten as `"a reload refreshes the saved token and continues the
+session"`.
 
 ### 2. Holding the password escalates any script-execution foothold
 
@@ -65,11 +69,13 @@ turn the least-bad version of this problem into the worst one.
 
 ### 3. A cookie without `localStorage.username` yields a session with no expiry
 
-`isAuthenticated` derives from the token, whose `useState` initialiser reads the
-cookie alone. But `startActivityTimer()` only runs when the cookie **and**
-`localStorage.username` are both present. Clear `localStorage`, or land midway
-through a partial logout, and the app is authenticated with no client-side expiry
-at all. Deliberately left untested so as not to enshrine it.
+`isAuthenticated` derived from the token, whose `useState` initialiser read the
+cookie alone. But `startActivityTimer()` only ran when the cookie **and**
+`localStorage.username` were both present. Clearing `localStorage`, or landing
+midway through a partial logout, left the app authenticated with no client-side
+expiry at all. Deliberately left untested at the time so as not to enshrine it;
+the fix removes `localStorage` from the session entirely, pinned by `"the cookie
+alone restores the session — localStorage is not consulted"`.
 
 ### Also: the three clocks disagree
 
@@ -81,7 +87,7 @@ session by 23 hours.
 
 ---
 
-## Proposed fix: a refresh endpoint with an absolute cap
+## The fix: a refresh endpoint with an absolute cap
 
 Replace "re-authenticate with cached credentials" with "exchange a valid token for a
 fresh one." The client then needs no credentials after login, and the exchange works
@@ -176,13 +182,17 @@ it is a strict improvement over the status quo on its own.
 
 ---
 
-## Open decisions for whoever implements this
+## Decisions taken
 
-1. `SESSION_MAX_MS` — 12 hours proposed. This is the absolute ceiling before
-   re-authentication is required, so it is a product call as much as a security one.
-2. Access token TTL — 1 hour proposed. Shorter means more refresh calls; longer
-   means a leaked token is useful for longer.
-3. Refresh throttle — ~5 minutes proposed. Should be comfortably shorter than the
-   token TTL so an active user never lapses.
-4. Whether to also fix the `/token` rate limit interaction by giving refresh its own
-   limiter, or by moving refresh off the `/token` mount entirely.
+1. `SESSION_MAX_MS` — **12 hours**, a constant in `api/src/routes/token.js`. The
+   absolute ceiling before re-authentication is required; revisit as a product
+   call if it bites.
+2. Access token TTL — **1 hour** (`TOKEN_TTL`, same file). Shorter means more
+   refresh calls; longer means a leaked token is useful for longer.
+3. Refresh throttle — **5 minutes** (`REFRESH_THROTTLE_MS` in
+   `web/src/contexts/AuthContext.tsx`), comfortably shorter than the token TTL so
+   an active user never lapses.
+4. Rate limiting — refresh stays on the `/token` mount but gets its own limiter
+   (`refreshLimiter` in `api/src/rateLimits.js`: 120/15min in production,
+   `REFRESH_RATE_LIMIT` to override) so it cannot drain login's
+   credential-guessing budget and lock out everyone behind one IP.

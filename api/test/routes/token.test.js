@@ -7,9 +7,11 @@ import {
   computeLegacyHash,
   handleGetUser,
   handleLogin,
+  handleRefresh,
   handleGenerateApiKey,
   handleRevokeApiKey,
   tokenCheck,
+  SESSION_MAX_MS,
 } from "../../src/routes/token.js";
 import { makeRes, makeReq, makeCollection } from "../helpers/mocks.js";
 
@@ -171,6 +173,122 @@ describe("handleLogin", () => {
 
     assert.equal(res._body.success, false);
     assert.match(res._body.data.message, /Authentication failed/);
+  });
+
+  test("issues a 1-hour token carrying a sessionStart claim", async () => {
+    const password = "testpassword";
+    const hash = await bcrypt.hash(password, 10);
+    const res = makeRes();
+    const req = makeReq({
+      body: { username: "user-hash", password },
+      collections: {
+        users: makeCollection({
+          findOne: () => Promise.resolve({ username: "user-hash", password: hash }),
+        }),
+      },
+    });
+    const before = Date.now();
+
+    await handleLogin(req, res, () => {});
+
+    const claims = jwt.verify(res._body.data.token, TEST_JWT_SECRET);
+    assert.equal(claims.username, "user-hash");
+    assert.equal(claims.exp - claims.iat, 60 * 60, "token TTL should be one hour");
+    assert.ok(
+      claims.sessionStart >= before && claims.sessionStart <= Date.now(),
+      "sessionStart should be the login time",
+    );
+  });
+});
+
+describe("handleRefresh", () => {
+  // handleRefresh runs behind tokenCheck (see the router wiring and the
+  // "tokenCheck with JWT" suite), so these tests seed req.decoded with the
+  // claims tokenCheck would have verified.
+  function decodedClaims({ sessionStart, iatMsAgo = 0 } = {}) {
+    const iat = Math.floor((Date.now() - iatMsAgo) / 1000);
+    return { username: "user-hash", sessionStart, iat, exp: iat + 3600 };
+  }
+
+  test("exchanges a valid token for one with a later exp and the same username", async () => {
+    const res = makeRes();
+    const req = makeReq({});
+    req.decoded = decodedClaims({ sessionStart: Date.now() - 30 * 60 * 1000, iatMsAgo: 1800000 });
+
+    handleRefresh(req, res);
+
+    assert.equal(res._body.success, true);
+    const claims = jwt.verify(res._body.data.token, TEST_JWT_SECRET);
+    assert.equal(claims.username, "user-hash");
+    assert.ok(claims.exp > req.decoded.exp, "the new token should expire later than the old one");
+  });
+
+  test("carries sessionStart forward rather than resetting it", async () => {
+    const sessionStart = Date.now() - 3 * 60 * 60 * 1000;
+    const res = makeRes();
+    const req = makeReq({});
+    req.decoded = decodedClaims({ sessionStart });
+
+    handleRefresh(req, res);
+
+    const claims = jwt.verify(res._body.data.token, TEST_JWT_SECRET);
+    assert.equal(
+      claims.sessionStart,
+      sessionStart,
+      "resetting sessionStart would let a stolen token refresh forever",
+    );
+  });
+
+  test("refuses with 403 once the session is older than SESSION_MAX_MS", async () => {
+    const res = makeRes();
+    const req = makeReq({});
+    req.decoded = decodedClaims({ sessionStart: Date.now() - SESSION_MAX_MS - 1000 });
+
+    handleRefresh(req, res);
+
+    assert.equal(res._status, 403, "the client redirects to login on 403");
+    assert.equal(res._body.success, false);
+    assert.match(res._body.data.message, /Session expired/);
+  });
+
+  test("treats a pre-migration token without sessionStart as starting at iat", async () => {
+    const res = makeRes();
+    const req = makeReq({});
+    req.decoded = decodedClaims({ iatMsAgo: 30 * 60 * 1000 });
+
+    handleRefresh(req, res);
+
+    assert.equal(res._body.success, true);
+    const claims = jwt.verify(res._body.data.token, TEST_JWT_SECRET);
+    assert.equal(
+      claims.sessionStart,
+      req.decoded.iat * 1000,
+      "old tokens get a cap measured from their issue time",
+    );
+  });
+
+  test("refuses a pre-migration token whose iat is already past the cap", async () => {
+    const res = makeRes();
+    const req = makeReq({});
+    req.decoded = decodedClaims({ iatMsAgo: SESSION_MAX_MS + 1000 });
+
+    handleRefresh(req, res);
+
+    assert.equal(res._status, 403);
+    assert.equal(res._body.success, false);
+  });
+
+  test("an API-key caller (no iat, no sessionStart) starts a session now", async () => {
+    const res = makeRes();
+    const req = makeReq({});
+    req.decoded = { username: "apikey-user" };
+    const before = Date.now();
+
+    handleRefresh(req, res);
+
+    assert.equal(res._body.success, true);
+    const claims = jwt.verify(res._body.data.token, TEST_JWT_SECRET);
+    assert.ok(claims.sessionStart >= before, "must not mint a token with an undefined cap");
   });
 });
 
