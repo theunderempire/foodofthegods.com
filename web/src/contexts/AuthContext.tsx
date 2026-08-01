@@ -1,17 +1,21 @@
 import Cookies from "js-cookie";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { getUserIdFromToken, login as apiLogin } from "../api/auth";
 import { COOKIE_NAME } from "../api/client";
 
 const SESSION_MS = 60 * 60 * 1000; // 1 hour
 const COOKIE_DAYS = (SESSION_MS - 60000) / (1000 * 60 * 60 * 24); // 59 min as fraction of day
+
+// The cookie carries a bearer JWT, so it must never cross the wire in plaintext.
+// Conditional rather than always-on because local dev is served over http, where
+// a Secure cookie would silently fail to set and break login entirely.
+// SameSite stays "lax" (not "strict") so arriving from an external share link
+// doesn't present the app as logged out.
+const COOKIE_OPTIONS = {
+  expires: COOKIE_DAYS,
+  secure: window.location.protocol === "https:",
+  sameSite: "lax",
+} as const;
 
 interface AuthContextValue {
   username: string | null;
@@ -24,12 +28,8 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(
-    () => Cookies.get(COOKIE_NAME) ?? null,
-  );
-  const [username, setUsername] = useState<string | null>(() =>
-    localStorage.getItem("username"),
-  );
+  const [token, setToken] = useState<string | null>(() => Cookies.get(COOKIE_NAME) ?? null);
+  const [username, setUsername] = useState<string | null>(() => localStorage.getItem("username"));
   const activityRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const credRef = useRef<{ username: string; password: string } | null>(null);
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const applyToken = useCallback((newToken: string, user: string) => {
-    Cookies.set(COOKIE_NAME, newToken, { expires: COOKIE_DAYS });
+    Cookies.set(COOKIE_NAME, newToken, COOKIE_OPTIONS);
     localStorage.setItem("username", user);
     setToken(newToken);
     setUsername(user);
@@ -60,10 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (activityRef.current && credRef.current) {
         activityRef.current = false;
         try {
-          const newToken = await apiLogin(
-            credRef.current.username,
-            credRef.current.password,
-          );
+          const newToken = await apiLogin(credRef.current.username, credRef.current.password);
           applyToken(newToken, getUserIdFromToken(newToken));
         } catch {
           logout();

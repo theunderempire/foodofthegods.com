@@ -13,6 +13,9 @@ api/public/thumbnails/*.jpg
 .env.*
 !.env.example
 
+# Local working notes — this repo is public, so these stay untracked
+AUDIT-FOLLOWUPS.md
+
 # Logs
 *.log
 

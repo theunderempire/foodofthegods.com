@@ -3,6 +3,7 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import secret from "../secret.js";
+import { isNonEmptyString } from "../validate.js";
 const router = express.Router();
 
 // Replicates the legacy client-side hash so existing accounts can be migrated
@@ -14,9 +15,15 @@ export function computeLegacyHash(timestamp, rawPassword) {
   return salt + pbkdf2;
 }
 
+// Self-lookup only. While this was public it confirmed which usernames existed
+// and returned `timestamp`, which is the salt for legacy password hashes — that
+// combination let an attacker precompute hashes offline for a known account.
 export async function handleGetUser(req, res, next) {
   var collection = getCollection(req.db);
   var username = req.params.username;
+  if (req.decoded?.username !== username) {
+    return res.status(401).json({ success: false, data: { message: "Unauthorized." } });
+  }
   try {
     const user = await collection.findOne({ username: username }, {});
     if (!user) {
@@ -27,7 +34,7 @@ export async function handleGetUser(req, res, next) {
     } else {
       res.json({
         success: true,
-        data: { username: username, timestamp: user.timestamp },
+        data: { username: username },
       });
     }
   } catch (err) {
@@ -37,8 +44,15 @@ export async function handleGetUser(req, res, next) {
 
 export async function handleLogin(req, res, next) {
   var collection = getCollection(req.db);
+  const { username, password } = req.body;
+  if (!isNonEmptyString(username) || !isNonEmptyString(password)) {
+    return res.json({
+      success: false,
+      data: { message: "Authentication failed. Incorrect credentials." },
+    });
+  }
   try {
-    const user = await collection.findOne({ username: req.body.username }, {});
+    const user = await collection.findOne({ username }, {});
     if (!user) {
       return res.json({
         success: false,
@@ -48,15 +62,15 @@ export async function handleLogin(req, res, next) {
 
     let passwordMatch;
     if (user.password.startsWith("$2b$")) {
-      passwordMatch = await bcrypt.compare(req.body.password, user.password);
+      passwordMatch = await bcrypt.compare(password, user.password);
     } else {
       // Legacy: derive the old client-side hash and compare, then migrate
-      const legacyHash = computeLegacyHash(user.timestamp, req.body.password);
+      const legacyHash = computeLegacyHash(user.timestamp, password);
       passwordMatch = user.password === legacyHash;
       if (passwordMatch) {
-        const hashed = await bcrypt.hash(req.body.password, 12);
-        await collection.update({ username: req.body.username }, { $set: { password: hashed } });
-        console.log(`[auth] migrated password to bcrypt for user="${req.body.username}"`);
+        const hashed = await bcrypt.hash(password, 12);
+        await collection.update({ username }, { $set: { password: hashed } });
+        console.log(`[auth] migrated password to bcrypt for user="${username}"`);
       }
     }
 
@@ -115,7 +129,7 @@ export async function handleRevokeApiKey(req, res, next) {
   }
 }
 
-router.get("/:username", handleGetUser);
+router.get("/:username", tokenCheck, handleGetUser);
 router.post("/", handleLogin);
 router.post("/apikey", tokenCheck, handleGenerateApiKey);
 router.delete("/apikey", tokenCheck, handleRevokeApiKey);

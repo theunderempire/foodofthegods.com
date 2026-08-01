@@ -22,16 +22,13 @@
     "debug": "~2.6.9",
     "dotenv": "^8.2.0",
     "express": "^4.15.5",
+    "express-rate-limit": "^8.6.1",
     "jsonwebtoken": "^9.0.3",
-    "md5": "^2.2.1",
-    "mongo": "^0.1.0",
     "monk": "^7.3.4",
     "morgan": "^1.9.0",
     "multer": "^2.1.1",
-    "nodemailer": "^8.0.1",
-    "nodemon": "^3.1.11",
-    "sharp": "^0.34.5",
-    "swagger-autogen": "^2.23.7",
+    "nodemailer": "^9.0.3",
+    "sharp": "^0.35.3",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
@@ -40,6 +37,8 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-n": "^17.24.0",
     "globals": "^17.4.0",
-    "prettier": "^3.8.1"
+    "nodemon": "^3.1.14",
+    "prettier": "^3.8.1",
+    "swagger-autogen": "^2.23.7"
   }
 }

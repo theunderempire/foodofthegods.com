@@ -4,6 +4,7 @@ import crypto from "crypto";
 import bcrypt from "bcrypt";
 import {
   computeLegacyHash,
+  handleGetUser,
   handleLogin,
   handleGenerateApiKey,
   handleRevokeApiKey,
@@ -128,6 +129,27 @@ describe("handleLogin", () => {
     assert.equal(res._body.success, false);
   });
 
+  test("rejects Mongo operator objects as credentials without querying", async () => {
+    let queried = false;
+    const res = makeRes();
+    const req = makeReq({
+      body: { username: { $gt: "" }, password: { $gt: "" } },
+      collections: {
+        users: makeCollection({
+          findOne: () => {
+            queried = true;
+            return Promise.resolve({ username: "victim", password: "$2b$12$whatever" });
+          },
+        }),
+      },
+    });
+
+    await handleLogin(req, res, () => {});
+
+    assert.equal(res._body.success, false);
+    assert.equal(queried, false, "must not reach the database");
+  });
+
   test("returns error when user is not found", async () => {
     const res = makeRes();
     const req = makeReq({
@@ -143,6 +165,54 @@ describe("handleLogin", () => {
 
     assert.equal(res._body.success, false);
     assert.match(res._body.data.message, /Authentication failed/);
+  });
+});
+
+describe("handleGetUser", () => {
+  test("returns the username for a self-lookup without exposing the legacy salt", async () => {
+    const res = makeRes();
+    const req = makeReq({
+      username: "me",
+      params: { username: "me" },
+      collections: {
+        users: makeCollection({
+          findOne: () => Promise.resolve({ username: "me", timestamp: "salt-source" }),
+        }),
+      },
+    });
+
+    await handleGetUser(req, res, () => {});
+
+    assert.equal(res._body.success, true);
+    assert.equal(res._body.data.username, "me");
+    assert.equal(
+      res._body.data.timestamp,
+      undefined,
+      "timestamp is the legacy password salt and must not be returned",
+    );
+  });
+
+  test("returns 401 when looking up another user, without querying", async () => {
+    let queried = false;
+    const res = makeRes();
+    const req = makeReq({
+      username: "me",
+      params: { username: "someone-else" },
+      collections: {
+        users: makeCollection({
+          findOne: () => {
+            queried = true;
+            return Promise.resolve({ username: "someone-else", timestamp: "salt-source" });
+          },
+        }),
+      },
+    });
+
+    await handleGetUser(req, res, () => {});
+
+    assert.equal(res._status, 401);
+    assert.equal(res._body.success, false);
+    assert.equal(queried, false, "must not confirm whether the account exists");
   });
 });
 
