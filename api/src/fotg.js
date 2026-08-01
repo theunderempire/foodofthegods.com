@@ -85,13 +85,23 @@ app.get("/health", async (_req, res) => {
   }
 });
 
-const { authLimiter, publicRecipeLimiter, limits } = createLimiters();
+const { authLimiter, publicRecipeLimiter, refreshLimiter, limits } = createLimiters();
 console.log(
-  `[ratelimit] auth=${limits.authLimit} publicRecipe=${limits.publicRecipeLimit} per 15min`,
+  `[ratelimit] auth=${limits.authLimit} refresh=${limits.refreshLimit} publicRecipe=${limits.publicRecipeLimit} per 15min`,
 );
 
 app.use("/mail", authLimiter, mail);
-app.use("/token", authLimiter, token);
+// Refresh cannot share authLimiter's credential-guessing budget — every active
+// session refreshes a few times an hour, which would lock out everyone behind
+// one IP. See rateLimits.js.
+app.use(
+  "/token",
+  (req, res, next) => {
+    const limiter = req.path === "/refresh" ? refreshLimiter : authLimiter;
+    limiter(req, res, next);
+  },
+  token,
+);
 app.use("/recipe", publicRecipeLimiter, recipe);
 app.use(tokenCheck);
 app.use("/ingredientList", ingredientList);

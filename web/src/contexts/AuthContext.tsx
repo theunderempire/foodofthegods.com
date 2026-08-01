@@ -1,21 +1,49 @@
 import Cookies from "js-cookie";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { getUserIdFromToken, login as apiLogin } from "../api/auth";
+import {
+  getTokenExpiry,
+  getUserIdFromToken,
+  login as apiLogin,
+  refresh as apiRefresh,
+} from "../api/auth";
 import { COOKIE_NAME } from "../api/client";
 
-const SESSION_MS = 60 * 60 * 1000; // 1 hour
-const COOKIE_DAYS = (SESSION_MS - 60000) / (1000 * 60 * 60 * 24); // 59 min as fraction of day
+// Sliding session: user activity exchanges the current token for a fresh one
+// via /token/refresh, at most once per REFRESH_THROTTLE_MS. The token's own
+// expiry is the inactivity timeout, and the API refuses to refresh past an
+// absolute session cap — so the client never holds credentials after login,
+// and the session survives reloads because refresh needs only the token.
+const REFRESH_THROTTLE_MS = 5 * 60 * 1000;
 
 // The cookie carries a bearer JWT, so it must never cross the wire in plaintext.
 // Conditional rather than always-on because local dev is served over http, where
 // a Secure cookie would silently fail to set and break login entirely.
 // SameSite stays "lax" (not "strict") so arriving from an external share link
-// doesn't present the app as logged out.
+// doesn't present the app as logged out. No `expires` here: each cookie's
+// lifetime is derived from its token's exp claim, so the two cannot drift.
 const COOKIE_OPTIONS = {
-  expires: COOKIE_DAYS,
   secure: window.location.protocol === "https:",
   sameSite: "lax",
 } as const;
+
+// The cookie is attacker-writable in the worst case, so parse defensively;
+// a garbage token reads as "no session" instead of crashing the app shell.
+function usernameFrom(token: string | null): string | null {
+  if (!token) return null;
+  try {
+    return getUserIdFromToken(token);
+  } catch {
+    return null;
+  }
+}
+
+function expiryFrom(token: string): Date | null {
+  try {
+    return getTokenExpiry(token);
+  } catch {
+    return null;
+  }
+}
 
 interface AuthContextValue {
   username: string | null;
@@ -29,87 +57,86 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(() => Cookies.get(COOKIE_NAME) ?? null);
-  const [username, setUsername] = useState<string | null>(() => localStorage.getItem("username"));
-  const activityRef = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const credRef = useRef<{ username: string; password: string } | null>(null);
+  // Mirror of `token` for the activity listener, which must not re-subscribe
+  // (and so re-render) on every token change.
+  const tokenRef = useRef(token);
+  const lastRefreshRef = useRef(0);
+  const expiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const logout = useCallback(() => {
     Cookies.remove(COOKIE_NAME);
-    localStorage.removeItem("username");
+    tokenRef.current = null;
     setToken(null);
-    setUsername(null);
-    credRef.current = null;
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+    if (expiryTimerRef.current) {
+      clearTimeout(expiryTimerRef.current);
+      expiryTimerRef.current = null;
     }
   }, []);
 
-  const applyToken = useCallback((newToken: string, user: string) => {
-    Cookies.set(COOKIE_NAME, newToken, COOKIE_OPTIONS);
-    localStorage.setItem("username", user);
-    setToken(newToken);
-    setUsername(user);
-  }, []);
+  // Installs a token and schedules a logout for the moment it expires. An
+  // active user refreshes long before then; the timer only fires when idle.
+  const applyToken = useCallback(
+    (newToken: string) => {
+      const expiry = expiryFrom(newToken);
+      Cookies.set(COOKIE_NAME, newToken, { ...COOKIE_OPTIONS, expires: expiry ?? undefined });
+      tokenRef.current = newToken;
+      setToken(newToken);
+      if (expiryTimerRef.current) clearTimeout(expiryTimerRef.current);
+      expiryTimerRef.current = expiry ? setTimeout(logout, expiry.getTime() - Date.now()) : null;
+    },
+    [logout],
+  );
 
-  const startActivityTimer = useCallback(() => {
-    if (timerRef.current) return;
-
-    timerRef.current = setInterval(async () => {
-      if (activityRef.current && credRef.current) {
-        activityRef.current = false;
-        try {
-          const newToken = await apiLogin(credRef.current.username, credRef.current.password);
-          applyToken(newToken, getUserIdFromToken(newToken));
-        } catch {
-          logout();
-        }
-      } else {
-        logout();
-      }
-    }, SESSION_MS);
+  const refreshSession = useCallback(async () => {
+    lastRefreshRef.current = Date.now();
+    try {
+      applyToken(await apiRefresh());
+    } catch {
+      logout();
+    }
   }, [applyToken, logout]);
 
   const login = useCallback(
     async (rawUsername: string, rawPassword: string) => {
       const newToken = await apiLogin(rawUsername, rawPassword);
-      credRef.current = { username: rawUsername, password: rawPassword };
-      applyToken(newToken, getUserIdFromToken(newToken));
-      activityRef.current = false;
-      startActivityTimer();
+      lastRefreshRef.current = Date.now();
+      applyToken(newToken);
     },
-    [applyToken, startActivityTimer],
+    [applyToken],
   );
 
-  // Track user activity
+  // Slide the session on real activity, at most once per throttle window.
   useEffect(() => {
-    const markActivity = () => {
-      activityRef.current = true;
+    const onActivity = () => {
+      if (!tokenRef.current) return;
+      if (Date.now() - lastRefreshRef.current < REFRESH_THROTTLE_MS) return;
+      void refreshSession();
     };
-    window.addEventListener("mousemove", markActivity);
-    window.addEventListener("keydown", markActivity);
+    window.addEventListener("mousemove", onActivity);
+    window.addEventListener("keydown", onActivity);
     return () => {
-      window.removeEventListener("mousemove", markActivity);
-      window.removeEventListener("keydown", markActivity);
+      window.removeEventListener("mousemove", onActivity);
+      window.removeEventListener("keydown", onActivity);
     };
-  }, []);
+  }, [refreshSession]);
 
-  // Resume session from cookie on page load
+  // A reload resumes the session by refreshing the saved token immediately:
+  // still valid → fresh token and expiry timer; expired or refused → logout.
   useEffect(() => {
-    const savedToken = Cookies.get(COOKIE_NAME);
-    const savedUser = localStorage.getItem("username");
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUsername(savedUser);
-      startActivityTimer();
-    }
-  }, [startActivityTimer]);
+    if (tokenRef.current) void refreshSession();
+  }, [refreshSession]);
+
+  useEffect(
+    () => () => {
+      if (expiryTimerRef.current) clearTimeout(expiryTimerRef.current);
+    },
+    [],
+  );
 
   return (
     <AuthContext.Provider
       value={{
-        username,
+        username: usernameFrom(token),
         token,
         isAuthenticated: !!token,
         login,

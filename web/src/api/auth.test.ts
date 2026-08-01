@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { getUserIdFromToken } from "./auth";
+import { getTokenExpiry, getUserIdFromToken } from "./auth";
 
 function makeToken(payload: object): string {
   const base64url = btoa(JSON.stringify(payload))
@@ -36,5 +36,20 @@ describe("getUserIdFromToken", () => {
   test("decodes a payload carrying extra claims alongside username", () => {
     const token = makeToken({ username: "someone", iat: 1770000000, exp: 1770086400 });
     expect(getUserIdFromToken(token)).toBe("someone");
+  });
+});
+
+describe("getTokenExpiry", () => {
+  test("converts the exp claim (seconds) into a Date (milliseconds)", () => {
+    const token = makeToken({ username: "someone", exp: 1770086400 });
+    expect(getTokenExpiry(token)).toEqual(new Date(1770086400 * 1000));
+  });
+
+  test("returns null when the payload has no exp claim", () => {
+    expect(getTokenExpiry(makeToken({ username: "someone" }))).toBeNull();
+  });
+
+  test("returns null for a malformed exp claim rather than a bogus date", () => {
+    expect(getTokenExpiry(makeToken({ username: "someone", exp: "tomorrow" }))).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import { act, render, screen } from "@testing-library/react";
 
-const SESSION_MS = 60 * 60 * 1000; // must match AuthContext
+const TOKEN_TTL_MS = 60 * 60 * 1000; // must match the API's access token TTL
+const REFRESH_THROTTLE_MS = 5 * 60 * 1000; // must match AuthContext
 const COOKIE_NAME = "FOTG_AUTH_TOKEN";
 
 // Stable mock objects created before the module graph loads, so they survive the
@@ -13,7 +14,9 @@ const cookies = vi.hoisted(() => ({
 }));
 const authApi = vi.hoisted(() => ({
   login: vi.fn<(u: string, p: string) => Promise<string>>(),
+  refresh: vi.fn<() => Promise<string>>(),
   getUserIdFromToken: vi.fn<(t: string) => string>(),
+  getTokenExpiry: vi.fn<(t: string) => Date | null>(),
 }));
 
 vi.mock("js-cookie", () => ({ default: cookies }));
@@ -56,11 +59,14 @@ async function renderAuth(protocol: "http:" | "https:" = "http:") {
     );
   }
 
-  return render(
+  const result = render(
     <AuthProvider>
       <Probe />
     </AuthProvider>,
   );
+  // Flush the resume-from-cookie refresh that fires on mount.
+  await act(async () => {});
+  return result;
 }
 
 function state() {
@@ -77,17 +83,24 @@ async function doLogin(username = "alice", password = "hunter2") {
   });
 }
 
-/** Run the hourly session tick, flushing the async silent re-login inside it. */
-async function tick(ms = SESSION_MS) {
+/** Advance the fake clock, flushing any async refresh/expiry work it triggers. */
+async function tick(ms: number) {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(ms);
+  });
+}
+
+/** Simulate user activity, flushing the refresh it may kick off. */
+async function activity(event: Event = new MouseEvent("mousemove")) {
+  await act(async () => {
+    window.dispatchEvent(event);
   });
 }
 
 function lastCookieOptions() {
   const calls = cookies.set.mock.calls;
   const call = calls[calls.length - 1];
-  return call?.[2] as { expires: number; secure: boolean; sameSite: string };
+  return call?.[2] as { expires?: Date; secure: boolean; sameSite: string };
 }
 
 describe("AuthProvider", () => {
@@ -97,7 +110,13 @@ describe("AuthProvider", () => {
     cookies.set.mockReset();
     cookies.remove.mockReset();
     authApi.login.mockReset().mockResolvedValue("token-1");
+    authApi.refresh.mockReset().mockResolvedValue("token-2");
     authApi.getUserIdFromToken.mockReset().mockImplementation(() => "alice");
+    // Tokens in these tests behave like the API's: they expire one TTL after
+    // they were minted (i.e. after the moment the mock resolves them).
+    authApi.getTokenExpiry
+      .mockReset()
+      .mockImplementation(() => new Date(Date.now() + TOKEN_TTL_MS));
     localStorage.clear();
   });
 
@@ -109,26 +128,27 @@ describe("AuthProvider", () => {
   test("starts unauthenticated when there is no cookie", async () => {
     await renderAuth();
     expect(state()).toEqual({ authenticated: "false", username: "-", token: "-" });
+    expect(authApi.refresh).not.toHaveBeenCalled();
   });
 
   describe("login", () => {
-    test("stores the token in a cookie, the username in localStorage, and flips isAuthenticated", async () => {
+    test("stores the token in a cookie and flips isAuthenticated", async () => {
       await renderAuth();
       await doLogin();
 
       expect(authApi.login).toHaveBeenCalledWith("alice", "hunter2");
       expect(cookies.set).toHaveBeenCalledWith(COOKIE_NAME, "token-1", expect.anything());
-      expect(localStorage.getItem("username")).toBe("alice");
       expect(state()).toEqual({ authenticated: "true", username: "alice", token: "token-1" });
     });
 
-    test("derives the stored username from the token rather than the typed input", async () => {
+    test("derives the username from the token, with no copy in localStorage", async () => {
       authApi.getUserIdFromToken.mockReturnValue("hashed-user-id");
       await renderAuth();
       await doLogin("Alice", "hunter2");
 
       expect(authApi.getUserIdFromToken).toHaveBeenCalledWith("token-1");
-      expect(localStorage.getItem("username")).toBe("hashed-user-id");
+      expect(state().username).toBe("hashed-user-id");
+      expect(localStorage.getItem("username")).toBeNull();
     });
 
     test("propagates a failed login without creating a session", async () => {
@@ -142,8 +162,20 @@ describe("AuthProvider", () => {
       ).rejects.toThrow("Invalid credentials");
 
       expect(cookies.set).not.toHaveBeenCalled();
-      expect(localStorage.getItem("username")).toBeNull();
       expect(state().authenticated).toBe("false");
+    });
+
+    test("retains no credentials: renewal goes through refresh, never a replayed login", async () => {
+      await renderAuth();
+      await doLogin();
+
+      await tick(REFRESH_THROTTLE_MS);
+      await activity();
+
+      expect(authApi.refresh).toHaveBeenCalledTimes(1);
+      expect(authApi.login).toHaveBeenCalledTimes(1);
+      expect(authApi.login).not.toHaveBeenCalledWith("alice", "hunter2", expect.anything());
+      expect(state()).toEqual({ authenticated: "true", username: "alice", token: "token-2" });
     });
   });
 
@@ -160,19 +192,27 @@ describe("AuthProvider", () => {
       expect(lastCookieOptions().secure).toBe(true);
     });
 
-    test('uses sameSite "lax" and expires just under the session length', async () => {
+    test('uses sameSite "lax" and expires exactly when the token does', async () => {
       await renderAuth();
       await doLogin();
 
       const options = lastCookieOptions();
       expect(options.sameSite).toBe("lax");
-      // 59 minutes expressed as a fraction of a day.
-      expect(options.expires).toBeCloseTo(59 / (60 * 24), 10);
+      expect(authApi.getTokenExpiry).toHaveBeenCalledWith("token-1");
+      expect(options.expires).toEqual(new Date(Date.now() + TOKEN_TTL_MS));
+    });
+
+    test("falls back to a session cookie for a token without an exp claim", async () => {
+      authApi.getTokenExpiry.mockReturnValue(null);
+      await renderAuth();
+      await doLogin();
+
+      expect(lastCookieOptions().expires).toBeUndefined();
     });
   });
 
   describe("logout", () => {
-    test("clears the cookie, localStorage and the context", async () => {
+    test("clears the cookie and the context", async () => {
       await renderAuth();
       await doLogin();
 
@@ -181,11 +221,10 @@ describe("AuthProvider", () => {
       });
 
       expect(cookies.remove).toHaveBeenCalledWith(COOKIE_NAME);
-      expect(localStorage.getItem("username")).toBeNull();
       expect(state()).toEqual({ authenticated: "false", username: "-", token: "-" });
     });
 
-    test("cancels the session timer so no further tick fires", async () => {
+    test("cancels the expiry timer so no further logout fires", async () => {
       await renderAuth();
       await doLogin();
 
@@ -194,84 +233,102 @@ describe("AuthProvider", () => {
       });
       expect(cookies.remove).toHaveBeenCalledTimes(1);
 
-      // With the interval still running this tick would log out again.
-      window.dispatchEvent(new MouseEvent("mousemove"));
-      await tick(SESSION_MS * 3);
+      // With the timer still armed this would log out (and remove) again.
+      await tick(TOKEN_TTL_MS * 3);
 
       expect(cookies.remove).toHaveBeenCalledTimes(1);
-      expect(authApi.login).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe("hourly session tick", () => {
-    test("silently re-logs-in with cached credentials when activity was seen", async () => {
+  describe("sliding refresh", () => {
+    test("activity refreshes the token at most once per throttle window", async () => {
       await renderAuth();
       await doLogin();
 
-      authApi.login.mockResolvedValue("token-2");
-      authApi.getUserIdFromToken.mockReturnValue("alice");
-      window.dispatchEvent(new MouseEvent("mousemove"));
-      await tick();
+      await tick(REFRESH_THROTTLE_MS);
+      await activity();
+      await activity();
+      await activity();
 
-      expect(authApi.login).toHaveBeenNthCalledWith(2, "alice", "hunter2");
+      expect(authApi.refresh).toHaveBeenCalledTimes(1);
       expect(cookies.set).toHaveBeenLastCalledWith(COOKIE_NAME, "token-2", expect.anything());
       expect(state()).toEqual({ authenticated: "true", username: "alice", token: "token-2" });
-      expect(cookies.remove).not.toHaveBeenCalled();
     });
 
     test("counts a keydown as activity too", async () => {
       await renderAuth();
       await doLogin();
 
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
-      await tick();
+      await tick(REFRESH_THROTTLE_MS);
+      await activity(new KeyboardEvent("keydown", { key: "a" }));
 
-      expect(authApi.login).toHaveBeenCalledTimes(2);
+      expect(authApi.refresh).toHaveBeenCalledTimes(1);
+    });
+
+    test("does not refresh before the throttle window has passed", async () => {
+      await renderAuth();
+      await doLogin();
+
+      await tick(REFRESH_THROTTLE_MS - 1000);
+      await activity();
+
+      expect(authApi.refresh).not.toHaveBeenCalled();
       expect(state().authenticated).toBe("true");
     });
 
-    test("logs the user out when the hour passed with no activity", async () => {
+    test("ignores activity when logged out", async () => {
       await renderAuth();
-      await doLogin();
 
-      await tick();
+      await tick(REFRESH_THROTTLE_MS * 2);
+      await activity();
 
-      expect(authApi.login).toHaveBeenCalledTimes(1);
-      expect(cookies.remove).toHaveBeenCalledWith(COOKIE_NAME);
-      expect(localStorage.getItem("username")).toBeNull();
-      expect(state().authenticated).toBe("false");
+      expect(authApi.refresh).not.toHaveBeenCalled();
     });
 
-    test("does not expire the session before the hour is up", async () => {
+    test("logs the user out when the token expires with no activity", async () => {
       await renderAuth();
       await doLogin();
 
-      await tick(SESSION_MS - 1);
+      await tick(TOKEN_TTL_MS);
+
+      expect(authApi.refresh).not.toHaveBeenCalled();
+      expect(cookies.remove).toHaveBeenCalledWith(COOKIE_NAME);
+      expect(state()).toEqual({ authenticated: "false", username: "-", token: "-" });
+    });
+
+    test("does not expire the session before the token's lifetime is up", async () => {
+      await renderAuth();
+      await doLogin();
+
+      await tick(TOKEN_TTL_MS - 1000);
 
       expect(cookies.remove).not.toHaveBeenCalled();
       expect(state().authenticated).toBe("true");
     });
 
-    test("requires fresh activity for each hour", async () => {
+    test("an active user slides indefinitely, well past a single token lifetime", async () => {
       await renderAuth();
       await doLogin();
 
-      window.dispatchEvent(new MouseEvent("mousemove"));
-      await tick();
-      expect(state().authenticated).toBe("true");
+      // Three token lifetimes of steady activity, one refresh per window.
+      const windows = (TOKEN_TTL_MS * 3) / REFRESH_THROTTLE_MS;
+      for (let i = 0; i < windows; i++) {
+        await tick(REFRESH_THROTTLE_MS);
+        await activity();
+      }
 
-      // No further activity: the flag was consumed by the previous tick.
-      await tick();
-      expect(state().authenticated).toBe("false");
+      expect(authApi.refresh).toHaveBeenCalledTimes(windows);
+      expect(cookies.remove).not.toHaveBeenCalled();
+      expect(state().authenticated).toBe("true");
     });
 
-    test("logs the user out when the silent re-login fails", async () => {
+    test("logs the user out when the refresh fails", async () => {
       await renderAuth();
       await doLogin();
 
-      authApi.login.mockRejectedValue(new Error("Token endpoint down"));
-      window.dispatchEvent(new MouseEvent("mousemove"));
-      await tick();
+      authApi.refresh.mockRejectedValue(new Error("Session expired"));
+      await tick(REFRESH_THROTTLE_MS);
+      await activity();
 
       expect(cookies.remove).toHaveBeenCalledWith(COOKIE_NAME);
       expect(state()).toEqual({ authenticated: "false", username: "-", token: "-" });
@@ -279,36 +336,55 @@ describe("AuthProvider", () => {
   });
 
   describe("resume from cookie", () => {
-    test("restores the session on mount when cookie and username are both present", async () => {
+    test("a reload refreshes the saved token and continues the session", async () => {
       cookies.get.mockReturnValue("saved-token");
-      localStorage.setItem("username", "bob");
 
       await renderAuth();
 
-      expect(state()).toEqual({ authenticated: "true", username: "bob", token: "saved-token" });
+      expect(authApi.refresh).toHaveBeenCalledTimes(1);
+      expect(authApi.login).not.toHaveBeenCalled();
+      expect(state()).toEqual({ authenticated: "true", username: "alice", token: "token-2" });
+    });
+
+    test("the cookie alone restores the session — localStorage is not consulted", async () => {
+      cookies.get.mockReturnValue("saved-token");
+      expect(localStorage.getItem("username")).toBeNull();
+
+      await renderAuth();
+
+      expect(state().authenticated).toBe("true");
+      expect(state().username).toBe("alice");
+    });
+
+    test("a restored session slides on activity just like a fresh one", async () => {
+      cookies.get.mockReturnValue("saved-token");
+      await renderAuth();
+
+      await tick(REFRESH_THROTTLE_MS);
+      await activity();
+
+      expect(authApi.refresh).toHaveBeenCalledTimes(2);
+      expect(state().authenticated).toBe("true");
     });
 
     test("a restored session is still subject to the inactivity timeout", async () => {
       cookies.get.mockReturnValue("saved-token");
-      localStorage.setItem("username", "bob");
       await renderAuth();
 
-      await tick();
+      await tick(TOKEN_TTL_MS);
 
       expect(cookies.remove).toHaveBeenCalledWith(COOKIE_NAME);
       expect(state().authenticated).toBe("false");
     });
 
-    test("a restored session cannot silently re-login, since credentials are not persisted", async () => {
+    test("a saved token the API refuses to refresh is logged out", async () => {
       cookies.get.mockReturnValue("saved-token");
-      localStorage.setItem("username", "bob");
+      authApi.refresh.mockRejectedValue(new Error("Session expired"));
+
       await renderAuth();
 
-      window.dispatchEvent(new MouseEvent("mousemove"));
-      await tick();
-
-      expect(authApi.login).not.toHaveBeenCalled();
-      expect(state().authenticated).toBe("false");
+      expect(cookies.remove).toHaveBeenCalledWith(COOKIE_NAME);
+      expect(state()).toEqual({ authenticated: "false", username: "-", token: "-" });
     });
   });
 });
