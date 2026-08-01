@@ -9,6 +9,7 @@ import monk from "monk";
 import rateLimit from "express-rate-limit";
 import swaggerUi from "swagger-ui-express";
 import { assertStrongJwtSecret } from "./secret.js";
+import { redactQueryToken } from "./redact.js";
 
 const require = createRequire(import.meta.url);
 
@@ -37,7 +38,8 @@ var app = express();
 // spoofable past that point.
 app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS ?? 0));
 
-app.use(logger(":date[iso] :method :url :status :response-time ms"));
+logger.token("safeUrl", (req) => redactQueryToken(req.originalUrl ?? req.url));
+app.use(logger(":date[iso] :method :safeUrl :status :response-time ms"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, "../public"), { maxAge: "1y", immutable: true }));
