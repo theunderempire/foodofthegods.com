@@ -10,6 +10,7 @@ import rateLimit from "express-rate-limit";
 import swaggerUi from "swagger-ui-express";
 import { assertStrongJwtSecret } from "./secret.js";
 import { redactQueryToken } from "./redact.js";
+import { ensureIndexes } from "./indexes.js";
 
 const require = createRequire(import.meta.url);
 
@@ -23,8 +24,9 @@ const db = monk(
   `${encodeURIComponent(process.env.DB_USERNAME)}:${encodeURIComponent(process.env.DB_PASSWORD)}@${process.env.DB_HOST_NAME}:27017/${process.env.DB_NAME}?authSource=admin`,
 );
 
-db.then(() => {
+db.then(async () => {
   console.log(new Date().toISOString(), "database connected");
+  await ensureIndexes(db);
 });
 
 console.log(new Date().toISOString(), "starting", process.env.NODE_ENV, process.env.PORT);

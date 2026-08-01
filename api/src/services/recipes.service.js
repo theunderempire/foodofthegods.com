@@ -80,23 +80,11 @@ var RecipesService = function () {
     var recipeID = req.params.id;
 
     try {
-      const users = await userCollection.find(
-        { username: req.decoded.username },
-        projection({ recipeList: 1 }),
-      );
-      const ownsRecipe = users?.[0]?.recipeList?.some(
-        (id) => id.toString() === recipeID.toString(),
-      );
-      if (!ownsRecipe) {
+      if (!(await ownsRecipe(req, recipeID))) {
         console.warn(
           `[recipes] deleteRecipe: recipe id="${recipeID}" not in recipeList for user="${req.decoded.username}"`,
         );
         return requestService.returnUnauthorized(res);
-      }
-
-      const docs = await recipeCollection.find({ _id: recipeID }, {});
-      if (!docs.length) {
-        console.warn(`[recipes] deleteRecipe: recipe not found id="${recipeID}"`);
       }
 
       await userCollection.update(
@@ -165,19 +153,11 @@ var RecipesService = function () {
   // recipe passed in the request body
   async function updateRecipe(req, res) {
     var collection = getRecipeListCollection(req);
-    var userCollection = getUserCollection(req);
     var recipeID = req.params.id;
     var updatedRecipe = req.body;
 
     try {
-      const users = await userCollection.find(
-        { username: req.decoded.username },
-        projection({ recipeList: 1 }),
-      );
-      const ownsRecipe = users?.[0]?.recipeList?.some(
-        (id) => id.toString() === recipeID.toString(),
-      );
-      if (!ownsRecipe) {
+      if (!(await ownsRecipe(req, recipeID))) {
         console.warn(
           `[recipes] updateRecipe: recipe id="${recipeID}" not in recipeList for user="${req.decoded.username}"`,
         );
@@ -395,6 +375,16 @@ ${text.slice(0, 50000)}`,
       console.error(`[recipes] importRecipeFromText error: ${err.message || err}`);
       res.json({ success: false, data: err.message || "Failed to parse recipe" });
     }
+  }
+
+  // Ownership is membership in the caller's own recipeList rather than a field on
+  // the recipe, because a recipe can be owned by more than one user.
+  async function ownsRecipe(req, recipeID) {
+    const users = await getUserCollection(req).find(
+      { username: req.decoded.username },
+      projection({ recipeList: 1 }),
+    );
+    return Boolean(users?.[0]?.recipeList?.some((id) => id.toString() === recipeID.toString()));
   }
 
   // Returns the 'recipelist' collection from the db
