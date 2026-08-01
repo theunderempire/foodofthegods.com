@@ -171,6 +171,40 @@ describe("RecipesService", () => {
 
       assert.equal(res._status, 401);
     });
+
+    // A bare {name: 1} as the options argument is silently ignored by monk and
+    // the driver, which returns whole documents — full recipe bodies for the list
+    // view, and password hashes from the users collection.
+    test("projects fields under the `projection` key so full documents are not fetched", async () => {
+      let userOpts = null;
+      let recipeOpts = null;
+      const res = makeRes();
+      const req = makeReq({
+        username: "user-1",
+        params: { userId: "user-1" },
+        collections: {
+          users: makeCollection({
+            find: (_q, o) => {
+              userOpts = o;
+              return Promise.resolve([{ recipeList: ["r1"] }]);
+            },
+          }),
+          recipelist: makeCollection({
+            find: (_q, o) => {
+              recipeOpts = o;
+              return Promise.resolve([]);
+            },
+          }),
+        },
+      });
+
+      await service.getRecipesForUser(req, res);
+
+      assert.deepEqual(userOpts, { projection: { recipeList: 1 } });
+      assert.ok(recipeOpts.projection, "list query must use the `projection` key");
+      assert.equal(recipeOpts.projection.ingredients, undefined);
+      assert.equal(recipeOpts.projection.directions, undefined);
+    });
   });
 
   describe("getSingleRecipe", () => {
@@ -190,6 +224,31 @@ describe("RecipesService", () => {
 
       assert.equal(res._body.success, true);
       assert.deepEqual(res._body.data, mockRecipe);
+    });
+
+    // This route is reachable without a token so share links work, which makes
+    // the projection the only thing keeping the owning account private.
+    test("requests only public display fields and never userId", async () => {
+      let opts = null;
+      const res = makeRes();
+      const req = makeReq({
+        params: { id: "r1" },
+        collections: {
+          recipelist: makeCollection({
+            find: (_q, o) => {
+              opts = o;
+              return Promise.resolve([{ name: "Pasta" }]);
+            },
+          }),
+        },
+      });
+
+      await service.getSingleRecipe(req, res);
+
+      assert.ok(opts.projection, "must use the `projection` key or monk drops it");
+      assert.equal(opts.projection.userId, undefined, "share links must not expose the owner");
+      assert.equal(opts.projection.name, 1);
+      assert.equal(opts.projection.ingredients, 1);
     });
   });
 

@@ -10,6 +10,26 @@ function buildGeminiUrl(model) {
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 }
 
+// monk forwards the options object to the driver verbatim, and the driver reads
+// only `projection` (or the deprecated `fields`). A bare `{name: 1}` is silently
+// ignored, returning whole documents — including password hashes and API keys
+// when querying the users collection. Always wrap field lists in this.
+function projection(fields) {
+  return { projection: fields };
+}
+
+// Returned to anyone holding a share link, so this must exclude `userId`, which
+// would reveal the owning account.
+const PUBLIC_RECIPE_FIELDS = {
+  name: 1,
+  prepDuration: 1,
+  cookDuration: 1,
+  servings: 1,
+  ingredients: 1,
+  directions: 1,
+  imageUrl: 1,
+};
+
 // A service for making recipe operations
 var RecipesService = function () {
   this.addRecipeForUser = addRecipeForUser;
@@ -61,7 +81,7 @@ var RecipesService = function () {
     try {
       const users = await userCollection.find(
         { username: req.decoded.username },
-        { recipeList: 1 },
+        projection({ recipeList: 1 }),
       );
       const ownsRecipe = users?.[0]?.recipeList?.some(
         (id) => id.toString() === recipeID.toString(),
@@ -83,7 +103,10 @@ var RecipesService = function () {
         { $pull: { recipeList: recipeID } },
       );
 
-      const usersWithRecipe = await userCollection.find({ recipeList: recipeID }, { _id: 1 });
+      const usersWithRecipe = await userCollection.find(
+        { recipeList: recipeID },
+        projection({ _id: 1 }),
+      );
       if (!usersWithRecipe.length) {
         console.log(`[recipes] deleting recipe from db id="${recipeID}" (no remaining owners)`);
         await recipeCollection.remove({ _id: recipeID });
@@ -105,10 +128,13 @@ var RecipesService = function () {
 
     if (requestService.checkUser(req, username)) {
       try {
-        const users = await userCollection.find({ username: username }, { recipeList: 1 });
+        const users = await userCollection.find(
+          { username: username },
+          projection({ recipeList: 1 }),
+        );
         const recipes = await recipeCollection.find(
           { _id: { $in: users[0]?.recipeList ?? [] } },
-          { name: 1, prepDuration: 1, cookDuration: 1, imageUrl: 1 },
+          projection({ name: 1, prepDuration: 1, cookDuration: 1, imageUrl: 1 }),
         );
         res.json({ success: true, data: recipes });
       } catch (err) {
@@ -120,10 +146,14 @@ var RecipesService = function () {
     }
   }
 
+  // Intentionally unauthenticated: share links (/recipes/:shareId/share) let
+  // people without an account view a recipe. The recipe id doubles as the share
+  // capability, so the response is limited to display fields and the route is
+  // rate limited to blunt id enumeration.
   async function getSingleRecipe(req, res) {
     var collection = getRecipeListCollection(req);
     try {
-      const docs = await collection.find({ _id: req.params.id }, {});
+      const docs = await collection.find({ _id: req.params.id }, projection(PUBLIC_RECIPE_FIELDS));
       res.json({ success: true, data: docs });
     } catch (err) {
       res.json({ success: false, data: err.message });
@@ -141,7 +171,7 @@ var RecipesService = function () {
     try {
       const users = await userCollection.find(
         { username: req.decoded.username },
-        { recipeList: 1 },
+        projection({ recipeList: 1 }),
       );
       const ownsRecipe = users?.[0]?.recipeList?.some(
         (id) => id.toString() === recipeID.toString(),
@@ -153,7 +183,7 @@ var RecipesService = function () {
         return requestService.returnUnauthorized(res);
       }
       const { _id, ...fields } = updatedRecipe;
-      const existing = await collection.findOne({ _id: recipeID }, { imageUrl: 1 });
+      const existing = await collection.findOne({ _id: recipeID }, projection({ imageUrl: 1 }));
       if (fields.imageUrl !== existing?.imageUrl) {
         const thumbnailUrl = await generateThumbnail(recipeID, fields.imageUrl);
         if (thumbnailUrl) fields.imageUrl = thumbnailUrl;
