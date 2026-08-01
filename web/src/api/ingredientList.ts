@@ -1,65 +1,49 @@
+import type { AxiosResponse } from "axios";
 import type { Ingredient } from "../types/recipe";
 import type {
   IngredientList,
   IngredientListContainer,
   IngredientListItem,
 } from "../types/ingredientList";
-import { client, BASE_URL } from "./client";
-import { ApiResponse } from "./recipes";
+import { client, unwrap, BASE_URL } from "./client";
+import type { ApiResponse } from "./client";
 
 function url(userId: string, suffix = "") {
   return `/ingredientList/${userId}${suffix}`;
 }
 
+// Every mutation responds with the whole container, so they all unwrap the same
+// way. `null` is preserved for a user who has no list document yet.
+async function unwrapList(
+  request: Promise<AxiosResponse<ApiResponse<IngredientListContainer>>>,
+): Promise<IngredientList | null> {
+  return (await unwrap(request)).ingredientList ?? null;
+}
+
 export async function getIngredientList(userId: string): Promise<IngredientList | null> {
-  const res = await client.get<ApiResponse<IngredientListContainer[]>>(url(userId));
-  if (res.data.success) {
-    return res.data.data[0]?.ingredientList ?? null;
-  } else {
-    console.error(res.status, res.statusText);
-    return null;
-  }
+  const containers = await unwrap<IngredientListContainer[]>(client.get(url(userId)));
+  return containers[0]?.ingredientList ?? null;
 }
 
 export async function addIngredient(
   userId: string,
   ingredient: Ingredient,
 ): Promise<IngredientList | null> {
-  const res = await client.post<ApiResponse<IngredientListContainer>>(url(userId), { ingredient });
-  if (res.data.success) {
-    return res.data.data.ingredientList;
-  } else {
-    console.error(res.status, res.statusText);
-    return null;
-  }
+  return unwrapList(client.post(url(userId), { ingredient }));
 }
 
 export async function addIngredients(
   userId: string,
   ingredients: Ingredient[],
 ): Promise<IngredientList | null> {
-  const res = await client.post<ApiResponse<IngredientListContainer>>(url(userId, "/many"), {
-    ingredients,
-  });
-  if (res.data.success) {
-    return res.data.data.ingredientList;
-  } else {
-    console.error(res.status, res.statusText);
-    return null;
-  }
+  return unwrapList(client.post(url(userId, "/many"), { ingredients }));
 }
 
 export async function updateIngredient(
   userId: string,
   payload: { groupName: string; ingredientListItem: IngredientListItem },
 ): Promise<IngredientList | null> {
-  const res = await client.patch<ApiResponse<IngredientListContainer>>(url(userId), { payload });
-  if (res.data.success) {
-    return res.data.data.ingredientList;
-  } else {
-    console.error(res.status, res.statusText);
-    return null;
-  }
+  return unwrapList(client.patch(url(userId), { payload }));
 }
 
 export async function removeIngredient(
@@ -67,45 +51,19 @@ export async function removeIngredient(
   groupName: string,
   itemId: number | string,
 ): Promise<IngredientList | null> {
-  const res = await client.delete<ApiResponse<IngredientListContainer>>(
-    url(userId, `/${groupName}/${itemId}`),
-  );
-  if (res.data.success) {
-    return res.data.data.ingredientList;
-  } else {
-    console.error(res.status, res.statusText);
-    return null;
-  }
+  return unwrapList(client.delete(url(userId, `/${groupName}/${itemId}`)));
 }
 
 export async function clearAllIngredients(userId: string): Promise<IngredientList | null> {
-  const res = await client.delete<ApiResponse<IngredientListContainer>>(url(userId, "/all"));
-  if (res.data.success) {
-    return res.data.data.ingredientList;
-  } else {
-    console.error(res.status, res.statusText);
-    return null;
-  }
+  return unwrapList(client.delete(url(userId, "/all")));
 }
 
 export async function clearMarkedIngredients(userId: string): Promise<IngredientList | null> {
-  const res = await client.delete<ApiResponse<IngredientListContainer>>(url(userId, "/marked"));
-  if (res.data.success) {
-    return res.data.data.ingredientList;
-  } else {
-    console.error(res.status, res.statusText);
-    return null;
-  }
+  return unwrapList(client.delete(url(userId, "/marked")));
 }
 
 export async function groupIngredients(userId: string): Promise<IngredientList | null> {
-  const res = await client.get<ApiResponse<IngredientListContainer>>(url(userId, "/group"));
-  if (res.data.success) {
-    return res.data.data.ingredientList;
-  } else {
-    console.error(res.status, res.statusText);
-    return null;
-  }
+  return unwrapList(client.get(url(userId, "/group")));
 }
 
 export function subscribeToList(

@@ -1,18 +1,15 @@
 import { client } from "./client";
 
-export async function getSettings(): Promise<{
+export interface Settings {
   geminiApiKey: string | null;
   geminiModel: string | null;
-}> {
-  const res = await client.get<{ geminiApiKey: string | null; geminiModel: string | null }>(
-    "/users/settings",
-  );
+}
+
+export async function getSettings(): Promise<Settings> {
+  const res = await client.get<Settings>("/users/settings");
   return res.data;
 }
 
-export async function saveSettings(payload: {
-  geminiApiKey?: string | null;
-  geminiModel?: string | null;
-}): Promise<void> {
+export async function saveSettings(payload: Partial<Settings>): Promise<void> {
   await client.put("/users/settings", payload);
 }

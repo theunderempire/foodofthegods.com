@@ -1,6 +1,12 @@
 import axios from "axios";
+import type { AxiosResponse } from "axios";
 import Cookies from "js-cookie";
 import { setReturnTo, toRouterPath } from "../returnTo";
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+}
 
 const COOKIE_NAME = "FOTG_AUTH_TOKEN";
 const BASE_URL =
@@ -45,5 +51,13 @@ client.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+// The response interceptor above already rejects whenever the API returns
+// success:false, so any response reaching a caller succeeded. Callers used to
+// re-check `success` and log in an else branch that could never be reached.
+export async function unwrap<T>(request: Promise<AxiosResponse<ApiResponse<T>>>): Promise<T> {
+  const res = await request;
+  return res.data.data;
+}
 
 export { COOKIE_NAME, BASE_URL };

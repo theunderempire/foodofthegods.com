@@ -178,7 +178,7 @@ export function RecipeForm() {
         navigate(ROUTES.recipes.view(id!));
       } else {
         const result = await addRecipe(recipe);
-        navigate(ROUTES.recipes.view(result?.data?.id ?? ""));
+        navigate(ROUTES.recipes.view(result?.id ?? ""));
       }
     } catch {
       setError("Failed to save recipe.");
