@@ -5,7 +5,14 @@ import { promises as fs } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import RecipesService from "../../src/services/recipes.service.js";
+import { resolver } from "../../src/services/safeFetch.js";
 import { makeRes, makeReq, makeCollection } from "../helpers/mocks.js";
+
+// The SSRF guard resolves hostnames before fetching. These fixtures use
+// example.com, so stub the resolver to keep the suite offline and hermetic.
+before(() => {
+  resolver.lookup = async () => [{ address: "93.184.216.34" }];
+});
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const THUMBNAILS_DIR = path.join(__dirname, "../../public/thumbnails");

@@ -9,9 +9,16 @@ import {
   deleteThumbnail,
   saveUploadedImage,
 } from "../../src/services/thumbnail.service.js";
+import { resolver } from "../../src/services/safeFetch.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const THUMBNAILS_DIR = path.join(__dirname, "../../public/thumbnails");
+
+// The SSRF guard resolves hostnames before fetching. These fixtures use
+// example.com, so stub the resolver to keep the suite offline and hermetic.
+before(() => {
+  resolver.lookup = async () => [{ address: "93.184.216.34" }];
+});
 
 function makeFetchWithJpeg(jpeg) {
   return async () => ({
