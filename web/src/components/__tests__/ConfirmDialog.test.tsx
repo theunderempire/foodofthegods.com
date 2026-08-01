@@ -4,26 +4,20 @@ import { ConfirmDialog } from "../ConfirmDialog";
 
 describe("ConfirmDialog", () => {
   test("renders the message", () => {
-    render(
-      <ConfirmDialog message="Are you sure?" onConfirm={vi.fn()} onCancel={vi.fn()} />,
-    );
+    render(<ConfirmDialog message="Are you sure?" onConfirm={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByText("Are you sure?")).toBeInTheDocument();
   });
 
   test("calls onConfirm when Confirm is clicked", async () => {
     const onConfirm = vi.fn();
-    render(
-      <ConfirmDialog message="Delete?" onConfirm={onConfirm} onCancel={vi.fn()} />,
-    );
+    render(<ConfirmDialog message="Delete?" onConfirm={onConfirm} onCancel={vi.fn()} />);
     await userEvent.click(screen.getByRole("button", { name: "Confirm" }));
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
   test("calls onCancel when Cancel is clicked", async () => {
     const onCancel = vi.fn();
-    render(
-      <ConfirmDialog message="Delete?" onConfirm={vi.fn()} onCancel={onCancel} />,
-    );
+    render(<ConfirmDialog message="Delete?" onConfirm={vi.fn()} onCancel={onCancel} />);
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onCancel).toHaveBeenCalledOnce();
   });

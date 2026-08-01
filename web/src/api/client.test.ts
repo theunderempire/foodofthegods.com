@@ -126,9 +126,30 @@ describe("response interceptor", () => {
     expect(errors).toEqual(["Recipe not found"]);
   });
 
+  // The recipe, ingredient, and settings services send `data` as a bare string
+  // rather than `{ message }`. Reading only `data.message` replaced every one of
+  // those errors with the generic fallback.
+  test("surfaces the message when success:false carries data as a plain string", async () => {
+    const errors = captureApiErrors();
+    respondWith({ success: false, data: "List is being grouped, try again in a moment." });
+
+    await expect(client.get("/ingredientList/user-1/group")).rejects.toThrow(
+      "List is being grouped, try again in a moment.",
+    );
+    expect(errors).toEqual(["List is being grouped, try again in a moment."]);
+  });
+
   test("falls back to a generic message when success:false carries no message", async () => {
     const errors = captureApiErrors();
     respondWith({ success: false, data: {} });
+
+    await expect(client.get("/recipes/nope")).rejects.toThrow("Request failed");
+    expect(errors).toEqual(["Request failed"]);
+  });
+
+  test("falls back to a generic message when data is an empty string", async () => {
+    const errors = captureApiErrors();
+    respondWith({ success: false, data: "" });
 
     await expect(client.get("/recipes/nope")).rejects.toThrow("Request failed");
     expect(errors).toEqual(["Request failed"]);
@@ -187,6 +208,16 @@ describe("error interceptor", () => {
 
     expect(errors).toEqual(["Database unavailable"]);
     expect(cookies.remove).not.toHaveBeenCalled();
+  });
+
+  test("a non-403 error surfaces a string data payload too", async () => {
+    const errors = captureApiErrors();
+    const err = httpError(500, { success: false, data: "Too many requests." });
+    failWith(err);
+
+    await expect(client.get("/recipe/abc")).rejects.toBe(err);
+
+    expect(errors).toEqual(["Too many requests."]);
   });
 
   test("a transport failure with no response falls back to the error message", async () => {

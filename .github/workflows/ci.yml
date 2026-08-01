@@ -21,6 +21,10 @@ jobs:
         working-directory: api
       - run: npm run lint
         working-directory: api
+      # lint-staged only formats staged files, so anything committed with
+      # --no-verify drifts unnoticed. Two files had already drifted this way.
+      - run: npx prettier --check src test
+        working-directory: api
       - run: npm test
         working-directory: api
       # Fails the build on a known-vulnerable runtime dependency. Dev-only
@@ -40,6 +44,8 @@ jobs:
       - run: npm ci
         working-directory: web
       - run: npm run typecheck
+        working-directory: web
+      - run: npx prettier --check src
         working-directory: web
       - run: npm test
         working-directory: web
