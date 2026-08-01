@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import { isNonEmptyString } from "../validate.js";
 
 const APPROVAL_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const SET_PASSWORD_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -25,6 +26,15 @@ function generateToken() {
   return crypto.randomBytes(32).toString("hex");
 }
 
+// Clicking the link in the approval email is the only gate on account creation,
+// so registrant-supplied values must not be able to inject markup that forges a
+// competing "Approve" link or hides the real one.
+const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
+}
+
 function appUrl(path) {
   const base = (process.env.APP_URL ?? "https://theunderempire.com/foodofthegods").replace(
     /\/$/,
@@ -47,7 +57,7 @@ export class MailService {
 
   async register(req, res) {
     const { username, displayUsername, email } = req.body;
-    if (!username || !email) {
+    if (!isNonEmptyString(username) || !isNonEmptyString(email)) {
       return res
         .status(400)
         .json({ success: false, data: { message: "Username and email are required." } });
@@ -66,7 +76,7 @@ export class MailService {
       const approvalToken = generateToken();
       await pending.insert({
         username,
-        displayUsername: displayUsername ?? null,
+        displayUsername: isNonEmptyString(displayUsername) ? displayUsername : null,
         email,
         status: "pending_approval",
         approvalToken,
@@ -80,7 +90,7 @@ export class MailService {
         to: process.env.SMTP_USER,
         subject: "New Registration Request",
         text: `A user wants to register.\n\nEmail: ${email}\nUsername hash: ${username}\n\nApprove: ${approvalLink}`,
-        html: `<p>A user wants to register.</p><p><b>Email:</b> ${email}</p><p><b>Username hash:</b> ${username}</p><br><p><a href="${approvalLink}">Approve Registration</a></p><p><small>Link expires in 7 days.</small></p>`,
+        html: `<p>A user wants to register.</p><p><b>Email:</b> ${escapeHtml(email)}</p><p><b>Username hash:</b> ${escapeHtml(username)}</p><br><p><a href="${approvalLink}">Approve Registration</a></p><p><small>Link expires in 7 days.</small></p>`,
       });
 
       console.log(`[mail] registration request from ${email}`);
@@ -131,7 +141,7 @@ export class MailService {
         to: record.email,
         subject: "Set Your Password — Food of the Gods",
         text: `Your registration has been approved!${usernameNote}\n\nClick the link below to set your password (valid for 24 hours):\n\n${setPasswordLink}`,
-        html: `<p>Your registration has been approved!</p>${record.displayUsername ? `<p><b>Your username is:</b> ${record.displayUsername}</p>` : ""}<p><a href="${setPasswordLink}">Set Your Password</a></p><p><small>This link expires in 24 hours.</small></p>`,
+        html: `<p>Your registration has been approved!</p>${record.displayUsername ? `<p><b>Your username is:</b> ${escapeHtml(record.displayUsername)}</p>` : ""}<p><a href="${setPasswordLink}">Set Your Password</a></p><p><small>This link expires in 24 hours.</small></p>`,
       });
 
       console.log(`[mail] approved registration for ${record.email}`);
@@ -144,7 +154,7 @@ export class MailService {
 
   async setPassword(req, res) {
     const { token, password } = req.body;
-    if (!token || !password) {
+    if (!isNonEmptyString(token) || !isNonEmptyString(password)) {
       return res
         .status(400)
         .json({ success: false, data: { message: "Token and password are required." } });

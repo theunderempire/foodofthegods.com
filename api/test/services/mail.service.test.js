@@ -24,6 +24,49 @@ describe("MailService", () => {
       assert.equal(res._body.success, false);
     });
 
+    test("rejects a Mongo operator object as the username", async () => {
+      const service = new MailService(makeTransporter());
+      const res = makeRes();
+      const req = makeReq({
+        body: { username: { $ne: null }, email: "attacker@example.com" },
+      });
+
+      await service.register(req, res);
+
+      assert.equal(res._status, 400);
+      assert.equal(res._body.success, false);
+    });
+
+    test("escapes HTML in registrant values in the admin approval email", async () => {
+      let sent = null;
+      const service = new MailService(
+        makeTransporter(async (message) => {
+          sent = message;
+          return { response: "250 OK" };
+        }),
+      );
+      const res = makeRes();
+      const req = makeReq({
+        body: {
+          username: "user-hash",
+          email: '<a href="https://evil.example">Approve Registration</a>',
+        },
+        collections: {
+          users: makeCollection({ findOne: () => Promise.resolve(null) }),
+          pendingUsers: makeCollection({ findOne: () => Promise.resolve(null) }),
+        },
+      });
+
+      await service.register(req, res);
+
+      assert.ok(sent, "should send an email");
+      assert.ok(
+        !sent.html.includes('<a href="https://evil.example"'),
+        "attacker markup must not render as a competing approval link",
+      );
+      assert.ok(sent.html.includes("&lt;a href="), "should contain the escaped form");
+    });
+
     test("succeeds silently when username is already registered", async () => {
       const service = new MailService(makeTransporter());
       const res = makeRes();
@@ -209,6 +252,40 @@ describe("MailService", () => {
 
       assert.equal(res._status, 400);
       assert.equal(res._body.success, false);
+    });
+
+    test("rejects a Mongo operator object as the token without querying", async () => {
+      const service = new MailService(makeTransporter());
+      const res = makeRes();
+      let inserted = false;
+      const req = makeReq({
+        body: { token: { $ne: null }, password: "attacker-chosen" },
+        collections: {
+          pendingUsers: makeCollection({
+            // An unguarded {$ne: null} matches the first pending record, which
+            // would hand the attacker someone else's approved registration.
+            findOne: () =>
+              Promise.resolve({
+                _id: "victim",
+                username: "victim-hash",
+                email: "victim@example.com",
+                tokenExpiry: new Date(Date.now() + 60_000),
+              }),
+          }),
+          users: makeCollection({
+            insert: () => {
+              inserted = true;
+              return Promise.resolve({});
+            },
+          }),
+        },
+      });
+
+      await service.setPassword(req, res);
+
+      assert.equal(res._status, 400);
+      assert.equal(res._body.success, false);
+      assert.equal(inserted, false, "must not create an account");
     });
 
     test("returns 404 when token is not found", async () => {
