@@ -1,1 +1,3 @@
+npm run lint --prefix api
+npm run typecheck --prefix web
 npm run test:e2e --prefix web
