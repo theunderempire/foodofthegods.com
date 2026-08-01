@@ -6,13 +6,17 @@ import logger from "morgan";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import monk from "monk";
+import rateLimit from "express-rate-limit";
 import swaggerUi from "swagger-ui-express";
+import { assertStrongJwtSecret } from "./secret.js";
 
 const require = createRequire(import.meta.url);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 dotenv.config({ path: path.join(__dirname, "../../.env") });
+
+assertStrongJwtSecret();
 
 const db = monk(
   `${encodeURIComponent(process.env.DB_USERNAME)}:${encodeURIComponent(process.env.DB_PASSWORD)}@${process.env.DB_HOST_NAME}:27017/${process.env.DB_NAME}?authSource=admin`,
@@ -25,6 +29,13 @@ db.then(() => {
 console.log(new Date().toISOString(), "starting", process.env.NODE_ENV, process.env.PORT);
 
 var app = express();
+
+// Rate limits key on the client IP, so behind a reverse proxy every request
+// would otherwise share the proxy's IP and drain one bucket for all users. Set
+// TRUST_PROXY_HOPS to the number of proxies in front of the API (1 for Caddy).
+// Trusting a fixed hop count rather than `true` keeps X-Forwarded-For from being
+// spoofable past that point.
+app.set("trust proxy", Number(process.env.TRUST_PROXY_HOPS ?? 0));
 
 app.use(logger(":date[iso] :method :url :status :response-time ms"));
 app.use(bodyParser.json());
@@ -70,9 +81,30 @@ app.get("/health", async (_req, res) => {
   }
 });
 
-app.use("/mail", mail);
-app.use("/token", token);
-app.use("/recipe", recipe);
+// These three are unauthenticated and are the ones worth hammering: credentials
+// on /token, an admin-mail flood plus a set-password token oracle on /mail.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, data: { message: "Too many attempts. Try again later." } },
+});
+
+// A recipe id doubles as its share capability, so cap how fast ids can be walked.
+// This is also the path authenticated users load recipes through, so the limit is
+// set well above human browsing and only bites bulk enumeration.
+const publicRecipeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, data: "Too many requests." },
+});
+
+app.use("/mail", authLimiter, mail);
+app.use("/token", authLimiter, token);
+app.use("/recipe", publicRecipeLimiter, recipe);
 app.use(tokenCheck);
 app.use("/ingredientList", ingredientList);
 app.use("/recipes", recipes);
