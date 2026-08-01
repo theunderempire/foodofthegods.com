@@ -6,11 +6,11 @@ import logger from "morgan";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import monk from "monk";
-import rateLimit from "express-rate-limit";
 import swaggerUi from "swagger-ui-express";
 import { assertStrongJwtSecret } from "./secret.js";
 import { redactQueryToken } from "./redact.js";
 import { ensureIndexes } from "./indexes.js";
+import { createLimiters } from "./rateLimits.js";
 
 const require = createRequire(import.meta.url);
 
@@ -85,26 +85,10 @@ app.get("/health", async (_req, res) => {
   }
 });
 
-// These three are unauthenticated and are the ones worth hammering: credentials
-// on /token, an admin-mail flood plus a set-password token oracle on /mail.
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, data: { message: "Too many attempts. Try again later." } },
-});
-
-// A recipe id doubles as its share capability, so cap how fast ids can be walked.
-// This is also the path authenticated users load recipes through, so the limit is
-// set well above human browsing and only bites bulk enumeration.
-const publicRecipeLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 300,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, data: "Too many requests." },
-});
+const { authLimiter, publicRecipeLimiter, limits } = createLimiters();
+console.log(
+  `[ratelimit] auth=${limits.authLimit} publicRecipe=${limits.publicRecipeLimit} per 15min`,
+);
 
 app.use("/mail", authLimiter, mail);
 app.use("/token", authLimiter, token);
