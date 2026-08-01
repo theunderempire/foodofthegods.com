@@ -33,7 +33,7 @@ test.describe("recipes", () => {
     await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
 
     await page.goBack();
-    await expect(page).toHaveURL("/recipes");
+    await expect(page).toHaveURL("recipes");
 
     await expect(page.locator('input[placeholder="Search recipes..."]')).toHaveValue("Test");
     await expect(page.locator(".recipe-card-title", { hasText: /^Test$/ })).toBeVisible();
@@ -50,7 +50,7 @@ test.describe("recipes", () => {
     await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
 
     await page.goBack();
-    await expect(page).toHaveURL("/recipes");
+    await expect(page).toHaveURL("recipes");
     await page.locator(".recipe-card-title").first().waitFor();
 
     const scrollY = await page.evaluate(() => window.scrollY);
@@ -145,14 +145,14 @@ test.describe("recipes", () => {
     await page.click('button:has-text("Delete")');
     await page.click('button:has-text("Confirm")');
 
-    await expect(page).toHaveURL("/recipes");
+    await expect(page).toHaveURL("recipes");
     await expect(page.locator(".recipe-card-title", { hasText: recipeName })).not.toBeVisible();
   });
 
   test("create, edit, and delete a recipe", async ({ page }) => {
     // Create
     await page.click('[aria-label="Add recipe"]');
-    await expect(page).toHaveURL("/recipes/new");
+    await expect(page).toHaveURL("recipes/new");
     await page.click('button:has-text("Enter Manually")');
 
     await page.fill("#name", "E2E Test Recipe");
@@ -180,7 +180,7 @@ test.describe("recipes", () => {
     // Delete
     await page.click('button:has-text("Delete")');
     await page.click('button:has-text("Confirm")');
-    await expect(page).toHaveURL("/recipes");
+    await expect(page).toHaveURL("recipes");
     await expect(
       page.locator(".recipe-card-title", { hasText: "E2E Test Recipe (edited)" }),
     ).not.toBeVisible();
@@ -228,6 +228,6 @@ test.describe("recipes", () => {
     await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
     await page.click('button:has-text("Delete")');
     await page.click('button:has-text("Confirm")');
-    await expect(page).toHaveURL("/recipes");
+    await expect(page).toHaveURL("recipes");
   });
 });

@@ -5,7 +5,7 @@ test.describe("ingredients", () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     await page.click('a:has-text("Shopping List")');
-    await expect(page).toHaveURL("/ingredients");
+    await expect(page).toHaveURL("ingredients");
   });
 
   test("shows shopping list page", async ({ page }) => {

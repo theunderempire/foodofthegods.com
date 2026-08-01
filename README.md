@@ -51,6 +51,19 @@ To seed the database on first run:
 docker compose --profile seed up db-seed
 ```
 
+> **After any change to `api/package.json`, rebuild with `-V`:**
+>
+> ```bash
+> docker compose up -d --build -V fotg-api
+> ```
+>
+> `docker-compose.yml` declares an anonymous volume for `/usr/src/app/node_modules`
+> to keep the bind mount from shadowing the installed dependencies. That volume
+> survives `--build`, so a plain rebuild keeps serving the old `node_modules` and
+> the container crashes with `ERR_MODULE_NOT_FOUND` for the new package. `-V`
+> renews it. (The `api` deploy script already passes `-V`, which is why production
+> is unaffected.)
+
 ### 3. Start the frontend
 
 ```bash
@@ -75,7 +88,20 @@ cd web && npm start
 | `npm run test:e2e`    | Run e2e tests (Playwright)       |
 | `npm run test:e2e:ui` | Playwright in UI mode            |
 
-`npm run test:e2e` needs the API and database running (`docker compose up`).
+`npm run test:e2e` needs the API and database running (`docker compose up`). It runs
+two Playwright projects:
+
+| Project          | Serves                                 | Covers                                                      |
+| ---------------- | -------------------------------------- | ----------------------------------------------------------- |
+| `chromium-dev`   | `vite` dev server, base `/`            | The full suite — login, recipes, shopping list, deeplinks   |
+| `chromium-build` | `vite preview`, base `/foodofthegods/` | Base path, asset URLs, SPA fallback, and copied share links |
+
+`chromium-build` exists because `base` differs between dev and production. A share
+link built from `window.location.origin` alone passed every dev-mode test and 404'd
+in production, because nothing had ever run against the production build. Keep
+navigations and URL assertions in the specs **relative** (`goto("login")`, not
+`goto("/login")`) — a leading slash resolves against the origin and drops the base
+path, so absolute paths silently bypass what this project is here to catch.
 
 `VITE_API_BASE_URL` is read from the root `.env` file (no web-specific env file needed).
 
@@ -112,21 +138,23 @@ All environment variables live in a single `.env` file at the repo root. Copy `.
 cp .env.example .env
 ```
 
-| Variable                   | Description                                                                                                                                                                          |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `DB_USERNAME`              | MongoDB root username                                                                                                                                                                |
-| `DB_PASSWORD`              | MongoDB root password                                                                                                                                                                |
-| `DB_NAME`                  | MongoDB database name                                                                                                                                                                |
-| `DB_HOST_NAME`             | MongoDB host (`fotg-db` in Docker, `localhost` otherwise)                                                                                                                            |
-| `JWT_SECRET`               | Secret for signing JWTs. **Minimum 32 characters — the API refuses to start below that.** Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`   |
-| `TRUST_PROXY_HOPS`         | Number of reverse proxies in front of the API. **Must be `1` in production** (behind Caddy) or rate limits key on the proxy's IP and every user shares one bucket. `0` for local dev |
-| `APP_URL`                  | Frontend base URL, used in registration emails (no trailing slash)                                                                                                                   |
-| `VITE_API_BASE_URL`        | API base URL, used in registration emails and thumbnail generation (no trailing slash)                                                                                               |
-| `SMTP_HOST`                | SMTP server hostname (e.g. `smtp.gmail.com`)                                                                                                                                         |
-| `SMTP_PORT`                | SMTP port (`587` for TLS, `465` for SSL)                                                                                                                                             |
-| `SMTP_USER`                | SMTP username / email address (also receives registration emails)                                                                                                                    |
-| `SMTP_PASS`                | SMTP password or app password                                                                                                                                                        |
-| `SMTP_REJECT_UNAUTHORIZED` | Set to `false` to allow self-signed certs (default `true`)                                                                                                                           |
+| Variable                   | Description                                                                                                                                                                                  |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DB_USERNAME`              | MongoDB root username                                                                                                                                                                        |
+| `DB_PASSWORD`              | MongoDB root password                                                                                                                                                                        |
+| `DB_NAME`                  | MongoDB database name                                                                                                                                                                        |
+| `DB_HOST_NAME`             | MongoDB host (`fotg-db` in Docker, `localhost` otherwise)                                                                                                                                    |
+| `JWT_SECRET`               | Secret for signing JWTs. **Minimum 32 characters — the API refuses to start below that.** Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`           |
+| `TRUST_PROXY_HOPS`         | Number of reverse proxies in front of the API. **Must be `1` in production** (behind Caddy) or rate limits key on the proxy's IP and every user shares one bucket. `0` for local dev         |
+| `APP_URL`                  | Frontend base URL, used in registration emails (no trailing slash)                                                                                                                           |
+| `VITE_API_BASE_URL`        | API base URL, used in registration emails and thumbnail generation (no trailing slash)                                                                                                       |
+| `SMTP_HOST`                | SMTP server hostname (e.g. `smtp.gmail.com`)                                                                                                                                                 |
+| `SMTP_PORT`                | SMTP port (`587` for TLS, `465` for SSL)                                                                                                                                                     |
+| `SMTP_USER`                | SMTP username / email address (also receives registration emails)                                                                                                                            |
+| `SMTP_PASS`                | SMTP password or app password                                                                                                                                                                |
+| `SMTP_REJECT_UNAUTHORIZED` | Set to `false` to allow self-signed certs (default `true`)                                                                                                                                   |
+| `AUTH_RATE_LIMIT`          | Optional. Requests per 15 min to `/token` and `/mail`. Defaults to 30 in production, 2000 otherwise — the e2e suite logs in on nearly every test and would exhaust a production-tight budget |
+| `PUBLIC_RECIPE_RATE_LIMIT` | Optional. Requests per 15 min to `/recipe/:id`. Defaults to 300 in production, 5000 otherwise                                                                                                |
 
 There is no server-wide Gemini API key. Each user supplies their own on the
 Settings page, stored on their user record; AI import and list grouping are
