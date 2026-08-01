@@ -25,7 +25,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       const settings = await getSettings();
-      setHasGeminiKey(!!settings.geminiApiKey);
+      setHasGeminiKey(settings.hasGeminiKey);
       setGeminiModel(settings.geminiModel ?? DEFAULT_GEMINI_MODEL);
     } catch {
       setHasGeminiKey(false);

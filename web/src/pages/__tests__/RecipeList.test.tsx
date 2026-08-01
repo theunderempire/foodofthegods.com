@@ -207,6 +207,12 @@ describe("scroll position persistence", () => {
     );
   }
 
+  // The scroll handler coalesces writes into one per animation frame, so the write
+  // lands a frame after the event rather than synchronously with it.
+  function flushFrame() {
+    return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  }
+
   test("saves scroll position to sessionStorage on scroll event", async () => {
     mockGetRecipes.mockResolvedValue(mockRecipes);
     renderList();
@@ -214,9 +220,27 @@ describe("scroll position persistence", () => {
 
     Object.defineProperty(window, "scrollY", { value: 400, configurable: true });
     fireEvent.scroll(window);
+    await flushFrame();
 
     const saved = JSON.parse(sessionStorage.getItem("recipe-list-scroll")!);
     expect(saved.value).toBe("400");
+  });
+
+  test("coalesces a burst of scroll events into a single write", async () => {
+    mockGetRecipes.mockResolvedValue(mockRecipes);
+    renderList();
+    await screen.findByText("Pasta");
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+
+    for (const y of [100, 200, 300, 400]) {
+      Object.defineProperty(window, "scrollY", { value: y, configurable: true });
+      fireEvent.scroll(window);
+    }
+    await flushFrame();
+
+    const scrollWrites = setItem.mock.calls.filter(([key]) => key === "recipe-list-scroll");
+    expect(scrollWrites).toHaveLength(1);
+    expect(JSON.parse(scrollWrites[0][1] as string).value).toBe("400");
   });
 
   test("restores scroll position on back navigation after loading", async () => {
@@ -226,6 +250,7 @@ describe("scroll position persistence", () => {
     await screen.findByText("Pasta");
     Object.defineProperty(window, "scrollY", { value: 350, configurable: true });
     fireEvent.scroll(window);
+    await flushFrame();
     unmount();
 
     // Second render: back navigation should restore scroll
@@ -249,6 +274,7 @@ describe("scroll position persistence", () => {
     await screen.findByText("Pasta");
     Object.defineProperty(window, "scrollY", { value: 350, configurable: true });
     fireEvent.scroll(window);
+    await flushFrame();
     unmount();
 
     const scrollToSpy = vi.spyOn(window, "scrollTo").mockImplementation(() => {});

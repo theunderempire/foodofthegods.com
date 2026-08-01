@@ -5,7 +5,8 @@ import { makeRes, makeReq, makeCollection } from "../helpers/mocks.js";
 
 describe("users settings", () => {
   describe("handleGetSettings", () => {
-    test("returns geminiApiKey when user has one set", async () => {
+    // The raw key must never leave the server; only its presence is reported.
+    test("reports that a key is set without returning the key", async () => {
       const res = makeRes();
       const req = makeReq({
         username: "user-1",
@@ -18,7 +19,12 @@ describe("users settings", () => {
 
       await handleGetSettings(req, res);
 
-      assert.equal(res._body.geminiApiKey, "my-key");
+      assert.equal(res._body.hasGeminiKey, true);
+      assert.equal(res._body.geminiApiKey, undefined, "the key itself must not be sent");
+      assert.ok(
+        !JSON.stringify(res._body).includes("my-key"),
+        "no part of the response may contain the key",
+      );
     });
 
     test("returns geminiModel when user has one set", async () => {
@@ -42,7 +48,7 @@ describe("users settings", () => {
       assert.equal(res._body.geminiModel, "gemini-2.5-pro");
     });
 
-    test("returns null for geminiApiKey when user has none", async () => {
+    test("reports no key when the user has none", async () => {
       const res = makeRes();
       const req = makeReq({
         username: "user-1",
@@ -55,7 +61,7 @@ describe("users settings", () => {
 
       await handleGetSettings(req, res);
 
-      assert.equal(res._body.geminiApiKey, null);
+      assert.equal(res._body.hasGeminiKey, false);
     });
 
     test("returns null for geminiModel when user has none", async () => {
@@ -74,7 +80,7 @@ describe("users settings", () => {
       assert.equal(res._body.geminiModel, null);
     });
 
-    test("returns null for both when user is not found", async () => {
+    test("reports no key and no model when the user is not found", async () => {
       const res = makeRes();
       const req = makeReq({
         username: "user-1",
@@ -87,11 +93,11 @@ describe("users settings", () => {
 
       await handleGetSettings(req, res);
 
-      assert.equal(res._body.geminiApiKey, null);
+      assert.equal(res._body.hasGeminiKey, false);
       assert.equal(res._body.geminiModel, null);
     });
 
-    test("returns null for both when db throws", async () => {
+    test("reports no key and no model when the db throws", async () => {
       const res = makeRes();
       const req = makeReq({
         username: "user-1",
@@ -104,7 +110,7 @@ describe("users settings", () => {
 
       await handleGetSettings(req, res);
 
-      assert.equal(res._body.geminiApiKey, null);
+      assert.equal(res._body.hasGeminiKey, false);
       assert.equal(res._body.geminiModel, null);
     });
   });
