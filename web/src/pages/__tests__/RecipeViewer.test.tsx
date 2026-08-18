@@ -91,6 +91,15 @@ describe("RecipeViewer", () => {
     expect(screen.getByText("Layer and bake.")).toBeInTheDocument();
   });
 
+  test("sets the document title to the recipe name and restores it on unmount", async () => {
+    mockGetRecipe.mockResolvedValue(mockRecipe);
+    const { unmount } = renderViewer();
+    await screen.findByText("Grandma's Lasagna");
+    expect(document.title).toBe("Grandma's Lasagna · Food of the Gods");
+    unmount();
+    expect(document.title).toBe("Food of the Gods");
+  });
+
   test("shows NotFound page when recipe fails to load", async () => {
     mockGetRecipe.mockRejectedValue(new Error("not found"));
     renderViewer();
