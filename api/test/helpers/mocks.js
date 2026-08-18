@@ -2,9 +2,13 @@
  * Creates a mock Express response object that tracks status and body.
  */
 export function makeRes() {
-  const res = { _status: 200, _body: null };
+  const res = { _status: 200, _body: null, _headers: {} };
   res.status = (code) => {
     res._status = code;
+    return res;
+  };
+  res.set = (name, value) => {
+    res._headers[name] = value;
     return res;
   };
   res.json = (data) => {

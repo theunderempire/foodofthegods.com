@@ -259,6 +259,59 @@ describe("RecipesService", () => {
     });
   });
 
+  describe("getRecipeSharePreview", () => {
+    test("renders HTML with recipe meta tags and caps the fields to the public projection", async () => {
+      let opts = null;
+      const res = makeRes();
+      const req = makeReq({
+        params: { id: "r1" },
+        collections: {
+          recipelist: makeCollection({
+            find: (_q, o) => {
+              opts = o;
+              return Promise.resolve([{ _id: "r1", name: "Pasta", ingredients: [] }]);
+            },
+          }),
+        },
+      });
+
+      await service.getRecipeSharePreview(req, res);
+
+      assert.equal(res._status, 200);
+      assert.equal(res._headers["Content-Type"], "text/html; charset=utf-8");
+      assert.match(res._body, /<meta property="og:title" content="Pasta">/);
+      assert.equal(opts.projection.userId, undefined, "share previews must not expose the owner");
+    });
+
+    test("returns 404 with a generic preview when the recipe is missing", async () => {
+      const res = makeRes();
+      const req = makeReq({
+        params: { id: "nope" },
+        collections: { recipelist: makeCollection({ find: () => Promise.resolve([]) }) },
+      });
+
+      await service.getRecipeSharePreview(req, res);
+
+      assert.equal(res._status, 404);
+      assert.match(res._body, /<meta property="og:title" content="Recipe">/);
+    });
+
+    test("treats lookup errors (e.g. garbage ids) as not found and still renders HTML", async () => {
+      const res = makeRes();
+      const req = makeReq({
+        params: { id: "%%%" },
+        collections: {
+          recipelist: makeCollection({ find: () => Promise.reject(new Error("bad id")) }),
+        },
+      });
+
+      await service.getRecipeSharePreview(req, res);
+
+      assert.equal(res._status, 404);
+      assert.match(res._body, /<!doctype html>/);
+    });
+  });
+
   describe("deleteRecipe", () => {
     test("removes recipe from db when no other users own it", async () => {
       let removeCalled = false;

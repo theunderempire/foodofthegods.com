@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import RequestService from "./request.service.js";
 import { generateThumbnail, deleteThumbnail } from "./thumbnail.service.js";
+import { renderSharePreviewHtml } from "./sharePreview.js";
 import { safeFetch } from "./safeFetch.js";
 import {
   getGeminiConfig,
@@ -37,6 +38,7 @@ var RecipesService = function () {
   this.deleteRecipe = deleteRecipe;
   this.getRecipesForUser = getRecipesForUser;
   this.getSingleRecipe = getSingleRecipe;
+  this.getRecipeSharePreview = getRecipeSharePreview;
   this.importRecipeFromUrl = importRecipeFromUrl;
   this.importRecipeFromText = importRecipeFromText;
   this.updateRecipe = updateRecipe;
@@ -147,6 +149,25 @@ var RecipesService = function () {
     } catch (err) {
       res.json({ success: false, data: err.message });
     }
+  }
+
+  // Server-rendered HTML for social crawlers hitting a share link — same
+  // public/unauthenticated posture as getSingleRecipe, and the same
+  // PUBLIC_RECIPE_FIELDS cap on what leaks to link previews. Lookup errors
+  // (e.g. garbage ids) render as not-found rather than an error payload so
+  // crawlers still get a valid page.
+  async function getRecipeSharePreview(req, res) {
+    var collection = getRecipeListCollection(req);
+    let recipe = null;
+    try {
+      const docs = await collection.find({ _id: req.params.id }, projection(PUBLIC_RECIPE_FIELDS));
+      recipe = docs[0] ?? null;
+    } catch (err) {
+      console.warn(`[recipes] getRecipeSharePreview lookup failed id="${req.params.id}": ${err}`);
+    }
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.set("Cache-Control", "public, max-age=300");
+    res.status(recipe ? 200 : 404).send(renderSharePreviewHtml(recipe, req.params.id));
   }
 
   // Updates the recipe with the passed `id` param with the

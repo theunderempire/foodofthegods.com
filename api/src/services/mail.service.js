@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { isNonEmptyString } from "../validate.js";
+import { escapeHtml, appUrl, apiUrl } from "../html.js";
 
 const APPROVAL_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const SET_PASSWORD_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -24,30 +25,6 @@ function defaultCreateTransporter() {
 
 function generateToken() {
   return crypto.randomBytes(32).toString("hex");
-}
-
-// Clicking the link in the approval email is the only gate on account creation,
-// so registrant-supplied values must not be able to inject markup that forges a
-// competing "Approve" link or hides the real one.
-const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
-}
-
-function appUrl(path) {
-  const base = (process.env.APP_URL ?? "https://theunderempire.com/foodofthegods").replace(
-    /\/$/,
-    "",
-  );
-  return `${base}${path}`;
-}
-
-function apiUrl(path) {
-  const base = (
-    process.env.VITE_API_BASE_URL ?? "https://theunderempire.com/foodofthegods-api"
-  ).replace(/\/$/, "");
-  return `${base}${path}`;
 }
 
 export class MailService {
