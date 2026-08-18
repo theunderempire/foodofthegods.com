@@ -30,16 +30,27 @@ Add this inside the `theunderempire.com` site block, **before** the static
 file-server / SPA fallback handlers. `foodofthegods-api:3000` is reachable
 because the API container joins the external `caddy-net` network.
 
+The matcher covers both the share URL (`/recipes/<id>/share`) and the plain
+recipe URL (`/recipes/<id>`) — people paste both, and the recipe id is the
+share capability either way, so both render the same preview. `/recipes/new`
+is excluded (it's the creation form, not a recipe id); a crawler hitting it
+would otherwise get a harmless generic 404 preview.
+
 ```caddyfile
-@fotgShareCrawler {
-    path_regexp fotgShare ^/foodofthegods/recipes/([^/]+)/share/?$
+@fotgRecipeCrawler {
+    path_regexp fotgRecipe ^/foodofthegods/recipes/([^/]+)(?:/share)?/?$
+    not path /foodofthegods/recipes/new /foodofthegods/recipes/new/
     header_regexp crawler User-Agent (?i)(facebookexternalhit|facebot|twitterbot|slackbot|discordbot|whatsapp|telegrambot|linkedinbot|pinterest|redditbot|skypeuripreview|applebot|googlebot|bingbot|duckduckbot|embedly|iframely|mastodon|bluesky|snapchat|vkshare)
 }
-handle @fotgShareCrawler {
-    rewrite * /recipe/{re.fotgShare.1}/share
+handle @fotgRecipeCrawler {
+    rewrite * /recipe/{re.fotgRecipe.1}/share
     reverse_proxy foodofthegods-api:3000
 }
 ```
+
+Note: if the static site is served from a `handle_path /foodofthegods/*` block
+(which strips the prefix), this block must be a **sibling** placed before it,
+matching the full original path as written above — not nested inside it.
 
 Then reload Caddy (`docker exec caddy caddy reload --config /etc/caddy/Caddyfile`
 or however the caddy container is managed).

@@ -40,6 +40,17 @@ export function RecipeViewer() {
     getIngredientList(username).then((l) => setShoppingList(l));
   }, [username, isAuthenticated]);
 
+  // Browser share sheets, bookmarks, and history identify the page by its
+  // title, so name the tab after the recipe. Crawler-facing titles come from
+  // the API's server-rendered share preview, not from here.
+  useEffect(() => {
+    if (!recipe) return;
+    document.title = `${recipe.name} · Food of the Gods`;
+    return () => {
+      document.title = "Food of the Gods";
+    };
+  }, [recipe]);
+
   const listIngredientNames = useMemo(() => {
     const names = new Set<string>();
     shoppingList?.groups.forEach((g) =>
