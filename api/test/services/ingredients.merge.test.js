@@ -108,3 +108,103 @@ describe("groupIngredientList duplicate merging", () => {
     assert.deepEqual(names.sort(), ["eggs", "milk"]);
   });
 });
+
+describe("addIngredientsFromText AI unit extraction", () => {
+  function pasteSetup({ text, apiKey = "k" }) {
+    const stored = [];
+    const req = makeReq({
+      username: "user-1",
+      params: { userId: "user-1" },
+      body: { text },
+      collections: {
+        users: makeCollection({
+          findOne: () => Promise.resolve(apiKey ? { geminiApiKey: apiKey } : {}),
+        }),
+        ingredientlist: makeCollection({
+          findOne: () => Promise.resolve(null),
+          insert: (doc) => {
+            stored.push(doc);
+            return Promise.resolve(doc);
+          },
+        }),
+      },
+    });
+    return { req, stored };
+  }
+  const ingredientsOf = (res) =>
+    res._body.data.ingredientList.groups[0].items.map((i) => i.ingredient);
+
+  test("splits unit and name for lines the parser could not", async () => {
+    const { req } = pasteSetup({
+      text: "2 cups flour\n2 14-oz cans diced tomatoes\n1 bunch cilantro",
+    });
+    let prompted = "";
+    globalThis.fetch = (_url, init) => {
+      prompted = JSON.parse(init.body).contents[0].parts[0].text;
+      return geminiReply([
+        { i: 1, name: "diced tomatoes (14-oz)", quantity: "2", unit: "cans" },
+        { i: 2, name: "cilantro", quantity: "1", unit: "bunch" },
+      ]);
+    };
+
+    const res = makeRes();
+    await service.addIngredientsFromText(req, res);
+
+    const [flour, tomatoes, cilantro] = ingredientsOf(res);
+    assert.deepEqual([flour.name, flour.amount, flour.unit], ["flour", 2, "cup"]);
+    assert.deepEqual(
+      [tomatoes.name, tomatoes.amount, tomatoes.unit],
+      ["diced tomatoes (14-oz)", 2, "can"],
+    );
+    assert.equal(cilantro.unit, "bunch");
+    // Only lines the parser had no unit for are sent; the resolved line is not.
+    assert.ok(!prompted.includes("2 cups flour"));
+  });
+
+  test("never lets the model change a number the parser already found", async () => {
+    const { req } = pasteSetup({ text: "3 large onions" });
+    globalThis.fetch = () => geminiReply([{ i: 0, name: "onion", quantity: "30", unit: "" }]);
+
+    const res = makeRes();
+    await service.addIngredientsFromText(req, res);
+
+    const [onion] = ingredientsOf(res);
+    assert.equal(onion.amount, 3);
+    assert.equal(onion.name, "large onions");
+  });
+
+  test("falls back to the parser when Gemini fails or there is no key", async () => {
+    let calls = 0;
+    globalThis.fetch = () => {
+      calls += 1;
+      return Promise.resolve({ ok: false, status: 500, text: () => Promise.resolve("boom") });
+    };
+    const failing = makeRes();
+    await service.addIngredientsFromText(pasteSetup({ text: "3 large onions" }).req, failing);
+    assert.equal(ingredientsOf(failing)[0].name, "large onions");
+
+    calls = 0;
+    const keyless = makeRes();
+    await service.addIngredientsFromText(
+      pasteSetup({ text: "3 large onions", apiKey: null }).req,
+      keyless,
+    );
+    assert.equal(calls, 0);
+    assert.equal(ingredientsOf(keyless)[0].amount, 3);
+  });
+
+  test("makes no AI call when every line already has a unit", async () => {
+    let calls = 0;
+    globalThis.fetch = () => {
+      calls += 1;
+      return geminiReply([]);
+    };
+    const res = makeRes();
+    await service.addIngredientsFromText(
+      pasteSetup({ text: "2 cups flour\n1 lb butter" }).req,
+      res,
+    );
+    assert.equal(calls, 0);
+    assert.equal(ingredientsOf(res).length, 2);
+  });
+});

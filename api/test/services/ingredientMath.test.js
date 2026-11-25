@@ -4,6 +4,7 @@ import {
   mergeDuplicateItems,
   parseIngredientLine,
   parseIngredientText,
+  parseQuantity,
 } from "../../src/services/ingredientMath.js";
 
 const item = (id, name, amount, unit, completed = false) => ({
@@ -100,5 +101,22 @@ describe("mergeDuplicateItems", () => {
     assert.equal(out.length, 1);
     assert.equal(out[0].name, "Dairy");
     assert.equal(out[0].items[0].ingredient.amount, 2);
+  });
+});
+
+describe("parseQuantity", () => {
+  test("accepts a quantity exactly as written", () => {
+    assert.equal(parseQuantity("2"), 2);
+    assert.equal(parseQuantity(" 1 1/2 "), 1.5);
+    assert.equal(parseQuantity("½"), 0.5);
+    assert.equal(parseQuantity("2-3"), 3);
+  });
+
+  test("rejects anything that is not a bare number", () => {
+    assert.equal(parseQuantity("a dozen"), null);
+    assert.equal(parseQuantity("2 cups"), null);
+    assert.equal(parseQuantity("two"), null);
+    assert.equal(parseQuantity(""), null);
+    assert.equal(parseQuantity(undefined), null);
   });
 });

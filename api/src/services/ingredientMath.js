@@ -186,12 +186,32 @@ export function parseIngredientLine(rawLine) {
   return { name: cleanName(line), amount: "", unit: undefined };
 }
 
-export function parseIngredientText(text) {
+// Every non-blank line paired with its deterministic parse, so a caller can
+// decide which lines are worth a second opinion.
+export function parseIngredientLines(text) {
   return text
     .split(/\r?\n/)
-    .map(parseIngredientLine)
-    .filter(Boolean)
-    .filter((i) => i.name && Number.isFinite(i.amount === "" ? 0 : i.amount));
+    .map((raw) => ({ raw: raw.trim(), parsed: parseIngredientLine(raw) }))
+    .filter(
+      ({ parsed }) =>
+        parsed && parsed.name && Number.isFinite(parsed.amount === "" ? 0 : parsed.amount),
+    );
+}
+
+export function parseIngredientText(text) {
+  return parseIngredientLines(text).map(({ parsed }) => parsed);
+}
+
+// A quantity exactly as written ("1 1/2", "½", "2-3"); null if it is anything else.
+const QUANTITY_ONLY = new RegExp(`^${QUANTITY}$`, "i");
+export function parseQuantity(text) {
+  if (typeof text !== "string" || !QUANTITY_ONLY.test(text.trim())) return null;
+  const n = parseNumber(text);
+  return Number.isFinite(n) ? round(n) : null;
+}
+
+export function cleanIngredientName(name) {
+  return typeof name === "string" ? cleanName(name) : "";
 }
 
 export function normalizeName(name) {

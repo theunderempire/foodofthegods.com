@@ -7,7 +7,13 @@ import {
   extractCandidateText,
   parseJsonLoosely,
 } from "./gemini.service.js";
-import { mergeDuplicateItems, parseIngredientText } from "./ingredientMath.js";
+import {
+  cleanIngredientName,
+  mergeDuplicateItems,
+  normalizeUnit,
+  parseIngredientLines,
+  parseQuantity,
+} from "./ingredientMath.js";
 
 const requestService = new RequestService();
 
@@ -115,18 +121,98 @@ const IngredientService = function () {
     );
   }
 
-  // Parses pasted free text deterministically (no LLM) and adds the results.
-  function addIngredientsFromText(req, res) {
-    return withUserList(req, res, "addIngredientsFromText", (docs) => {
+  // Lines the deterministic parser found no unit for ("1 large onion", "2 14-oz cans
+  // tomatoes", "salt") get a second opinion from Gemini, which only splits the line
+  // into quantity / unit / name. It never computes: the quantity comes back as
+  // written and is parsed here, and a number the parser already found is never
+  // overridden. Any failure falls back to the deterministic result.
+  async function refineWithAi(req, lines) {
+    const uncertain = lines.map((l, i) => ({ ...l, i })).filter((l) => l.parsed.unit === undefined);
+    if (!uncertain.length) return lines.map((l) => l.parsed);
+
+    const refined = lines.map((l) => l.parsed);
+    try {
+      const { apiKey, url } = await getGeminiConfig(req);
+      if (!apiKey) return refined;
+
+      const response = await requestGemini({
+        url,
+        apiKey,
+        prompt: `Split each grocery list line into a quantity, a unit and an ingredient name.
+
+Rules:
+- "quantity" is the number exactly as written in the line (e.g. "2", "1 1/2", "½", "2-3"). Do not calculate or convert anything. Use "" if the line has no number.
+- "unit" is a single measuring or packaging word in singular form (e.g. "cup", "tbsp", "oz", "lb", "g", "can", "clove", "bunch", "package"). Use "" when the quantity counts whole items (e.g. "3 eggs") or there is no unit.
+- "name" is the ingredient itself. Keep descriptors that matter ("large", "diced", "14-oz") in the name, but not the quantity or unit.
+- Return one object per input line, with the same "i".
+
+Lines: ${JSON.stringify(uncertain.map((l) => ({ i: l.i, text: l.raw })))}`,
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                i: { type: "INTEGER" },
+                name: { type: "STRING" },
+                quantity: { type: "STRING" },
+                unit: { type: "STRING" },
+              },
+              required: ["i", "name", "quantity", "unit"],
+            },
+          },
+        },
+      });
+      if (!response.ok) return refined;
+      const candidate = extractCandidateText(await response.json());
+      if (!candidate.text) return refined;
+      const results = parseJsonLoosely(candidate.text, "array");
+      if (!Array.isArray(results)) return refined;
+
+      const allowed = new Set(uncertain.map((l) => l.i));
+      for (const r of results) {
+        if (!r || !allowed.has(r.i)) continue;
+        const name = cleanIngredientName(r.name);
+        const quantity = r.quantity === "" ? "" : parseQuantity(r.quantity);
+        if (!name || quantity === null) continue;
+
+        const original = lines[r.i].parsed;
+        // The model may fix the unit/name split, never a number we already have.
+        if (typeof original.amount === "number" && quantity !== original.amount) continue;
+
+        refined[r.i] = { name, amount: quantity, unit: normalizeUnit(r.unit) || undefined };
+      }
+    } catch (err) {
+      console.warn(`[ingredients] paste parse AI skipped: ${err.message || err}`);
+    }
+    return refined;
+  }
+
+  // Parses pasted free text and adds the results. The (possibly slow) AI step runs
+  // before the list is read, so it cannot hold a stale copy of the list.
+  async function addIngredientsFromText(req, res) {
+    const userId = req.params.userId;
+    if (!requestService.checkUser(req, userId)) return requestService.returnUnauthorized(res);
+
+    let ingredients;
+    try {
       const text = req.body?.text;
       if (typeof text !== "string" || !text.trim()) throw new Error("No text to parse");
       if (text.length > 20000) throw new Error("Pasted text is too long");
 
-      const ingredients = parseIngredientText(text);
-      if (!ingredients.length) throw new Error("Couldn't find any ingredients in that text");
-      if (ingredients.length > 500) throw new Error("Too many items (500 at most per paste)");
-      return addToUngrouped(docs, ingredients);
-    });
+      const lines = parseIngredientLines(text);
+      if (!lines.length) throw new Error("Couldn't find any ingredients in that text");
+      if (lines.length > 500) throw new Error("Too many items (500 at most per paste)");
+
+      ingredients = await refineWithAi(req, lines);
+    } catch (err) {
+      return res.json({ success: false, data: err.message });
+    }
+
+    return withUserList(req, res, "addIngredientsFromText", (docs) =>
+      addToUngrouped(docs, ingredients),
+    );
   }
 
   // Asks Gemini only which items are the same ingredient. Amounts are never sent
