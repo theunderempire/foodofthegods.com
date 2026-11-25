@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   addIngredients,
+  addIngredientsFromText,
   clearAllIngredients,
   clearMarkedIngredients,
   getIngredientList,
@@ -51,6 +52,10 @@ export function IngredientList() {
   const [addAmount, setAddAmount] = useState("1");
   const [addUnit, setAddUnit] = useState("");
   const [adding, setAdding] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [pasting, setPasting] = useState(false);
+  const [pasteError, setPasteError] = useState("");
   const copyResetTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => () => clearTimeout(copyResetTimeout.current), []);
@@ -166,6 +171,30 @@ export function IngredientList() {
     }
   }
 
+  function closePaste() {
+    if (pasting) return;
+    setPasteOpen(false);
+    setPasteText("");
+    setPasteError("");
+  }
+
+  async function handlePasteSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!username || !pasteText.trim()) return;
+    setPasting(true);
+    setPasteError("");
+    try {
+      const updated = await addIngredientsFromText(username, pasteText);
+      if (updated) setList(updated);
+      setPasting(false);
+      setPasteOpen(false);
+      setPasteText("");
+    } catch (err) {
+      setPasteError(err instanceof Error ? err.message : "Failed to add pasted items.");
+      setPasting(false);
+    }
+  }
+
   async function handleGroup() {
     if (!username) return;
     setGrouping(true);
@@ -216,6 +245,14 @@ export function IngredientList() {
             }
           >
             {grouping || list?.grouping ? "Grouping..." : <>&#x2728;Auto-group</>}
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setPasteOpen(true)}
+            disabled={!!list?.grouping}
+            title="Paste a list of items and quantities"
+          >
+            Paste list
           </button>
           {totalItems > 0 && (
             <button
@@ -365,6 +402,37 @@ export function IngredientList() {
                   disabled={adding || !addName.trim() || !addAmount}
                 >
                   {adding ? "Saving…" : editTarget ? "Save" : "Add"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {pasteOpen && (
+        <div className="dialog-overlay" onClick={closePaste}>
+          <div className="dialog-box add-item-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2 className="dialog-title">Paste Items</h2>
+            {pasteError && <div className="alert alert-error">{pasteError}</div>}
+            <form onSubmit={handlePasteSubmit}>
+              <div className="form-group paste-field">
+                <label htmlFor="paste-text">One item per line</label>
+                <textarea
+                  id="paste-text"
+                  className="input paste-textarea"
+                  placeholder={"2 cups flour\n1 1/2 tbsp sugar\n3 eggs"}
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  autoFocus
+                  rows={8}
+                />
+              </div>
+              <div className="dialog-actions">
+                <button type="button" className="btn btn-ghost" onClick={closePaste}>
+                  Cancel
+                </button>
+                <button className="btn" type="submit" disabled={pasting || !pasteText.trim()}>
+                  {pasting ? "Adding…" : "Add"}
                 </button>
               </div>
             </form>

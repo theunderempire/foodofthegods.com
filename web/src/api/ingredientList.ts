@@ -39,6 +39,13 @@ export async function addIngredients(
   return unwrapList(client.post(url(userId, "/many"), { ingredients }));
 }
 
+export async function addIngredientsFromText(
+  userId: string,
+  text: string,
+): Promise<IngredientList | null> {
+  return unwrapList(client.post(url(userId, "/text"), { text }));
+}
+
 export async function updateIngredient(
   userId: string,
   payload: { groupName: string; ingredientListItem: IngredientListItem },

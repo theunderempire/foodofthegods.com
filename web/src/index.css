@@ -1160,6 +1160,16 @@ textarea.input {
 }
 
 /* ─── Add Item Dialog ─────────────────────────────────────────────────────── */
+.paste-field {
+  margin-bottom: 1.5rem;
+}
+
+.paste-textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
+}
+
 .add-item-dialog {
   max-width: 420px;
 }
