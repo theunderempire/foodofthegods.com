@@ -13,6 +13,9 @@ services:
       - thumbnails:/usr/src/app/public/thumbnails
 
   fotg-db:
+    environment:
+      - GLIBC_TUNABLES=glibc.pthread.rseq=1
+
     volumes:
       - mongodata:/data/db
 
