@@ -8,6 +8,7 @@ const mockAddIngredients = vi.fn();
 const mockRemoveIngredient = vi.fn();
 const mockUpdateIngredient = vi.fn();
 const mockGroupIngredients = vi.fn();
+const mockAddIngredientsFromText = vi.fn();
 
 vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({ username: "testuser-hash" }),
@@ -21,6 +22,7 @@ vi.mock("../../contexts/SettingsContext", () => ({
 vi.mock("../../api/ingredientList", () => ({
   getIngredientList: (...args: unknown[]) => mockGetIngredientList(...args),
   addIngredients: (...args: unknown[]) => mockAddIngredients(...args),
+  addIngredientsFromText: (...args: unknown[]) => mockAddIngredientsFromText(...args),
   removeIngredient: (...args: unknown[]) => mockRemoveIngredient(...args),
   updateIngredient: (...args: unknown[]) => mockUpdateIngredient(...args),
   clearAllIngredients: vi.fn(),
@@ -118,6 +120,7 @@ describe("IngredientList", () => {
     mockRemoveIngredient.mockReset();
     mockUpdateIngredient.mockReset();
     mockGroupIngredients.mockReset();
+    mockAddIngredientsFromText.mockReset();
     mockUseSettings.mockReturnValue({ hasGeminiKey: true, refreshSettings: vi.fn() });
   });
 
@@ -327,5 +330,91 @@ describe("IngredientList", () => {
     await userEvent.click(screen.getByRole("button", { name: /Auto-group/i }));
 
     expect(screen.getByText("butter")).toBeInTheDocument();
+  });
+  describe("paste list dialog", () => {
+    async function openPasteDialog() {
+      mockGetIngredientList.mockResolvedValue(null);
+      renderList();
+      await screen.findByText("Your shopping list is empty.");
+      await userEvent.click(screen.getByRole("button", { name: "Paste list" }));
+    }
+
+    test("opens with the submit button disabled until text is entered", async () => {
+      await openPasteDialog();
+
+      expect(screen.getByText("Paste Items")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+
+      await userEvent.type(screen.getByLabelText("One item per line"), "   ");
+      expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+
+      await userEvent.type(screen.getByLabelText("One item per line"), "2 cups flour");
+      expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
+    });
+
+    test("submits the pasted text, updates the list and closes", async () => {
+      mockAddIngredientsFromText.mockResolvedValue(mockList);
+      await openPasteDialog();
+
+      await userEvent.type(screen.getByLabelText("One item per line"), "2 tbsp butter");
+      await userEvent.click(screen.getByRole("button", { name: "Add" }));
+
+      expect(mockAddIngredientsFromText).toHaveBeenCalledWith("testuser-hash", "2 tbsp butter");
+      expect(await screen.findByText("butter")).toBeInTheDocument();
+      expect(screen.queryByText("Paste Items")).not.toBeInTheDocument();
+    });
+
+    test("shows a server error inside the dialog and keeps the pasted text", async () => {
+      mockAddIngredientsFromText.mockRejectedValue(
+        new Error("Couldn't find any ingredients in that text"),
+      );
+      await openPasteDialog();
+
+      await userEvent.type(screen.getByLabelText("One item per line"), "-");
+      await userEvent.click(screen.getByRole("button", { name: "Add" }));
+
+      const alert = await screen.findByText("Couldn't find any ingredients in that text");
+      expect(alert.closest(".add-item-dialog")).not.toBeNull();
+      expect(screen.getByText("Paste Items")).toBeInTheDocument();
+      expect(screen.getByLabelText("One item per line")).toHaveValue("-");
+    });
+
+    test("clears the text and any error when cancelled", async () => {
+      mockAddIngredientsFromText.mockRejectedValue(new Error("nope"));
+      await openPasteDialog();
+
+      await userEvent.type(screen.getByLabelText("One item per line"), "salt");
+      await userEvent.click(screen.getByRole("button", { name: "Add" }));
+      await screen.findByText("nope");
+      await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(screen.queryByText("Paste Items")).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Paste list" }));
+      expect(screen.getByLabelText("One item per line")).toHaveValue("");
+      expect(screen.queryByText("nope")).not.toBeInTheDocument();
+    });
+
+    test("ignores Cancel and overlay clicks while the request is in flight", async () => {
+      mockAddIngredientsFromText.mockImplementation(() => new Promise(() => {}));
+      await openPasteDialog();
+
+      await userEvent.type(screen.getByLabelText("One item per line"), "2 cups flour");
+      await userEvent.click(screen.getByRole("button", { name: "Add" }));
+      expect(await screen.findByRole("button", { name: "Adding…" })).toBeDisabled();
+
+      await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(screen.getByLabelText("One item per line")).toHaveValue("2 cups flour");
+
+      await userEvent.click(document.querySelector(".dialog-overlay") as Element);
+      expect(screen.getByText("Paste Items")).toBeInTheDocument();
+    });
+
+    test("the Paste list button is disabled while the list is being grouped", async () => {
+      mockGetIngredientList.mockResolvedValue(mockGroupingList);
+      renderList();
+      await screen.findByRole("button", { name: "Grouping..." });
+
+      expect(screen.getByRole("button", { name: "Paste list" })).toBeDisabled();
+    });
   });
 });

@@ -7,12 +7,20 @@ import {
   extractCandidateText,
   parseJsonLoosely,
 } from "./gemini.service.js";
+import {
+  cleanIngredientName,
+  mergeDuplicateItems,
+  normalizeUnit,
+  parseIngredientLines,
+  parseQuantity,
+} from "./ingredientMath.js";
 
 const requestService = new RequestService();
 
 const IngredientService = function () {
   this.addIngredient = addIngredient;
   this.addManyIngredients = addManyIngredients;
+  this.addIngredientsFromText = addIngredientsFromText;
   this.getIngredientListForUser = getIngredientListForUser;
   this.groupIngredientList = groupIngredientList;
   this.removeAllIngredients = removeAllIngredients;
@@ -113,6 +121,144 @@ const IngredientService = function () {
     );
   }
 
+  // Lines the deterministic parser found no unit for ("1 large onion", "2 14-oz cans
+  // tomatoes", "salt") get a second opinion from Gemini, which only splits the line
+  // into quantity / unit / name. It never computes: the quantity comes back as
+  // written and is parsed here, and a number the parser already found is never
+  // overridden. Any failure falls back to the deterministic result.
+  async function refineWithAi(req, lines) {
+    const uncertain = lines.map((l, i) => ({ ...l, i })).filter((l) => l.parsed.unit === undefined);
+    if (!uncertain.length) return lines.map((l) => l.parsed);
+
+    const refined = lines.map((l) => l.parsed);
+    try {
+      const { apiKey, url } = await getGeminiConfig(req);
+      if (!apiKey) return refined;
+
+      const response = await requestGemini({
+        url,
+        apiKey,
+        prompt: `Split each grocery list line into a quantity, a unit and an ingredient name.
+
+Rules:
+- "quantity" is the number exactly as written in the line (e.g. "2", "1 1/2", "½", "2-3"). Do not calculate or convert anything. Use "" if the line has no number.
+- "unit" is a single measuring or packaging word in singular form (e.g. "cup", "tbsp", "oz", "lb", "g", "can", "clove", "bunch", "package"). Use "" when the quantity counts whole items (e.g. "3 eggs") or there is no unit.
+- "name" is the ingredient itself. Keep descriptors that matter ("large", "diced", "14-oz") in the name, but not the quantity or unit.
+- Return one object per input line, with the same "i".
+
+Lines: ${JSON.stringify(uncertain.map((l) => ({ i: l.i, text: l.raw })))}`,
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              properties: {
+                i: { type: "INTEGER" },
+                name: { type: "STRING" },
+                quantity: { type: "STRING" },
+                unit: { type: "STRING" },
+              },
+              required: ["i", "name", "quantity", "unit"],
+            },
+          },
+        },
+      });
+      if (!response.ok) return refined;
+      const candidate = extractCandidateText(await response.json());
+      if (!candidate.text) return refined;
+      const results = parseJsonLoosely(candidate.text, "array");
+      if (!Array.isArray(results)) return refined;
+
+      const allowed = new Set(uncertain.map((l) => l.i));
+      for (const r of results) {
+        if (!r || !allowed.has(r.i)) continue;
+        const name = cleanIngredientName(r.name);
+        const quantity = r.quantity === "" ? "" : parseQuantity(r.quantity);
+        if (!name || quantity === null) continue;
+
+        const original = lines[r.i].parsed;
+        // The model may fix the unit/name split, never a number we already have.
+        if (typeof original.amount === "number" && quantity !== original.amount) continue;
+
+        refined[r.i] = { name, amount: quantity, unit: normalizeUnit(r.unit) || undefined };
+      }
+    } catch (err) {
+      console.warn(`[ingredients] paste parse AI skipped: ${err.message || err}`);
+    }
+    return refined;
+  }
+
+  // Parses pasted free text and adds the results. The (possibly slow) AI step runs
+  // before the list is read, so it cannot hold a stale copy of the list.
+  async function addIngredientsFromText(req, res) {
+    const userId = req.params.userId;
+    if (!requestService.checkUser(req, userId)) return requestService.returnUnauthorized(res);
+
+    let ingredients;
+    try {
+      const text = req.body?.text;
+      if (typeof text !== "string" || !text.trim()) throw new Error("No text to parse");
+      if (text.length > 20000) throw new Error("Pasted text is too long");
+
+      const lines = parseIngredientLines(text);
+      if (!lines.length) throw new Error("Couldn't find any ingredients in that text");
+      if (lines.length > 500) throw new Error("Too many items (500 at most per paste)");
+
+      ingredients = await refineWithAi(req, lines);
+    } catch (err) {
+      return res.json({ success: false, data: err.message });
+    }
+
+    return withUserList(req, res, "addIngredientsFromText", (docs) =>
+      addToUngrouped(docs, ingredients),
+    );
+  }
+
+  // Asks Gemini only which items are the same ingredient. Amounts are never sent
+  // and never come back; the summing is done by mergeDuplicateItems. A failure
+  // here must not block grouping, so it degrades to name-matching only.
+  async function suggestDuplicateClusters({ groups, url, apiKey, userId }) {
+    const items = groups.flatMap((g) => g.items).filter((i) => !i.completed);
+    if (items.length < 2) return [];
+
+    try {
+      const response = await requestGemini({
+        url,
+        apiKey,
+        prompt: `Find items on this grocery list that are the same ingredient and should be combined into one line (e.g. "tomato" and "tomatoes", "all-purpose flour" and "AP flour"). Do NOT combine different products that merely share a word (e.g. "butter" and "peanut butter", "chicken broth" and "chicken breast"). Items with different preparations of the same thing (e.g. "garlic" and "minced garlic") may be combined.
+
+Return a JSON array of arrays of item ids. Each inner array lists the ids of items that are the same ingredient (two or more ids). Omit items that have no duplicate. Use only ids from the input.
+
+Items: ${JSON.stringify(
+          items.map((i) => ({
+            id: String(i.ingredient.id),
+            name: i.ingredient.name,
+            unit: i.ingredient.unit || "",
+          })),
+        )}`,
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "ARRAY",
+            items: { type: "ARRAY", items: { type: "STRING" } },
+          },
+        },
+      });
+      if (!response.ok) {
+        console.warn(`[ingredients] merge: Gemini status ${response.status} for user="${userId}"`);
+        return [];
+      }
+      const candidate = extractCandidateText(await response.json());
+      if (!candidate.text) return [];
+      const parsed = parseJsonLoosely(candidate.text, "array");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      console.warn(`[ingredients] merge skipped for user="${userId}": ${err.message || err}`);
+      return [];
+    }
+  }
+
   // Returns the ingredient list for a specific user
   async function getIngredientListForUser(req, res) {
     const id = req.params.userId;
@@ -207,13 +353,22 @@ const IngredientService = function () {
         docs = await collection.findOne({ userId }, {});
         if (docs?.ingredientList?.groups?.length) {
           console.log(`[ingredients] groupIngredientList: calling Gemini for user="${userId}"`);
-          const groups = docs.ingredientList.groups;
-
           await collection.update({ userId }, { $set: { "ingredientList.grouping": true } });
           broadcast(userId, {
             ...docs,
             ingredientList: { ...docs.ingredientList, grouping: true },
           });
+
+          // Combine duplicates first; the totals are computed here, not by the model.
+          const clusters = await suggestDuplicateClusters({
+            groups: docs.ingredientList.groups,
+            url: geminiUrl,
+            apiKey: geminiAPIKey,
+            userId,
+          });
+          // Held in memory only: nothing is written until grouping succeeds, so a
+          // failed grouping call leaves the user's list exactly as it was.
+          const groups = mergeDuplicateItems(docs.ingredientList.groups, clusters);
 
           // Only send id + name per item; the full objects never leave the server.
           const promptGroups = groups.map((group) => ({
@@ -266,7 +421,12 @@ Example response:
             // landed must not be clobbered by a rebuild from the earlier snapshot.
             // Items added since the prompt was built simply end up as ungrouped.
             const freshDocs = (await collection.findOne({ userId }, {})) || docs;
-            const itemsById = mapItemsById(freshDocs.ingredientList?.groups || []);
+            // Merging is deterministic given the same clusters, so re-applying it to
+            // the fresh list reproduces the ids the model saw and also folds in any
+            // item added in the meantime.
+            const itemsById = mapItemsById(
+              mergeDuplicateItems(freshDocs.ingredientList?.groups || [], clusters),
+            );
 
             const groupedItems = buildGroupsFromResponse(candidate.text, itemsById);
 

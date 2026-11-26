@@ -35,6 +35,10 @@ router.post("/:userId/many", function (req, res) {
   ingredientService.addManyIngredients(req, res);
 });
 
+router.post("/:userId/text", function (req, res) {
+  ingredientService.addIngredientsFromText(req, res);
+});
+
 router.patch("/:userId", function (req, res) {
   ingredientService.updateIngredient(req, res);
 });
