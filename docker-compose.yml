@@ -40,7 +40,8 @@ services:
       retries: 5
       start_period: 30s
 
-  db-seed:
+  # Imports the seed collections (drops existing data). Run via db-seed, not directly.
+  db-import:
     build: ./db/mongodb/seed
     profiles:
       - seed
@@ -53,6 +54,24 @@ services:
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
+
+  # The seed entry point: runs db-import, then generates thumbnails for the seeded
+  # recipes (their images are remote URLs the API serves from a local cache).
+  db-seed:
+    build: ./api
+    command: ["npm", "run", "backfill-thumbnails"]
+    profiles:
+      - seed
+    volumes:
+      - ./api:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      db-import:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    networks:
+      - fotg-network
 
 networks:
   fotg-network:

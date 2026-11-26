@@ -19,9 +19,17 @@ services:
     volumes:
       - mongodata:/data/db
 
+  db-import:
+    profiles:
+      - seed
+
   db-seed:
     profiles:
       - seed
+    environment:
+      - DB_HOST_NAME=fotg-db
+    volumes:
+      - thumbnails:/usr/src/app/public/thumbnails
 
 networks:
   fotg-network:

@@ -48,7 +48,7 @@ This starts:
 To seed the database on first run:
 
 ```bash
-docker compose --profile seed up db-seed
+docker compose --profile seed up --build db-seed
 ```
 
 > **After any change to `api/package.json`, rebuild with `-V`:**
@@ -193,7 +193,11 @@ Seed files are in `db/mongodb/seed/` and import three collections into the datab
 - `ingredientlist`
 - `users`
 
-> **Note:** The seed container runs with `--drop`, so it replaces existing data. Only run it intentionally.
+`db-seed` runs two steps in order: `db-import` loads the collections, then the API's
+`backfill-thumbnails` script generates thumbnails for the seeded recipes (which need
+the API's outbound network access to their image URLs).
+
+> **Note:** The import step runs with `--drop`, so it replaces existing data. Only run it intentionally.
 
 Backups run via cron using `db/backup.sh`. The script dumps the database and rotates old backups automatically.
 
@@ -238,7 +242,7 @@ must be `1` behind Caddy.
 ### First deploy (database seed)
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile seed up db-seed
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile seed up --build db-seed
 ```
 
-> **Note:** The seed container runs with `--drop`. Only run this on first deploy or when intentionally resetting data.
+> **Note:** The seed import runs with `--drop`. Only run this on first deploy or when intentionally resetting data.
