@@ -51,25 +51,35 @@ export function RecipeViewer() {
     };
   }, [recipe]);
 
-  const listIngredientNames = useMemo(() => {
-    const names = new Set<string>();
+  // "Added" is per recipe, not per name: another recipe's butter must not block
+  // adding this recipe's butter, since the list sums them.
+  const listSources = useMemo(() => {
+    const keys = new Set<string>();
     shoppingList?.groups.forEach((g) =>
-      g.items.forEach((i) => names.add(i.ingredient.name.toLowerCase())),
+      g.items.forEach((i) => i.ingredient.sources?.forEach((s) => keys.add(s))),
     );
-    return names;
+    return keys;
   }, [shoppingList]);
 
-  function isInList(name: string) {
-    return listIngredientNames.has(name.toLowerCase());
+  function sourceKey(ing: Ingredient) {
+    return `${recipe?._id ?? recipeId}:${ing.id}`;
+  }
+
+  function isInList(ing: Ingredient) {
+    return listSources.has(sourceKey(ing));
   }
 
   function scaleIngredient(ingredient: Ingredient): Ingredient {
-    return { ...ingredient, amount: scaleAmount(ingredient.amount, multiplier) };
+    return {
+      ...ingredient,
+      amount: scaleAmount(ingredient.amount, multiplier),
+      sources: [sourceKey(ingredient)],
+    };
   }
 
   async function handleAddToShoppingList() {
     if (!recipe || !username) return;
-    const toAdd = recipe.ingredients.filter((ing) => !isInList(ing.name)).map(scaleIngredient);
+    const toAdd = recipe.ingredients.filter((ing) => !isInList(ing)).map(scaleIngredient);
     if (toAdd.length === 0) return;
     setAddingToList(true);
     try {
@@ -85,7 +95,7 @@ export function RecipeViewer() {
   }
 
   async function handleAddIngredient(ingredient: Ingredient) {
-    if (!username || isInList(ingredient.name)) return;
+    if (!username || isInList(ingredient)) return;
     setAddingIngredientId(ingredient.id);
     try {
       const updated = await addIngredient(username, scaleIngredient(ingredient));
@@ -118,7 +128,7 @@ export function RecipeViewer() {
   if (loading) return <div className="page-loading">Loading recipe...</div>;
   if (error || !recipe) return <NotFound message="Recipe not found." />;
 
-  const newIngredientCount = recipe.ingredients.filter((ing) => !isInList(ing.name)).length;
+  const newIngredientCount = recipe.ingredients.filter((ing) => !isInList(ing)).length;
   const allAdded = newIngredientCount === 0;
 
   return (
@@ -229,7 +239,7 @@ export function RecipeViewer() {
             </div>
             <ul className="ingredient-list">
               {recipe.ingredients.map((ing) => {
-                const alreadyAdded = isInList(ing.name);
+                const alreadyAdded = isInList(ing);
                 return (
                   <li
                     key={ing.id}

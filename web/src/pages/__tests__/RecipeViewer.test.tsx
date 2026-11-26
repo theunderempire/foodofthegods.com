@@ -234,6 +234,45 @@ describe("RecipeViewer", () => {
     expect(screen.getByText("a pinch")).toBeInTheDocument();
   });
 
+  test("same ingredient from another recipe does not block adding; this recipe's own does", async () => {
+    mockGetRecipe.mockResolvedValue(mockRecipe);
+    mockGetIngredientList.mockResolvedValue({
+      lastModified: "",
+      groups: [
+        {
+          name: "ungrouped",
+          items: [
+            {
+              completed: false,
+              ingredient: {
+                id: "a",
+                name: "pasta",
+                amount: 1,
+                unit: "cups",
+                sources: ["other-recipe:9"],
+              },
+            },
+            {
+              completed: false,
+              ingredient: {
+                id: "b",
+                name: "cheese",
+                amount: 1,
+                unit: "lb",
+                sources: ["recipe-1:2"],
+              },
+            },
+          ],
+        },
+      ],
+    });
+    renderViewer();
+    await screen.findByRole("heading", { name: "Grandma's Lasagna" });
+
+    expect(await screen.findByLabelText("cheese already in shopping list")).toBeDisabled();
+    expect(screen.getByLabelText("Add pasta to shopping list")).toBeEnabled();
+  });
+
   test("adds scaled amounts to the shopping list", async () => {
     mockGetRecipe.mockResolvedValue(mockRecipe);
     mockAddIngredients.mockResolvedValue({ groups: [], lastModified: "" });
@@ -244,8 +283,8 @@ describe("RecipeViewer", () => {
     await userEvent.click(screen.getByRole("button", { name: "+ Shopping List" }));
 
     expect(mockAddIngredients).toHaveBeenCalledWith("testuser-hash", [
-      { id: 1, name: "pasta", amount: 3, unit: "cups" },
-      { id: 2, name: "cheese", amount: 1.5, unit: "lb" },
+      { id: 1, name: "pasta", amount: 3, unit: "cups", sources: ["recipe-1:1"] },
+      { id: 2, name: "cheese", amount: 1.5, unit: "lb", sources: ["recipe-1:2"] },
     ]);
   });
 

@@ -5,6 +5,9 @@ export interface Ingredient {
   // strings. Recipes imported before null-handling was added may have null.
   amount: number | string | null;
   unit?: string;
+  // Shopping-list items only: the "recipeId:ingredientId" keys this line was added
+  // from, so a recipe knows what it already contributed even after lines are merged.
+  sources?: string[];
 }
 
 export interface Direction {

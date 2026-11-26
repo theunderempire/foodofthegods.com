@@ -79,7 +79,7 @@ describe("mergeDuplicateItems", () => {
   });
 
   test("uses model-suggested clusters for different names", () => {
-    const items = group(item("1", "tomato", 2), item("2", "tomatoes", 3));
+    const items = group(item("1", "scallions", 2), item("2", "green onions", 3));
     assert.equal(mergeDuplicateItems(items)[0].items.length, 2);
     const out = mergeDuplicateItems(items, [["1", "2"]]);
     assert.equal(out[0].items.length, 1);

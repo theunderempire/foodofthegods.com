@@ -222,6 +222,23 @@ export function normalizeName(name) {
     .trim();
 }
 
+// Merge key for "same ingredient": normalised, with the last word reduced to a
+// singular so "onion"/"onions" and "cherry tomato"/"cherry tomatoes" match. Only
+// ever compared, never shown, so it need not be a real word. Deliberately
+// conservative: -ss/-us/-is words (hummus, asparagus) are left alone.
+function singular(word) {
+  if (word.length < 4 || /(ss|us|is)$/.test(word)) return word;
+  if (/[^aeiou]ies$/.test(word)) return word.replace(/ies$/, "y");
+  if (/(ch|sh|x|o)es$/.test(word)) return word.replace(/es$/, "");
+  return word.replace(/s$/, "");
+}
+
+export function nameKey(name) {
+  const words = normalizeName(name).split(" ");
+  words[words.length - 1] = singular(words[words.length - 1]);
+  return words.join(" ").trim();
+}
+
 // Key under which two amounts can be added: convertible units share a family,
 // everything else must match its unit exactly.
 function additionKey(unit) {
@@ -241,6 +258,12 @@ function fromBase(base, unit) {
 
 function isNumeric(amount) {
   return typeof amount === "number" && Number.isFinite(amount);
+}
+
+// Keeps the union of the recipes' source keys so merged lines still know where they came from.
+function mergedSources(items) {
+  const sources = [...new Set(items.flatMap((i) => i.ingredient.sources || []))];
+  return sources.length ? { sources } : {};
 }
 
 // Sums a set of list items that are all the same ingredient. Items whose amounts
@@ -285,6 +308,7 @@ function sumItems(items) {
         ...bucket[0].ingredient,
         amount: round(fromBase(totalBase, unit)),
         unit: unit || undefined,
+        ...mergedSources(bucket),
       },
     });
   }
@@ -324,7 +348,7 @@ export function mergeDuplicateItems(groups, suggestedClusters = []) {
   // Exact (normalised) name matches always merge, with or without the model.
   const byName = new Map();
   candidates.forEach((item) => {
-    const name = normalizeName(item.ingredient.name);
+    const name = nameKey(item.ingredient.name);
     if (!name) return;
     if (!byName.has(name)) byName.set(name, []);
     byName.get(name).push(String(item.ingredient.id));
